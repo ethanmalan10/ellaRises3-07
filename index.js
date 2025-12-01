@@ -12,6 +12,7 @@ app.use(express.json());
 
 // Static files (CSS, images, JS)
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static('public'));
 
 // ---------- View engine ----------
 app.set('view engine', 'ejs');
@@ -35,6 +36,7 @@ app.get('/surveys',      (req, res) => res.render('surveys'));
 app.get('/milestones',   (req, res) => res.render('milestones'));
 app.get('/donations',    (req, res) => res.render('donations'));
 app.get('/users',        (req, res) => res.render('users'));
+app.get('/register',     (req, res) => res.render('register'));
 
 // ---------- Start server ----------
 const PORT = process.env.PORT || 3000;

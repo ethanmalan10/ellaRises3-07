@@ -2,27 +2,40 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ella Rises</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/site.css">
+  <link rel="stylesheet" href="/styles/ella.css">
 </head>
 <body>
   <nav class="navbar">
-    <a href="/" class="nav-logo"><img src="/images/EllaRisesLogo.PNG" alt="Ella Rises" class="logo-img"></a>
-    <ul class="nav-links">
-      <li><a href="/participants">Participants</a></li>
-      <li><a href="/events">Events</a></li>
-      <li><a href="/surveys">Surveys</a></li>
-      <li><a href="/milestones">Milestones</a></li>
-      <li><a href="/donations">Donations</a></li>
-      <li><a href="/users">Users</a></li>
-    </ul>
+    <a href="/" class="navbar-brand">
+      <img src="/images/EllaRisesLogo.avif" alt="Ella Rises" class="logo-img">
+    </a>
+    <div class="navbar-nav">
+      <a href="/participants" class="nav-link">Participants</a>
+      <a href="/events" class="nav-link">Events</a>
+      <a href="/surveys" class="nav-link">Surveys</a>
+      <a href="/milestones" class="nav-link">Milestones</a>
+      <a href="/donations" class="nav-link">Donations</a>
+      <div class="dropdown">
+        <a href="#" class="nav-link">Users</a>
+        <div class="dropdown-content">
+          <a href="/login">Login</a>
+          <a href="/register">Register</a>
+          <a href="/users">Manage Users</a>
+        </div>
+      </div>
+    </div>
   </nav>
 
   <main class="container">
-    <!-- THIS LINE IS CRITICAL -->
     <%- body %>
   </main>
+
+  <footer class="footer">
+    <p>&copy; 2025 Ella Rises. Empowering the rising generation of women.</p>
+  </footer>
 </body>
 </html>

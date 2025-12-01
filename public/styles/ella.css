@@ -54,20 +54,65 @@ h1, h2, h3, h4, h5 {
     box-shadow: 0px 3px 10px rgba(0,0,0,0.07);
 }
 
-/* Navbar */
+/* -------------------------------------------
+   NAVBAR STYLES
+------------------------------------------- */
+
 .navbar {
     background-color: var(--charcoal) !important;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 40px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
 
-.navbar-brand, 
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+}
+
+.logo-img {
+    height: 60px;
+    width: auto;
+    transition: transform 0.3s ease;
+}
+
+.logo-img:hover {
+    transform: scale(1.05);
+}
+
+.navbar-nav {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
 .navbar-nav .nav-link {
     color: var(--cream) !important;
-    font-family: var(--font-serif);
-    letter-spacing: 1px;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    text-decoration: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    background-color: transparent;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    letter-spacing: 0.5px;
+    font-size: 0.95rem;
 }
 
 .navbar-nav .nav-link:hover {
-    color: var(--pink-soft) !important;
+    background-color: var(--pink-soft);
+    color: var(--charcoal) !important;
+    border-color: var(--pink-soft);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(249, 175, 177, 0.3);
+}
+
+.navbar-nav .nav-link:active {
+    transform: translateY(0);
 }
 
 /* -------------------------------------------
@@ -153,6 +198,46 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* -------------------------------------------
+   LOGIN BUTTON STYLES
+------------------------------------------- */
+
+.btn-login,
+.login-button,
+input[type="submit"],
+button[type="submit"] {
+    background-color: var(--sage) !important;
+    color: white !important;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    text-decoration: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    border: 2px solid var(--sage) !important;
+    letter-spacing: 0.5px;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+
+.btn-login:hover,
+.login-button:hover,
+input[type="submit"]:hover,
+button[type="submit"]:hover {
+    background-color: var(--pink-soft) !important;
+    color: var(--charcoal) !important;
+    border-color: var(--pink-soft) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(249, 175, 177, 0.3);
+}
+
+.btn-login:active,
+.login-button:active,
+input[type="submit"]:active,
+button[type="submit"]:active {
+    transform: translateY(0);
+}
+
+/* -------------------------------------------
    ICON / HEART STYLE
 ------------------------------------------- */
 
@@ -160,6 +245,71 @@ input:focus, select:focus, textarea:focus {
     width: 48px;
     height: auto;
     opacity: 0.9;
+}
+
+/* -------------------------------------------
+   DROPDOWN MENU STYLES
+------------------------------------------- */
+/* -------------------------------------------
+   DROPDOWN MENU STYLES
+------------------------------------------- */
+
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: var(--charcoal);
+    min-width: 180px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    z-index: 1;
+    border-radius: 8px;
+    overflow: hidden;
+    top: 100%;
+    margin-top: 5px;
+    right: 0;  /* This aligns it to the right edge */
+}
+
+.dropdown-content a {
+    color: var(--cream) !important;
+    padding: 12px 20px;
+    text-decoration: none;
+    display: block;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    border-left: 3px solid transparent;
+}
+
+.dropdown-content a:hover {
+    background-color: var(--pink-soft);
+    color: var(--charcoal) !important;
+    border-left-color: var(--pink-dark);
+    padding-left: 25px;
+}
+
+.dropdown:hover .dropdown-content {
+    display: block;
+}
+
+.dropdown:hover > .nav-link {
+    background-color: var(--pink-soft);
+    color: var(--charcoal) !important;
+    border-color: var(--pink-soft);
+}
+
+/* -------------------------------------------
+   CONTAINER
+------------------------------------------- */
+
+.container {
+    max-width: 1200px;
+    margin: 30px auto;
+    padding: 0 20px;
 }
 
 /* -------------------------------------------
@@ -192,4 +342,3 @@ input:focus, select:focus, textarea:focus {
     margin-top: 40px;
     font-family: var(--font-serif);
 }
-
