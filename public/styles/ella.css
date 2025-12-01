@@ -1,0 +1,195 @@
+/* -------------------------------------------
+   ELLA RISES BRAND VARIABLES
+------------------------------------------- */
+:root {
+    --pink-light: #FFD8D1;
+    --pink-soft: #F9AFB1;
+    --pink-dark: #CE325B;
+
+    --blue-soft: #99B7C6;
+    --lavender: #978EC4;
+
+    --cream: #F9F5EA;
+    --sage: #9AB59D;
+
+    --charcoal: #3A3F3B;
+    --coral-soft: #F4B092;
+
+    --font-serif: 'DM Serif Display', serif;
+    --font-sans: 'Montserrat', sans-serif;
+    --font-script: 'TT Milk Script', cursive;
+}
+
+/* -------------------------------------------
+   GLOBAL PAGE STYLES
+------------------------------------------- */
+
+body {
+    background-color: var(--pink-light) !important;
+    font-family: var(--font-sans);
+    color: var(--charcoal);
+    margin: 0;
+    padding-bottom: 50px;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5 {
+    font-family: var(--font-serif);
+    color: var(--charcoal);
+}
+
+/* Script-style logo headings */
+.logo-script {
+    font-family: var(--font-script);
+    font-size: 2.8rem;
+    color: var(--charcoal);
+}
+
+/* Cards */
+.card {
+    background-color: var(--cream);
+    border-radius: 12px;
+    border: none;
+    padding: 20px;
+    box-shadow: 0px 3px 10px rgba(0,0,0,0.07);
+}
+
+/* Navbar */
+.navbar {
+    background-color: var(--charcoal) !important;
+}
+
+.navbar-brand, 
+.navbar-nav .nav-link {
+    color: var(--cream) !important;
+    font-family: var(--font-serif);
+    letter-spacing: 1px;
+}
+
+.navbar-nav .nav-link:hover {
+    color: var(--pink-soft) !important;
+}
+
+/* -------------------------------------------
+   BUTTON STYLES (Bootstrap override)
+------------------------------------------- */
+
+.btn-pink {
+    background-color: var(--pink-soft);
+    color: var(--charcoal);
+    border: none;
+}
+.btn-pink:hover {
+    background-color: var(--charcoal);
+    color: white;
+}
+
+.btn-sage {
+    background-color: var(--sage);
+    color: white;
+    border: none;
+}
+.btn-sage:hover {
+    background-color: var(--charcoal);
+    color: white;
+}
+
+.btn-darkpink {
+    background-color: var(--pink-dark);
+    color: white;
+    border: none;
+}
+.btn-darkpink:hover {
+    background-color: var(--charcoal);
+    color: white;
+}
+
+.btn-cream {
+    background-color: var(--cream);
+    color: var(--charcoal);
+    border: 1px solid var(--charcoal);
+}
+.btn-cream:hover {
+    background-color: var(--charcoal);
+    color: var(--cream);
+}
+
+/* -------------------------------------------
+   FORM STYLES
+------------------------------------------- */
+
+input, select, textarea {
+    border-radius: 8px !important;
+    border: 1px solid var(--charcoal) !important;
+    padding: 10px !important;
+}
+
+input:focus, select:focus, textarea:focus {
+    border-color: var(--pink-dark) !important;
+    box-shadow: 0 0 5px rgba(206, 50, 91, 0.4) !important;
+}
+
+/* -------------------------------------------
+   HERO SECTION (Landing Page)
+------------------------------------------- */
+
+.hero {
+    background-color: var(--pink-soft);
+    color: var(--charcoal);
+    padding: 80px 20px;
+    text-align: center;
+    border-bottom: 6px solid var(--charcoal);
+}
+
+.hero h1 {
+    font-family: var(--font-serif);
+    font-size: 3rem;
+}
+
+.hero p {
+    font-size: 1.2rem;
+    max-width: 650px;
+    margin: 0 auto;
+}
+
+/* -------------------------------------------
+   ICON / HEART STYLE
+------------------------------------------- */
+
+.ella-heart {
+    width: 48px;
+    height: auto;
+    opacity: 0.9;
+}
+
+/* -------------------------------------------
+   TABLE STYLING
+------------------------------------------- */
+
+.table {
+    background-color: var(--cream);
+    color: var(--charcoal);
+}
+
+.table thead {
+    background-color: var(--charcoal);
+    color: var(--cream);
+}
+
+.table tbody tr:hover {
+    background-color: var(--pink-soft);
+}
+
+/* -------------------------------------------
+   FOOTER
+------------------------------------------- */
+
+.footer {
+    text-align: center;
+    padding: 20px;
+    background-color: var(--charcoal);
+    color: var(--cream);
+    margin-top: 40px;
+    font-family: var(--font-serif);
+}
+
