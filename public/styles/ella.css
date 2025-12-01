@@ -303,6 +303,41 @@ button[type="submit"]:active {
 }
 
 /* -------------------------------------------
+   HOME PAGE LOGIN BUTTON
+------------------------------------------- */
+
+.btn-login-home {
+    display: inline-block;
+    background-color: var(--sage);
+    color: white;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    text-decoration: none;
+    padding: 12px 30px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    border: 2px solid var(--sage);
+    letter-spacing: 0.5px;
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-login-home:hover {
+    background-color: var(--charcoal);
+    color: white;
+    border-color: var(--charcoal);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(58, 63, 59, 0.3);
+}
+
+.btn-login-home:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+
+/* -------------------------------------------
    CONTAINER
 ------------------------------------------- */
 
