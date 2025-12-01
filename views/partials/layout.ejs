@@ -1,12 +1,28 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <%- include('_head') %>
-  </head>
-  <body>
-    <%- include('_nav') %>
-    <main class="container">
-      <%- body %>
-    </main>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <title>Ella Rises</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="nav-logo"><img src="/images/EllaRisesLogo.PNG" alt="Ella Rises" class="logo-img"></a>
+    <ul class="nav-links">
+      <li><a href="/participants">Participants</a></li>
+      <li><a href="/events">Events</a></li>
+      <li><a href="/surveys">Surveys</a></li>
+      <li><a href="/milestones">Milestones</a></li>
+      <li><a href="/donations">Donations</a></li>
+      <li><a href="/users">Users</a></li>
+    </ul>
+  </nav>
+
+  <main class="container">
+    <!-- THIS LINE IS CRITICAL -->
+    <%- body %>
+  </main>
+</body>
 </html>
