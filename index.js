@@ -9,9 +9,9 @@ const { Pool } = require('pg');
 
 const app = express();
 
-/* ----------------------------------
-   DATABASE
----------------------------------- */
+/* -----------------------------
+   Database (Postgres)
+----------------------------- */
 const pool = new Pool({
   host: process.env.PGHOST || process.env.DB_HOST,
   user: process.env.PGUSER || process.env.DB_USER,
@@ -21,36 +21,40 @@ const pool = new Pool({
   ssl: process.env.PGSSL === 'true' ? { rejectUnauthorized: false } : false,
 });
 
-/* ----------------------------------
-   EJS + STATIC
----------------------------------- */
+/* -----------------------------
+   EJS + Layouts + Static
+----------------------------- */
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+
 app.use(expressLayouts);
+// Global layout file: views/partials/layout.ejs
 app.set('layout', path.join('partials', 'layout'));
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+
+// Public assets (/public/css, /public/images, etc.)
 app.use(express.static(path.join(__dirname, 'public')));
 
-/* ----------------------------------
-   SESSIONS
----------------------------------- */
+/* -----------------------------
+   Sessions + expose user to views
+----------------------------- */
 app.use(
   session({
     secret: process.env.SESSION_SECRET || 'dev-session-secret',
     resave: false,
     saveUninitialized: false,
-    cookie: { maxAge: 86400000 },
+    cookie: { maxAge: 1000 * 60 * 60 * 24 }, // 1 day
   })
 );
 
+// available in all EJS as `currentUser`
 app.use((req, res, next) => {
-  res.locals.currentUser = req.session.user || null;
+  res.locals.currentUser = req.session.user || null; // { id, email, role }
   next();
 });
 
-<<<<<<< HEAD
 /* -----------------------------
    Auth guards
 ----------------------------- */
@@ -61,17 +65,11 @@ function mapRole(level) {
   return 'user';
 }
 
-=======
-/* ----------------------------------
-   AUTH GUARDS
----------------------------------- */
->>>>>>> 9a3098b (donations final)
 function requireAuth(req, res, next) {
   if (!req.session.user) return res.redirect('/login');
   next();
 }
 
-<<<<<<< HEAD
 function requireManager(req, res, next) {
   const u = req.session.user;
   if (!u) return res.status(403).send('Forbidden (manager only)');
@@ -81,54 +79,53 @@ function requireManager(req, res, next) {
   }
   next();
 }
-=======
-/* ----------------------------------
-   PUBLIC ROUTES
----------------------------------- */
->>>>>>> 9a3098b (donations final)
 
-// HOME (shows toast if returned from donation)
+/* -----------------------------
+   PUBLIC PAGES  (match your /views tree exactly)
+----------------------------- */
+
+// / -> views/index.ejs
 app.get('/', (req, res) => {
-  const donated = req.query.donated === '1';
-  const donor = req.query.donor || null;
-  const amount = req.query.amount || null;
-  res.render('index', { title: 'Ella Rises', donated, donor, amount });
+  res.render('index', { title: 'Ella Rises' });
 });
 
-// DONATIONS
+// /donations -> views/donations/donations.ejs
 app.get('/donations', (req, res) => {
   res.render(path.join('donations', 'donations'), { title: 'Donations' });
 });
 
-// Handle placeholder pledge -> bounce home with query for toast
-app.post('/donations/pledge', (req, res) => {
-  const { fullName, amount } = req.body;
-  const donor = encodeURIComponent((fullName || '').trim());
-  const dollars = encodeURIComponent((amount || '').toString().trim());
-  return res.redirect(`/?donated=1&donor=${donor}&amount=${dollars}`);
-});
-
-// SURVEYS / EVENTS (pointing at existing files)
-app.get('/surveys', (req, res) => {
-  res.render(path.join('Surveys', 'userSurveys'), { title: 'Surveys' });
-});
+// /events -> views/events/events.ejs
 app.get('/events', (req, res) => {
   res.render(path.join('events', 'events'), { title: 'Events' });
 });
+
+// /surveys -> views/Surveys/userSurveys.ejs   (capital S in your folder)
+app.get('/surveys', (req, res) => {
+  res.render(path.join('Surveys', 'userSurveys'), { title: 'Surveys' });
+});
+
+// /milestones (public) -> views/milestones/userMilestones.ejs
 app.get('/milestones', (req, res) => {
   res.render(path.join('milestones', 'userMilestones'), { title: 'Milestones' });
 });
 
-/* ----------------------------------
-   LOGIN / REGISTER (unchanged from your last working version)
----------------------------------- */
+/* -----------------------------
+   AUTH (Login / Register / Logout)
+----------------------------- */
+
+// GET /login -> views/login/login.ejs
 app.get('/login', (req, res) => {
-  res.render(path.join('login', 'login'), { title: 'Login', error: null, created: undefined });
+  res.render(path.join('login', 'login'), {
+    title: 'Login',
+    error: null,
+    created: undefined,
+  });
 });
+
+// POST /login
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
-<<<<<<< HEAD
     const q = `
       SELECT userid, username, password, level
       FROM users
@@ -162,24 +159,25 @@ app.post('/login', async (req, res) => {
       role: mapRole(user.level),
     };
     return res.redirect('/');
-=======
-    const q = `SELECT userid, email, passwordhash, role FROM "User" WHERE email=$1 LIMIT 1`;
-    const { rows } = await pool.query(q, [email]);
-    if (rows.length === 0) return res.render(path.join('login', 'login'), { title: 'Login', error: 'Invalid email or password', created: undefined });
-    const user = rows[0];
-    if (user.passwordhash !== password) return res.render(path.join('login', 'login'), { title: 'Login', error: 'Invalid email or password', created: undefined });
-    req.session.user = { id: user.userid, email: user.email, role: user.role || 'user' };
-    return res.redirect('/my-account');
->>>>>>> 9a3098b (donations final)
   } catch (err) {
-    console.error(err);
-    return res.render(path.join('login', 'login'), { title: 'Login', error: 'Unexpected error. Try again.', created: undefined });
+    console.error('Login error:', err);
+    return res.render(path.join('login', 'login'), {
+      title: 'Login',
+      error: 'Unexpected error. Please try again.',
+      created: undefined,
+    });
   }
 });
 
+// Accept legacy link /login/register -> redirect to /register
+app.get('/login/register', (_req, res) => res.redirect('/register'));
+
+// GET /register -> views/login/register.ejs
 app.get('/register', (req, res) => {
   res.render(path.join('login', 'register'), { title: 'Create Account', error: null });
 });
+
+// POST /register
 app.post('/register', async (req, res) => {
   const {
     username,
@@ -211,7 +209,6 @@ app.post('/register', async (req, res) => {
 
   let client;
   try {
-<<<<<<< HEAD
     if (!username) {
       return res.render(path.join('login', 'register'), {
         title: 'Create Account',
@@ -270,31 +267,14 @@ app.post('/register', async (req, res) => {
     );
 
     await client.query('COMMIT');
-=======
-    if (password !== confirmPassword)
-      return res.render(path.join('login', 'register'), { title: 'Create Account', error: 'Passwords do not match.' });
 
-    const q = `
-      INSERT INTO "User"(firstname, lastname, email, passwordhash, dob,
-        school_or_job, phone, city, state, zipcode,
-        interest_arts, interest_stem, interest_both, role)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-    `;
-    const params = [
-      firstName, lastName, email, password, dob,
-      schoolOrJob, phone, city, state, zipcode,
-      !!interest_arts, !!interest_stem, !!interest_both, 'user'
-    ];
-    await pool.query(q, params);
->>>>>>> 9a3098b (donations final)
-
+    // Show success ribbon on login screen
     return res.render(path.join('login', 'login'), {
       title: 'Login',
       error: null,
-      created: 'Your account was created successfully! Please log in.'
+      created: 'Your account was created successfully. Please log in.',
     });
   } catch (err) {
-<<<<<<< HEAD
     console.error('Register error:', err);
     if (client) {
       try {
@@ -318,45 +298,57 @@ app.post('/register', async (req, res) => {
         console.error('Release error:', releaseErr);
       }
     }
-=======
-    console.error(err);
-    let msg = 'Could not create account.';
-    if (err.code === '23505') msg = 'Email already exists.';
-    return res.render(path.join('login', 'register'), { title: 'Create Account', error: msg });
->>>>>>> 9a3098b (donations final)
   }
 });
 
+// Allow GET /logout from navbar and POST /logout from forms
 app.get('/logout', (req, res) => req.session.destroy(() => res.redirect('/')));
+app.post('/logout', (req, res) => req.session.destroy(() => res.redirect('/')));
 
-/* ----------------------------------
-   AUTH PAGES
----------------------------------- */
-function requireAuth(req, res, next) {
-  if (!req.session.user) return res.redirect('/login');
-  next();
-}
+/* -----------------------------
+   AUTHENTICATED PAGES
+----------------------------- */
+
+// /my-account -> views/account/account.ejs
 app.get('/my-account', requireAuth, (req, res) => {
   res.render(path.join('account', 'account'), { title: 'My Account' });
 });
 
-/* ----------------------------------
-   HEALTH + 404
----------------------------------- */
-app.get('/healthz', async (_req, res) => {
-  try { await pool.query('SELECT 1'); res.send('ok'); }
-  catch { res.status(500).send('db error'); }
-});
-app.use((req, res) => res.status(404).send('Not Found'));
+/* -------- Optional manager routes based on your files -------- */
 
-/* ----------------------------------
-   START
----------------------------------- */
+// /admin/milestones -> views/milestones/manMilestones.ejs
+app.get('/admin/milestones', requireManager, (req, res) => {
+  res.render(path.join('milestones', 'manMilestones'), { title: 'Manage Milestones' });
+});
+
+// If you later add an “all users” page, point it at the real file:
+// app.get('/admin/users', requireManager, (req, res) => {
+//   res.render(path.join('allUsers', 'index'), { title: 'All Users' });
+// });
+
+/* -----------------------------
+   Health & 404
+----------------------------- */
+app.get('/healthz', async (_req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.send('ok');
+  } catch {
+    res.status(500).send('db error');
+  }
+});
+
+// Simple 404 so we don't depend on a missing partial
+app.use((_req, res) => {
+  res.status(404).send('Not Found');
+});
+
+/* -----------------------------
+   Start
+----------------------------- */
 const PORT = Number(process.env.PORT || 3000);
-<<<<<<< HEAD
 app.listen(PORT, () => {
   console.log(`Ella Rises running → http://localhost:${PORT}`);
 });
-=======
-app.listen(PORT, () => console.log(`Ella Rises Running → http://localhost:${PORT}`));
->>>>>>> 9a3098b (donations final)
+
+// new
