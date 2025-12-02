@@ -1,32 +1,62 @@
+<%
+  // Available to all views from index.js middleware
+  const user = typeof currentUser !== 'undefined' ? currentUser : null;
+  const isManager = user && (user.role === 'manager' || user.role === 'admin');
+%>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ella Rises</title>
+  <title><%= typeof title !== 'undefined' ? title + ' – ' : '' %>Ella Rises</title>
+
+  <!-- Fonts + Main CSS -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles/ella.css">
 </head>
 <body>
+
+  <!-- NAVBAR -->
   <nav class="navbar">
+    <!-- Logo -->
     <a href="/" class="navbar-brand">
       <img src="/images/EllaRisesLogo.avif" alt="Ella Rises" class="logo-img">
     </a>
-    <div class="navbar-nav">
-      <a href="/participants" class="nav-link">Participants</a>
-      <a href="/events" class="nav-link">Events</a>
-      <a href="/surveys" class="nav-link">Surveys</a>
-      <a href="/milestones" class="nav-link">Milestones</a>
+
+    <!-- Ordered links: DONATIONS, SURVEYS, EVENTS -->
+    <div class="navbar-nav" style="margin-left: .25rem;">
       <a href="/donations" class="nav-link">Donations</a>
-      <div class="dropdown">
-        <a href="#" class="nav-link">Users</a>
-        <div class="dropdown-content">
-          <a href="/login">Login</a>
-          <a href="/register">Register</a>
-          <a href="/users">Manage Users</a>
+      <a href="/surveys"   class="nav-link">Surveys</a>
+      <a href="/events"    class="nav-link">Events</a>
+    </div>
+
+    <!-- Right side user controls -->
+    <div class="navbar-nav" style="margin-left:auto;">
+      <% if (!user) { %>
+        <!-- Login / Register dropdown -->
+        <div class="dropdown">
+          <a href="#" class="nav-link">Login / Register</a>
+          <div class="dropdown-content">
+            <a href="/login">Login</a>
+            <a href="/register">Create Account</a>
+          </div>
         </div>
-      </div>
+      <% } else { %>
+        <!-- My Account dropdown -->
+        <div class="dropdown">
+          <a href="#" class="nav-link">My Account</a>
+          <div class="dropdown-content">
+            <a href="/my-account">Profile</a>
+            <a href="/participants">All Participants</a>
+            <% if (isManager) { %>
+              <a href="/milestones">Milestones</a>
+              <a href="/dashboard">Dashboard</a>
+            <% } %>
+            <a href="/logout">Logout</a>
+          </div>
+        </div>
+      <% } %>
     </div>
   </nav>
 
