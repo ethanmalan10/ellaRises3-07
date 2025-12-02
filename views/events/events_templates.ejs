@@ -1,0 +1,75 @@
+<main class="container main-content" style="max-width:1100px; margin-top:2.5rem;">
+  <header style="display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:1.25rem; flex-wrap:wrap;">
+    <div>
+      <h1 style="margin:0; font-family:var(--font-serif); color:var(--charcoal);">Manage Event Templates</h1>
+      <p style="margin:.3rem 0 0 0; color:#4b5563;">Create, edit, or remove templates. Occurrences linked to a template will be deleted when you delete the template.</p>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+      <input id="template-search" type="text" placeholder="Search templates..." style="padding:10px 12px; border-radius:10px; border:1px solid #d1d5db; min-width:200px;">
+      <a href="/events" class="btn-cream" style="padding:12px 16px; border-radius:10px; text-decoration:none;">Back to Events</a>
+      <a href="/event-templates/new" class="btn-cream" style="padding:12px 16px; border-radius:10px; text-decoration:none;">Create Template</a>
+    </div>
+  </header>
+
+  <% if (message) { %>
+    <% let msgText = message;
+       if (message === 'template-created') msgText = 'Template created.';
+       else if (message === 'template-updated') msgText = 'Template updated.';
+       else if (message === 'template-deleted') msgText = 'Template deleted.';
+       else if (message === 'template-delete-error') msgText = 'Could not delete template.';
+       else if (message === 'bad-template') msgText = 'Invalid template id.';
+       else if (message === 'notfound') msgText = 'Template not found.';
+    %>
+    <div style="background:#e8faef; border:1px solid #9bd3b3; color:#205e37; padding:12px 16px; border-radius:10px; margin-bottom:1rem;">
+      <%= msgText %>
+    </div>
+  <% } %>
+
+  <% if (!templates || templates.length === 0) { %>
+    <p style="color:#6b7280;">No templates yet. Click "Create Template" to add one.</p>
+  <% } else { %>
+    <div id="template-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px;">
+      <% templates.forEach(tpl => { %>
+        <div class="card template-card" data-name="<%= tpl.eventname.toLowerCase() %>" data-desc="<%= (tpl.eventdescription || '').toLowerCase() %>" style="padding:16px; border-radius:14px; border:1px solid #e5e7eb; box-shadow:0 10px 30px rgba(0,0,0,0.04);">
+          <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
+            <div>
+              <h4 style="margin:0 0 .3rem 0; font-size:1.1rem; color:var(--charcoal);"><%= tpl.eventname %></h4>
+              <p style="margin:0; color:#4b5563;"><%= tpl.eventdescription || 'No description.' %></p>
+            </div>
+            <span style="background:#eef2ff; color:#3730a3; padding:4px 8px; border-radius:8px; font-size:.8rem;"><%= tpl.eventtypename || 'Type' %></span>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:8px; margin-top:12px; color:#374151; font-size:.95rem;">
+            <div><strong>Recurrence</strong><br><%= tpl.eventrecurrencepattern || '—' %></div>
+            <div><strong>Default Capacity</strong><br><%= tpl.eventdefaultcapacity || '—' %></div>
+            <div><strong>Occurrences</strong><br><%= tpl.occurrences_count %></div>
+          </div>
+
+          <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:14px;">
+            <a href="/event-templates/<%= tpl.eventtemplateid %>/edit" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Edit</a>
+            <form method="POST" action="/event-templates/<%= tpl.eventtemplateid %>/delete" onsubmit="return confirm('Delete this template and all its occurrences/registrations?');">
+              <button type="submit" class="btn-outline" style="padding:10px 14px; border-radius:10px; border:1px solid #dc2626; color:#dc2626;">Delete</button>
+            </form>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</main>
+
+<script>
+  (() => {
+    const input = document.getElementById('template-search');
+    const cards = Array.from(document.querySelectorAll('.template-card'));
+    if (!input || cards.length === 0) return;
+    input.addEventListener('input', () => {
+      const q = input.value.trim().toLowerCase();
+      cards.forEach(c => {
+        const name = c.dataset.name || '';
+        const desc = c.dataset.desc || '';
+        const match = !q || name.includes(q) || desc.includes(q);
+        c.style.display = match ? '' : 'none';
+      });
+    });
+  })();
+</script>
