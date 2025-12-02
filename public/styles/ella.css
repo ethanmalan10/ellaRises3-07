@@ -1,6 +1,8 @@
 /* -------------------------------------------
    MISC CSS STYLING
 ------------------------------------------- */
+/* ensure right-aligned menus can anchor to the right edge */
+.dropdown-content { right: 0; }
 
 /* This line of code makes the footer always 
 sit at the bottom of the screen */
