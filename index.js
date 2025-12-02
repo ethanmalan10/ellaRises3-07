@@ -13,11 +13,11 @@ const app = express();
    Database (Postgres)
 ----------------------------- */
 const pool = new Pool({
-  host: process.env.PGHOST,
-  user: process.env.PGUSER,
-  password: process.env.PGPASSWORD,
-  database: process.env.PGDATABASE,
-  port: Number(process.env.PGPORT || 5432),
+  host: process.env.PGHOST || process.env.DB_HOST,
+  user: process.env.PGUSER || process.env.DB_USER,
+  password: process.env.PGPASSWORD || process.env.DB_PASSWORD,
+  database: process.env.PGDATABASE || process.env.DB_NAME,
+  port: Number(process.env.PGPORT || process.env.DB_PORT || 5432),
   ssl: process.env.PGSSL === 'true' ? { rejectUnauthorized: false } : false,
 });
 
@@ -58,6 +58,13 @@ app.use((req, res, next) => {
 /* -----------------------------
    Auth guards
 ----------------------------- */
+function mapRole(level) {
+  const v = (level || 'user').toString().trim().toLowerCase();
+  if (v === 'a' || v === 'admin') return 'admin';
+  if (v === 'm' || v === 'manager') return 'manager';
+  return 'user';
+}
+
 function requireAuth(req, res, next) {
   if (!req.session.user) return res.redirect('/login');
   next();
@@ -65,7 +72,9 @@ function requireAuth(req, res, next) {
 
 function requireManager(req, res, next) {
   const u = req.session.user;
-  if (!u || (u.role !== 'manager' && u.role !== 'admin')) {
+  if (!u) return res.status(403).send('Forbidden (manager only)');
+  const r = mapRole(u.role);
+  if (r !== 'manager' && r !== 'admin') {
     return res.status(403).send('Forbidden (manager only)');
   }
   next();
@@ -115,37 +124,41 @@ app.get('/login', (req, res) => {
 
 // POST /login
 app.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+  const { username, password } = req.body;
   try {
     const q = `
-      SELECT userid, email, passwordhash, role
-      FROM "User"
-      WHERE email = $1
+      SELECT userid, username, password, level
+      FROM users
+      WHERE username = $1
       LIMIT 1
     `;
-    const { rows } = await pool.query(q, [email]);
+    const { rows } = await pool.query(q, [username]);
 
     if (rows.length === 0) {
       return res.render(path.join('login', 'login'), {
         title: 'Login',
-        error: 'Invalid email or password',
+        error: 'Invalid username or password',
         created: undefined,
       });
     }
 
     const user = rows[0];
     // TODO: replace with bcrypt.compare(...)
-    const ok = user.passwordhash === password;
+    const ok = user.password === password;
     if (!ok) {
       return res.render(path.join('login', 'login'), {
         title: 'Login',
-        error: 'Invalid email or password',
+        error: 'Invalid username or password',
         created: undefined,
       });
     }
 
-    req.session.user = { id: user.userid, email: user.email, role: user.role || 'user' };
-    return res.redirect('/my-account');
+    req.session.user = {
+      id: user.userid,
+      username: user.username,
+      role: mapRole(user.level),
+    };
+    return res.redirect('/');
   } catch (err) {
     console.error('Login error:', err);
     return res.render(path.join('login', 'login'), {
@@ -167,12 +180,42 @@ app.get('/register', (req, res) => {
 // POST /register
 app.post('/register', async (req, res) => {
   const {
-    firstName, lastName, email, password, confirmPassword,
-    dob, schoolOrJob, phone, city, state, zipcode,
-    interest_arts, interest_stem, interest_both
+    username,
+    password,
+    confirmPassword,
+    firstName,
+    lastName,
+    email,
+    dob,
+    schoolOrJob,
+    phone,
+    city,
+    state,
+    zipcode,
+    interest_arts,
+    interest_stem,
+    interest_both,
   } = req.body;
 
+  const fieldOfInterest = interest_both
+    ? 'both'
+    : interest_arts
+    ? 'arts'
+    : interest_stem
+    ? 'stem'
+    : null;
+
+  const affiliationType = schoolOrJob ? 'school_or_job' : null;
+
+  let client;
   try {
+    if (!username) {
+      return res.render(path.join('login', 'register'), {
+        title: 'Create Account',
+        error: 'Username is required.',
+      });
+    }
+
     if (password !== confirmPassword) {
       return res.render(path.join('login', 'register'), {
         title: 'Create Account',
@@ -180,33 +223,50 @@ app.post('/register', async (req, res) => {
       });
     }
 
-    const q = `
-      INSERT INTO "User" (
-        firstname, lastname, email, passwordhash, dob,
-        school_or_job, phone, city, state, zipcode,
-        interest_arts, interest_stem, interest_both, role
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-      RETURNING userid, email, role
-    `;
-    const params = [
-      firstName || null,
-      lastName  || null,
-      email,
-      password, // TODO: bcrypt hash
-      dob || null,
-      schoolOrJob || null,
-      phone || null,
-      city || null,
-      state || null,
-      zipcode || null,
-      !!interest_arts,
-      !!interest_stem,
-      !!interest_both,
-      'user',
-    ];
+    client = await pool.connect();
+    await client.query('BEGIN');
 
-    await pool.query(q, params);
+    const authInsert = await client.query(
+      `INSERT INTO users (username, password, level)
+       VALUES ($1, $2, $3)
+       RETURNING userid, username, level`,
+      [username, password, 'u'] // TODO: bcrypt hash
+    );
+
+    await client.query(
+      `INSERT INTO participant (
+        participantemail,
+        participantfirstname,
+        participantlastname,
+        participantdob,
+        participantrole,
+        participantphone,
+        participantcity,
+        participantstate,
+        participantzip,
+        participantaffiliationtype,
+        participantaffiliationname,
+        participantfieldofinterest,
+        totaldonations
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+      [
+        email || null,
+        firstName || null,
+        lastName || null,
+        dob || null,
+        'participant',
+        phone || null,
+        city || null,
+        state || null,
+        zipcode || null,
+        affiliationType,
+        schoolOrJob || null,
+        fieldOfInterest,
+        0,
+      ]
+    );
+
+    await client.query('COMMIT');
 
     // Show success ribbon on login screen
     return res.render(path.join('login', 'login'), {
@@ -216,12 +276,28 @@ app.post('/register', async (req, res) => {
     });
   } catch (err) {
     console.error('Register error:', err);
+    if (client) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackErr) {
+        console.error('Rollback error:', rollbackErr);
+      }
+    }
+
     let msg = 'Could not create account.';
-    if (err.code === '23505') msg = 'Email already exists.';
+    if (err.code === '23505') msg = 'Username already exists.';
     return res.render(path.join('login', 'register'), {
       title: 'Create Account',
       error: msg,
     });
+  } finally {
+    if (client) {
+      try {
+        client.release();
+      } catch (releaseErr) {
+        console.error('Release error:', releaseErr);
+      }
+    }
   }
 });
 
