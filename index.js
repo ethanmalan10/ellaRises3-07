@@ -494,7 +494,7 @@ app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
     const q = `
-      SELECT userid, username, password, level
+      SELECT participantid, username, password, level
       FROM users
       WHERE username = $1
       LIMIT 1
@@ -529,7 +529,7 @@ app.post('/login', async (req, res) => {
     }
 
     req.session.user = {
-      id: user.userid,
+      id: user.participantid,
       username: user.username,
       role: mapRole(user.level),
       participantid: participantId,
@@ -605,7 +605,7 @@ app.post('/register', async (req, res) => {
     const authInsert = await client.query(
       `INSERT INTO users (username, password, level)
        VALUES ($1, $2, $3)
-       RETURNING userid, username, level`,
+       RETURNING participantid, username, level`,
       [username, password, 'u'] // TODO: bcrypt hash
     );
 
