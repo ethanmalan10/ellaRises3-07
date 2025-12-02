@@ -4,36 +4,47 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ella Rises</title>
+
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Global styles -->
   <link rel="stylesheet" href="/styles/ella.css">
 </head>
 <body>
-  <nav class="navbar">
-    <a href="/" class="navbar-brand">
+  <!-- Site Header / Navbar -->
+  <nav class="navbar" role="navigation" aria-label="Main">
+    <a href="/" class="navbar-brand" aria-label="Ella Rises – home">
       <img src="/images/EllaRisesLogo.avif" alt="Ella Rises" class="logo-img">
     </a>
+
     <div class="navbar-nav">
       <a href="/participants" class="nav-link">Participants</a>
       <a href="/events" class="nav-link">Events</a>
       <a href="/surveys" class="nav-link">Surveys</a>
       <a href="/milestones" class="nav-link">Milestones</a>
       <a href="/donations" class="nav-link">Donations</a>
+
       <div class="dropdown">
         <a href="#" class="nav-link">Users</a>
-        <div class="dropdown-content">
-          <a href="/login">Login</a>
-          <a href="/register">Register</a>
-          <a href="/users">Manage Users</a>
+        <div class="dropdown-content" role="menu">
+          <a href="/login" role="menuitem">Login</a>
+          <a href="/register" role="menuitem">Register</a>
+          <a href="/users" role="menuitem">Manage Users</a>
         </div>
       </div>
     </div>
   </nav>
 
-  <main class="container">
-    <%- body %>
-  </main>
+  <!-- Main content wrapper pushes footer to bottom on short pages -->
+  <div class="main-content">
+    <main class="container">
+      <%- body %>
+    </main>
+  </div>
 
+  <!-- Footer -->
   <footer class="footer">
     <p>&copy; 2025 Ella Rises. Empowering the rising generation of women.</p>
   </footer>
