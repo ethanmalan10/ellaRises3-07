@@ -327,12 +327,39 @@ function requireManager(req, res, next) {
 
 // / -> views/index.ejs
 app.get('/', (req, res) => {
-  res.render('index', { title: 'Ella Rises' });
+  const { donated, thanks, donor, amount, donorName, donorAmount } = req.query || {};
+
+  // Surface possible donation flash params to the view
+  res.render('index', {
+    title: 'Ella Rises',
+    donated,
+    thanks,
+    donor,
+    amount,
+    donorName,
+    donorAmount,
+  });
 });
 
 // /donations -> views/donations/donations.ejs
 app.get('/donations', (req, res) => {
   res.render(path.join('donations', 'donations'), { title: 'Donations' });
+});
+
+// Handle donation submit -> redirect home with a thank-you toast
+app.post('/donations', (req, res) => {
+  const { fullName, donationAmount } = req.body || {};
+
+  // Normalize values to avoid undefined in the query string
+  const donor = (fullName || '').trim();
+  const amount = (donationAmount || '').trim();
+
+  const params = new URLSearchParams();
+  params.set('donated', '1');
+  if (donor) params.set('donor', donor);
+  if (amount) params.set('amount', amount);
+
+  return res.redirect(`/?${params.toString()}`);
 });
 
 // /events -> views/events/events.ejs
