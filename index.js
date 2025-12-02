@@ -28,17 +28,17 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 app.use(expressLayouts);
-// Global layout: views/partials/layout.ejs
+// Global layout file: views/partials/layout.ejs
 app.set('layout', path.join('partials', 'layout'));
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// Static assets (CSS, images, JS in /public)
+// Public assets (/public/css, /public/images, etc.)
 app.use(express.static(path.join(__dirname, 'public')));
 
 /* -----------------------------
-   Sessions + View locals
+   Sessions + expose user to views
 ----------------------------- */
 app.use(
   session({
@@ -49,14 +49,14 @@ app.use(
   })
 );
 
-// Make the logged-in user available to all EJS views as `currentUser`
+// available in all EJS as `currentUser`
 app.use((req, res, next) => {
   res.locals.currentUser = req.session.user || null; // { id, email, role }
   next();
 });
 
 /* -----------------------------
-   Auth helpers
+   Auth guards
 ----------------------------- */
 function requireAuth(req, res, next) {
   if (!req.session.user) return res.redirect('/login');
@@ -72,30 +72,30 @@ function requireManager(req, res, next) {
 }
 
 /* -----------------------------
-   PUBLIC PAGES (match your folders)
+   PUBLIC PAGES  (match your /views tree)
 ----------------------------- */
 
-// Landing page -> views/index.ejs
+// / -> views/index.ejs
 app.get('/', (req, res) => {
   res.render('index', { title: 'Ella Rises' });
 });
 
-// Donations -> views/donations/index.ejs (or adjust if you have a different file)
+// /donations -> views/donations/index.ejs
 app.get('/donations', (req, res) => {
   res.render(path.join('donations', 'index'), { title: 'Donations' });
 });
 
-// Events -> views/events/index.ejs
+// /events -> views/events/index.ejs
 app.get('/events', (req, res) => {
   res.render(path.join('events', 'index'), { title: 'Events' });
 });
 
-// Surveys -> views/Surveys/index.ejs  (note the capital “S” in your tree)
+// /surveys -> views/Surveys/index.ejs   (capital S in your folder)
 app.get('/surveys', (req, res) => {
   res.render(path.join('Surveys', 'index'), { title: 'Surveys' });
 });
 
-// Milestones -> views/milestones/index.ejs
+// /milestones -> views/milestones/index.ejs
 app.get('/milestones', (req, res) => {
   res.render(path.join('milestones', 'index'), { title: 'Milestones' });
 });
@@ -104,36 +104,43 @@ app.get('/milestones', (req, res) => {
    AUTH (Login / Register / Logout)
 ----------------------------- */
 
-// Login page -> views/login/login.ejs
+// GET /login -> views/login/login.ejs
 app.get('/login', (req, res) => {
-  res.render(path.join('login', 'login'), { title: 'Login', error: null, created: undefined });
+  res.render(path.join('login', 'login'), {
+    title: 'Login',
+    error: null,
+    created: undefined,
+  });
 });
 
-// Handle Login (simple demo; replace with bcrypt later)
+// POST /login
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
-    // Example schema: "User"(userid, email, passwordhash, role)
-    const q =
-      'SELECT userid, email, passwordhash, role FROM "User" WHERE email = $1 LIMIT 1';
+    const q = `
+      SELECT userid, email, passwordhash, role
+      FROM "User"
+      WHERE email = $1
+      LIMIT 1
+    `;
     const { rows } = await pool.query(q, [email]);
 
     if (rows.length === 0) {
       return res.render(path.join('login', 'login'), {
         title: 'Login',
         error: 'Invalid email or password',
-        created: undefined
+        created: undefined,
       });
     }
 
     const user = rows[0];
-    // TODO: bcrypt compare
+    // TODO: replace with bcrypt.compare(...)
     const ok = user.passwordhash === password;
     if (!ok) {
       return res.render(path.join('login', 'login'), {
         title: 'Login',
         error: 'Invalid email or password',
-        created: undefined
+        created: undefined,
       });
     }
 
@@ -144,17 +151,20 @@ app.post('/login', async (req, res) => {
     return res.render(path.join('login', 'login'), {
       title: 'Login',
       error: 'Unexpected error. Please try again.',
-      created: undefined
+      created: undefined,
     });
   }
 });
 
-// Register page -> views/login/register.ejs
+// Accept legacy link /login/register -> redirect to /register
+app.get('/login/register', (_req, res) => res.redirect('/register'));
+
+// GET /register -> views/login/register.ejs
 app.get('/register', (req, res) => {
   res.render(path.join('login', 'register'), { title: 'Create Account', error: null });
 });
 
-// Handle Register -> inserts, then shows login success note
+// POST /register
 app.post('/register', async (req, res) => {
   const {
     firstName, lastName, email, password, confirmPassword,
@@ -175,7 +185,8 @@ app.post('/register', async (req, res) => {
         firstname, lastname, email, passwordhash, dob,
         school_or_job, phone, city, state, zipcode,
         interest_arts, interest_stem, interest_both, role
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
       RETURNING userid, email, role
     `;
     const params = [
@@ -183,16 +194,16 @@ app.post('/register', async (req, res) => {
       lastName  || null,
       email,
       password, // TODO: bcrypt hash
-      dob       || null,
+      dob || null,
       schoolOrJob || null,
-      phone     || null,
-      city      || null,
-      state     || null,
-      zipcode   || null,
+      phone || null,
+      city || null,
+      state || null,
+      zipcode || null,
       !!interest_arts,
       !!interest_stem,
       !!interest_both,
-      'user'
+      'user',
     ];
 
     await pool.query(q, params);
@@ -201,7 +212,7 @@ app.post('/register', async (req, res) => {
     return res.render(path.join('login', 'login'), {
       title: 'Login',
       error: null,
-      created: true
+      created: 'Your account was created successfully. Please log in.',
     });
   } catch (err) {
     console.error('Register error:', err);
@@ -214,27 +225,26 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// Logout
-app.post('/logout', (req, res) => {
-  req.session.destroy(() => res.redirect('/'));
-});
+// Allow GET /logout from navbar and POST /logout from forms
+app.get('/logout', (req, res) => req.session.destroy(() => res.redirect('/')));
+app.post('/logout', (req, res) => req.session.destroy(() => res.redirect('/')));
 
 /* -----------------------------
    AUTHENTICATED PAGES
 ----------------------------- */
 
-// My Account -> views/account/index.ejs
+// /my-account -> views/account/index.ejs
 app.get('/my-account', requireAuth, (req, res) => {
   res.render(path.join('account', 'index'), { title: 'My Account' });
 });
 
-// Manager/Admin pages
-// All Users -> views/allUsers/index.ejs
+// Admin / Manager
+// /admin/users -> views/allUsers/index.ejs
 app.get('/admin/users', requireManager, (req, res) => {
   res.render(path.join('allUsers', 'index'), { title: 'All Users' });
 });
 
-// Manage Milestones (admin) -> views/milestones/manage.ejs (if you have it)
+// /admin/milestones -> views/milestones/manage.ejs (optional)
 app.get('/admin/milestones', requireManager, (req, res) => {
   res.render(path.join('milestones', 'manage'), { title: 'Manage Milestones' });
 });
@@ -251,9 +261,9 @@ app.get('/healthz', async (_req, res) => {
   }
 });
 
-// 404
+// Avoid crashing if views/partials/404.ejs doesn't exist yet
 app.use((req, res) => {
-  res.status(404).render('partials/404', { title: 'Not Found' });
+  res.status(404).send('Not Found');
 });
 
 /* -----------------------------
