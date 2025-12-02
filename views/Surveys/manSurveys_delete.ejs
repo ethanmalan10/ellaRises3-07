@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delete Survey | Ella Rises</title>
+  <link rel="stylesheet" href="/css/ella.css">
+  <style>
+    .warning-banner {
+      background: linear-gradient(135deg, #fee 0%, #fdd 100%);
+      border: 3px solid var(--pink-dark);
+      border-radius: 18px;
+      padding: 2.5rem;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+    .warning-icon {
+      font-size: 5rem;
+      margin-bottom: 1rem;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.9; }
+    }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 0.75rem 1.5rem;
+      padding: 1.5rem;
+      background: var(--cream);
+      border-radius: 12px;
+    }
+    .detail-label {
+      font-weight: 700;
+      color: var(--charcoal);
+      text-align: right;
+    }
+    .detail-value {
+      color: var(--charcoal);
+    }
+    .score-display {
+      display: inline-block;
+      background: var(--pink-soft);
+      padding: 0.35rem 0.85rem;
+      border-radius: 8px;
+      font-weight: 700;
+      margin-right: 0.5rem;
+      font-size: 1.1rem;
+    }
+    .danger-notice {
+      background: var(--pink-light);
+      border-left: 5px solid var(--pink-dark);
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+    }
+    .btn-danger {
+      background: var(--pink-dark);
+      color: #fff;
+      border: none;
+      padding: 1rem 2rem;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      flex: 1;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .btn-danger:hover {
+      background: var(--charcoal);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+    }
+    .btn-danger:active {
+      transform: translateY(0);
+    }
+    .checkbox-wrapper {
+      display: flex;
+      align-items: center;
+      padding: 1.25rem;
+      background: var(--cream);
+      border-radius: 8px;
+      border: 2px solid var(--pink-light);
+      margin-bottom: 1.5rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .checkbox-wrapper:hover {
+      border-color: var(--pink-dark);
+      background: var(--pink-light);
+    }
+    .checkbox-wrapper input[type="checkbox"] {
+      width: 24px;
+      height: 24px;
+      margin-right: 1rem;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <%- include('partials/header') %>
+
+  <main class="main-content">
+    
+    <!-- COMPANY TITLE -->
+    <section class="container" style="margin-top:1.25rem; text-align:center;">
+      <h1 style="font-family: var(--font-serif); font-size: 3rem; color: var(--charcoal); margin: 0 0 0.75rem 0;">
+        Ella Rises
+      </h1>
+    </section>
+
+    <!-- WARNING BANNER -->
+    <section class="container" style="margin-top:1.5rem; max-width: 850px;">
+      <div class="warning-banner">
+        <div class="warning-icon">⚠️</div>
+        <h2 style="font-family: var(--font-serif); font-size: 2.5rem; color: var(--pink-dark); margin: 0 0 0.75rem 0;">
+          Delete Survey
+        </h2>
+        <p style="font-size: 1.15rem; color: var(--charcoal); margin: 0; font-weight: 500;">
+          You are about to permanently delete this survey.<br>
+          This action <strong>cannot</strong> be undone.
+        </p>
+      </div>
+    </section>
+
+    <!-- SURVEY DETAILS -->
+    <section class="container" style="margin-top: 1.5rem; max-width: 850px;">
+      <div class="card" style="padding: 2rem;">
+        <h3 style="font-family: var(--font-serif); margin: 0 0 1.5rem 0; color: var(--charcoal); font-size: 1.8rem; text-align: center;">
+          Survey Details to be Deleted
+        </h3>
+
+        <div class="detail-grid">
+          <span class="detail-label">Survey ID:</span>
+          <span class="detail-value"><strong style="color: var(--pink-dark); font-size: 1.15rem;">#<%= survey.surveyid %></strong></span>
+
+          <span class="detail-label">Participant ID:</span>
+          <span class="detail-value"><%= survey.participantid %></span>
+
+          <span class="detail-label">Event ID:</span>
+          <span class="detail-value"><%= survey.eventoccurrenceid %></span>
+
+          <% if (survey.surveysubmissiondate) { %>
+            <span class="detail-label">Submitted On:</span>
+            <span class="detail-value">
+              <%= new Date(survey.surveysubmissiondate).toLocaleString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric', 
+                hour: 'numeric', 
+                minute: '2-digit'
+              }) %>
+            </span>
+          <% } %>
+
+          <span class="detail-label">Satisfaction:</span>
+          <span class="detail-value">
+            <span class="score-display" style="background: <%= survey.surveysatisfactionscore >= 4 ? 'var(--sage)' : survey.surveysatisfactionscore >= 3 ? 'var(--coral-soft)' : 'var(--pink-soft)' %>; color: <%= survey.surveysatisfactionscore >= 4 ? '#fff' : 'var(--charcoal)' %>;">
+              <%= survey.surveysatisfactionscore || 'N/A' %>
+            </span>
+            out of 5
+          </span>
+
+          <span class="detail-label">Usefulness:</span>
+          <span class="detail-value">
+            <span class="score-display" style="background: <%= survey.surveyusefulnessscore >= 4 ? 'var(--sage)' : survey.surveyusefulnessscore >= 3 ? 'var(--coral-soft)' : 'var(--pink-soft)' %>; color: <%= survey.surveyusefulnessscore >= 4 ? '#fff' : 'var(--charcoal)' %>;">
+              <%= survey.surveyusefulnessscore || 'N/A' %>
+            </span>
+            out of 5
+          </span>
+
+          <span class="detail-label">Instructor:</span>
+          <span class="detail-value">
+            <span class="score-display" style="background: <%= survey.surveyinstructorscore >= 4 ? 'var(--sage)' : survey.surveyinstructorscore >= 3 ? 'var(--coral-soft)' : 'var(--pink-soft)' %>; color: <%= survey.surveyinstructorscore >= 4 ? '#fff' : 'var(--charcoal)' %>;">
+              <%= survey.surveyinstructorscore || 'N/A' %>
+            </span>
+            out of 5
+          </span>
+
+          <span class="detail-label">Recommendation:</span>
+          <span class="detail-value">
+            <span class="score-display" style="background: <%= survey.surveyrecommendationscore >= 4 ? 'var(--sage)' : survey.surveyrecommendationscore >= 3 ? 'var(--coral-soft)' : 'var(--pink-soft)' %>; color: <%= survey.surveyrecommendationscore >= 4 ? '#fff' : 'var(--charcoal)' %>;">
+              <%= survey.surveyrecommendationscore || 'N/A' %>
+            </span>
+            out of 5
+          </span>
+
+          <% if (survey.surveyoverallscore) { %>
+            <span class="detail-label">Overall Score:</span>
+            <span class="detail-value">
+              <strong style="font-size: 1.5rem; color: var(--pink-dark);">
+                <%= Number(survey.surveyoverallscore).toFixed(2) %>
+              </strong>
+            </span>
+          <% } %>
+
+          <% if (survey.surveynpsbucket) { %>
+            <span class="detail-label">NPS Bucket:</span>
+            <span class="detail-value">
+              <span style="
+                display: inline-block;
+                padding: 0.4rem 0.9rem;
+                border-radius: 8px;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                background: <%= survey.surveynpsbucket === 'Promoter' ? 'var(--sage)' : 
+                                survey.surveynpsbucket === 'Passive' ? 'var(--coral-soft)' : 
+                                'var(--pink-soft)' %>;
+                color: <%= survey.surveynpsbucket === 'Detractor' ? 'var(--charcoal)' : '#fff' %>;
+              ">
+                <%= survey.surveynpsbucket %>
+              </span>
+            </span>
+          <% } %>
+        </div>
+
+        <!-- Comments Section -->
+        <% if (survey.surveycomments) { %>
+          <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid var(--pink-light);">
+            <p style="margin: 0 0 0.75rem 0; font-weight: 700; color: var(--charcoal);">
+              💬 Comments:
+            </p>
+            <div style="
+              background: var(--pink-light);
+              padding: 1.25rem;
+              border-radius: 8px;
+              border-left: 4px solid var(--pink-dark);
+            ">
+              <p style="margin: 0; color: var(--charcoal); line-height: 1.6; font-style: italic;">
+                "<%= survey.surveycomments %>"
+              </p>
+            </div>
+          </div>
+        <% } %>
+      </div>
+    </section>
+
+    <!-- DELETE FORM -->
+    <section class="container" style="margin-top: 1.5rem; max-width: 850px;">
+      <form action="/surveys/delete/<%= survey.surveyid %>" method="POST">
+        
+        <!-- Danger Notice -->
+        <div class="danger-notice">
+          <h4 style="margin: 0 0 0.75rem 0; color: var(--pink-dark); font-size: 1.15rem;">
+            ⚠️ Critical Warning
+          </h4>
+          <p style="margin: 0; line-height: 1.6;">
+            Deleting this survey will <strong>permanently remove</strong> all associated feedback data, 
+            including all scores, ratings, comments, and submission information. 
+            <strong style="color: var(--pink-dark);">This action is irreversible</strong> and cannot be recovered 
+            once confirmed.
+          </p>
+        </div>
+
+        <!-- Confirmation Checkbox -->
+        <label class="checkbox-wrapper">
+          <input 
+            type="checkbox" 
+            id="confirmDelete" 
+            required
+          >
+          <span style="font-weight: 600; font-size: 1rem;">
+            I understand that deleting this survey is permanent and cannot be undone
+          </span>
+        </label>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+          <button type="submit" class="btn-danger">
+            🗑️ Delete Survey Permanently
+          </button>
+          <a 
+            href="/surveys/manage" 
+            class="btn-cream" 
+            style="
+              flex: 1;
+              text-align: center;
+              padding: 1rem;
+              text-decoration: none;
+              display: inline-block;
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            "
+          >
+            ← Cancel & Go Back
+          </a>
+        </div>
+
+      </form>
+    </section>
+
+    <!-- TIP BOX -->
+    <section class="container" style="margin-top: 1.5rem; max-width: 850px;">
+      <div class="card" style="padding: 1.25rem; background: var(--cream); border-left: 4px solid var(--sage);">
+        <p style="margin: 0; font-size: 0.95rem; line-height: 1.6;">
+          💡 <strong>Tip:</strong> If you're unsure about deleting this survey, consider editing it instead. 
+          You can update incorrect information without losing the historical survey record and valuable feedback data.
+        </p>
+      </div>
+    </section>
+
+  </main>
+
+  <%- include('partials/footer') %>
+
+</body>
+</html>

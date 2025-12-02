@@ -1,0 +1,166 @@
+<main class="main-content">
+  <!-- COMPANY TITLE -->
+  <section class="container" style="margin-top:1.25rem; text-align:center;">
+    <h1 style="font-family: var(--font-serif); font-size: 3rem; color: var(--charcoal); margin: 0 0 0.75rem 0;">
+      Ella Rises
+    </h1>
+  </section>
+
+  <!-- PAGE HEADER -->
+  <section class="container" style="margin-top:0;">
+    <div class="card" style="padding:28px; border-radius:18px; text-align:center;">
+      <h2 style="margin:0 0 10px 0; font-family: var(--font-serif);">
+        My Event Surveys
+      </h2>
+      <p style="max-width:700px; margin:0 auto; color: var(--charcoal); opacity: 0.85;">
+        View your feedback from events you've attended
+      </p>
+    </div>
+  </section>
+
+  <!-- SURVEYS LIST -->
+  <section class="container" style="margin-top:1.25rem;">
+    <% if (surveys && surveys.length > 0) { %>
+      <div style="display: grid; gap: 1.5rem;">
+        <% surveys.forEach(survey => { %>
+          <div class="card" style="padding: 1.75rem; border-radius: 18px;">
+            <!-- Survey Header -->
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1.25rem; border-bottom: 2px solid var(--pink-light); padding-bottom: 1rem;">
+              <div>
+                <h3 style="font-family: var(--font-serif); margin: 0 0 0.5rem 0; color: var(--pink-dark); font-size: 1.5rem;">
+                  Survey #<%= survey.surveyid %>
+                </h3>
+                <p style="margin: 0; color: var(--charcoal); opacity: 0.7; font-size: 0.95rem;">
+                  Event ID: <%= survey.eventoccurrenceid %>
+                </p>
+              </div>
+              <% if (survey.surveysubmissiondate) { %>
+                <div style="text-align: right;">
+                  <p style="margin: 0; font-size: 0.85rem; color: var(--charcoal); opacity: 0.6;">
+                    Submitted
+                  </p>
+                  <p style="margin: 0.25rem 0 0 0; font-weight: 600; color: var(--charcoal);">
+                    <%= new Date(survey.surveysubmissiondate).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric'
+                    }) %>
+                  </p>
+                </div>
+              <% } %>
+            </div>
+
+            <!-- Survey Scores Grid -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+              <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, var(--pink-light) 0%, var(--cream) 100%); border-radius: 12px;">
+                <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: var(--charcoal); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                  Satisfaction
+                </p>
+                <p style="margin: 0; font-size: 2.5rem; font-weight: 700; color: var(--pink-dark); line-height: 1;">
+                  <%= survey.surveysatisfactionscore || 'N/A' %>
+                </p>
+                <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem; color: var(--charcoal); opacity: 0.7;">
+                  out of 5
+                </p>
+              </div>
+
+              <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #e8f4ea 0%, var(--cream) 100%); border-radius: 12px;">
+                <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: var(--charcoal); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                  Usefulness
+                </p>
+                <p style="margin: 0; font-size: 2.5rem; font-weight: 700; color: var(--sage); line-height: 1;">
+                  <%= survey.surveyusefulnessscore || 'N/A' %>
+                </p>
+                <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem; color: var(--charcoal); opacity: 0.7;">
+                  out of 5
+                </p>
+              </div>
+
+              <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #ebe8f2 0%, var(--cream) 100%); border-radius: 12px;">
+                <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: var(--charcoal); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                  Instructor
+                </p>
+                <p style="margin: 0; font-size: 2.5rem; font-weight: 700; color: var(--lavender); line-height: 1;">
+                  <%= survey.surveyinstructorscore || 'N/A' %>
+                </p>
+                <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem; color: var(--charcoal); opacity: 0.7;">
+                  out of 5
+                </p>
+              </div>
+
+              <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #e3eef3 0%, var(--cream) 100%); border-radius: 12px;">
+                <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: var(--charcoal); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                  Recommend
+                </p>
+                <p style="margin: 0; font-size: 2.5rem; font-weight: 700; color: var(--blue-soft); line-height: 1;">
+                  <%= survey.surveyrecommendationscore || 'N/A' %>
+                </p>
+                <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem; color: var(--charcoal); opacity: 0.7;">
+                  out of 5
+                </p>
+              </div>
+            </div>
+
+            <!-- Overall Score -->
+            <% if (survey.surveyoverallscore) { %>
+              <div style="padding: 1.25rem; background: var(--charcoal); border-radius: 12px; text-align: center; margin-bottom: 1.5rem;">
+                <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: var(--cream); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                  Overall Score
+                </p>
+                <p style="margin: 0; font-size: 3rem; font-weight: 700; color: var(--pink-soft); line-height: 1;">
+                  <%= Number(survey.surveyoverallscore).toFixed(1) %>
+                </p>
+              </div>
+            <% } %>
+
+            <!-- NPS Bucket -->
+            <% if (survey.surveynpsbucket) { %>
+              <div style="margin-bottom: 1rem;">
+                <span style="
+                  display: inline-block;
+                  padding: 0.5rem 1rem;
+                  border-radius: 8px;
+                  font-size: 0.95rem;
+                  font-weight: 700;
+                  letter-spacing: 0.5px;
+                  text-transform: uppercase;
+                  background: <%= survey.surveynpsbucket === 'Promoter' ? 'var(--sage)' :
+                                  survey.surveynpsbucket === 'Passive' ? 'var(--coral-soft)' :
+                                  'var(--pink-soft)' %>;
+                  color: <%= survey.surveynpsbucket === 'Detractor' ? 'var(--charcoal)' : '#fff' %>;
+                ">
+                  <%= survey.surveynpsbucket %>
+                </span>
+              </div>
+            <% } %>
+
+            <!-- Comments -->
+            <% if (survey.surveycomments) { %>
+              <div style="background: var(--pink-light); border-left: 4px solid var(--pink-dark); padding: 1.25rem; border-radius: 8px;">
+                <p style="margin: 0 0 0.5rem 0; font-weight: 700; color: var(--charcoal); font-size: 0.95rem;">
+                  💬 Your Feedback
+                </p>
+                <p style="margin: 0; color: var(--charcoal); line-height: 1.6;">
+                  "<%= survey.surveycomments %>"
+                </p>
+              </div>
+            <% } %>
+          </div>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <div class="card" style="padding: 4rem 2rem; text-align: center; border-radius: 18px;">
+        <div style="font-size: 4rem; margin-bottom: 1.5rem;">📋</div>
+        <h3 style="font-family: var(--font-serif); color: var(--charcoal); margin-bottom: 1rem; font-size: 1.8rem;">
+          No Surveys Yet
+        </h3>
+        <p style="color: var(--charcoal); opacity: 0.8; margin-bottom: 2rem; max-width: 500px; margin-left: auto; margin-right: auto;">
+          After attending Ella Rises events, you'll be able to view your survey feedback here.
+        </p>
+        <a href="/events" class="btn-login-home">
+          View Available Events
+        </a>
+      </div>
+    <% } %>
+  </section>
+</main>

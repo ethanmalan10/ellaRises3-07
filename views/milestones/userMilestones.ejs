@@ -1,0 +1,92 @@
+<section class="main-content" style="max-width: 900px; margin: 0 auto;">
+  <div class="card" style="padding: 28px; border-radius: 18px;">
+    <h2 style="margin:0 0 12px 0; font-family: var(--font-serif);">Share Your Event Survey</h2>
+    <p style="margin:0 0 20px 0; color: var(--charcoal); opacity:0.8;">
+      Submit feedback that managers can review.
+    </p>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div style="background:#ffe1e1; border:1px solid #dd9a9a; color:#7a2e2e; padding:12px 16px; border-radius:10px; margin-bottom:1.25rem;">
+        <%= error %>
+      </div>
+    <% } %>
+
+    <form method="POST" action="/surveys" style="display:grid; gap:14px;">
+      <div>
+        <label for="participantName" style="font-weight:600; display:block; margin-bottom:.35rem;">Your Name</label>
+        <input
+          type="text"
+          id="participantName"
+          name="participantName"
+          required
+          value="<%= formValues?.participantName || '' %>"
+          style="width:100%; padding:12px; border-radius:10px;"
+        />
+      </div>
+
+      <div>
+        <label for="eventName" style="font-weight:600; display:block; margin-bottom:.35rem;">Event</label>
+        <input
+          type="text"
+          id="eventName"
+          name="eventName"
+          required
+          value="<%= formValues?.eventName || '' %>"
+          style="width:100%; padding:12px; border-radius:10px;"
+        />
+      </div>
+
+      <div>
+        <label for="satisfaction" style="font-weight:600; display:block; margin-bottom:.35rem;">Satisfaction (1-5)</label>
+        <select id="satisfaction" name="satisfaction" required style="width:100%; padding:12px; border-radius:10px;">
+          <% const satVal = Number(formValues?.satisfaction || 5); %>
+          <% for (let i = 1; i <= 5; i++) { %>
+            <option value="<%= i %>" <%= satVal === i ? 'selected' : '' %>><%= i %></option>
+          <% } %>
+        </select>
+      </div>
+
+      <div>
+        <label for="comments" style="font-weight:600; display:block; margin-bottom:.35rem;">Comments</label>
+        <textarea
+          id="comments"
+          name="comments"
+          rows="4"
+          style="width:100%; padding:12px; border-radius:10px;"
+        ><%= formValues?.comments || '' %></textarea>
+      </div>
+
+      <button type="submit" class="btn-login-home" style="padding:14px; border-radius:12px; font-size:1.05rem;">
+        Submit Survey
+      </button>
+    </form>
+  </div>
+
+  <div class="card" style="padding: 24px; border-radius: 18px; margin-top:1.25rem;">
+    <h3 style="margin:0 0 12px 0; font-family: var(--font-serif);">Recent Submissions</h3>
+    <% if (surveys && surveys.length) { %>
+      <div style="display:grid; gap:14px;">
+        <% surveys.forEach(s => { %>
+          <div style="border:1px solid #eee; border-radius:12px; padding:12px 16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <p style="margin:0; font-weight:700; color:var(--charcoal);"><%= s.participantName %></p>
+                <p style="margin:0; color:var(--charcoal); opacity:0.7;">Event: <%= s.eventName %></p>
+              </div>
+              <div>
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <span style="color:<%= i <= s.satisfaction ? '#f7b500' : '#d8d8d8' %>; font-size:1.1rem;">★</span>
+                <% } %>
+              </div>
+            </div>
+            <% if (s.comments) { %>
+              <p style="margin:8px 0 0 0; color:var(--charcoal); opacity:0.8;"><%= s.comments %></p>
+            <% } %>
+          </div>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <p style="margin:0; color:var(--charcoal); opacity:0.7;">No surveys submitted yet.</p>
+    <% } %>
+  </div>
+</section>
