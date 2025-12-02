@@ -2,7 +2,7 @@
   <div class="card" style="padding: 28px; border-radius: 18px;">
     <h2 style="margin:0 0 12px 0; font-family: var(--font-serif);">Share Your Event Survey</h2>
     <p style="margin:0 0 20px 0; color: var(--charcoal); opacity:0.8;">
-      Submit feedback that managers can review.
+      Submit feedback for an event you attended in the last month.
     </p>
 
     <% if (typeof error !== 'undefined' && error) { %>
@@ -13,27 +13,26 @@
 
     <form method="POST" action="/surveys" style="display:grid; gap:14px;">
       <div>
-        <label for="participantName" style="font-weight:600; display:block; margin-bottom:.35rem;">Your Name</label>
-        <input
-          type="text"
-          id="participantName"
-          name="participantName"
+        <label for="eventoccurrenceid" style="font-weight:600; display:block; margin-bottom:.35rem;">Event (past month)</label>
+        <select
+          id="eventoccurrenceid"
+          name="eventoccurrenceid"
           required
-          value="<%= formValues?.participantName || '' %>"
           style="width:100%; padding:12px; border-radius:10px;"
-        />
-      </div>
-
-      <div>
-        <label for="eventName" style="font-weight:600; display:block; margin-bottom:.35rem;">Event</label>
-        <input
-          type="text"
-          id="eventName"
-          name="eventName"
-          required
-          value="<%= formValues?.eventName || '' %>"
-          style="width:100%; padding:12px; border-radius:10px;"
-        />
+        >
+          <option value="">Select an event</option>
+          <% const selectedEvent = formValues?.eventoccurrenceid ? Number(formValues.eventoccurrenceid) : null; %>
+          <% (events || []).forEach(ev => { %>
+            <option value="<%= ev.eventoccurrenceid %>" <%= selectedEvent === ev.eventoccurrenceid ? 'selected' : '' %>>
+              <%= ev.eventname %> — <%= new Date(ev.eventdatetimestart).toLocaleDateString() %>
+            </option>
+          <% }) %>
+        </select>
+        <% if (!events || !events.length) { %>
+          <p style="margin:6px 0 0 0; color:var(--charcoal); opacity:0.7; font-size:0.9rem;">
+            No past events in the last month to review yet.
+          </p>
+        <% } %>
       </div>
 
       <div>
@@ -42,6 +41,36 @@
           <% const satVal = Number(formValues?.satisfaction || 5); %>
           <% for (let i = 1; i <= 5; i++) { %>
             <option value="<%= i %>" <%= satVal === i ? 'selected' : '' %>><%= i %></option>
+          <% } %>
+        </select>
+      </div>
+
+      <div>
+        <label for="usefulness" style="font-weight:600; display:block; margin-bottom:.35rem;">Usefulness (1-5)</label>
+        <% const useVal = Number(formValues?.usefulness || 5); %>
+        <select id="usefulness" name="usefulness" required style="width:100%; padding:12px; border-radius:10px;">
+          <% for (let i = 1; i <= 5; i++) { %>
+            <option value="<%= i %>" <%= useVal === i ? 'selected' : '' %>><%= i %></option>
+          <% } %>
+        </select>
+      </div>
+
+      <div>
+        <label for="instructor" style="font-weight:600; display:block; margin-bottom:.35rem;">Instructor (1-5)</label>
+        <% const instVal = Number(formValues?.instructor || 5); %>
+        <select id="instructor" name="instructor" required style="width:100%; padding:12px; border-radius:10px;">
+          <% for (let i = 1; i <= 5; i++) { %>
+            <option value="<%= i %>" <%= instVal === i ? 'selected' : '' %>><%= i %></option>
+          <% } %>
+        </select>
+      </div>
+
+      <div>
+        <label for="recommendation" style="font-weight:600; display:block; margin-bottom:.35rem;">Recommend (1-5)</label>
+        <% const recVal = Number(formValues?.recommendation || 5); %>
+        <select id="recommendation" name="recommendation" required style="width:100%; padding:12px; border-radius:10px;">
+          <% for (let i = 1; i <= 5; i++) { %>
+            <option value="<%= i %>" <%= recVal === i ? 'selected' : '' %>><%= i %></option>
           <% } %>
         </select>
       </div>
@@ -70,13 +99,12 @@
           <div style="border:1px solid #eee; border-radius:12px; padding:12px 16px;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
               <div>
-                <p style="margin:0; font-weight:700; color:var(--charcoal);"><%= s.participantName %></p>
-                <p style="margin:0; color:var(--charcoal); opacity:0.7;">Event: <%= s.eventName %></p>
+                <p style="margin:0; font-weight:700; color:var(--charcoal);"><%= s.eventName %></p>
+                <p style="margin:0; color:var(--charcoal); opacity:0.7;">Submitted: <%= new Date(s.submittedAt).toLocaleDateString() %></p>
               </div>
               <div>
-                <% for (let i = 1; i <= 5; i++) { %>
-                  <span style="color:<%= i <= s.satisfaction ? '#f7b500' : '#d8d8d8' %>; font-size:1.1rem;">★</span>
-                <% } %>
+                <% const avg = Number(((Number(s.satisfaction) + Number(s.usefulness) + Number(s.instructor) + Number(s.recommendation))/4).toFixed(1)); %>
+                <p style="margin:0; font-weight:700; color:var(--charcoal);">Avg: <%= avg %>/5</p>
               </div>
             </div>
             <% if (s.comments) { %>

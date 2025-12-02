@@ -9,9 +9,6 @@ const { Pool } = require('pg');
 
 const app = express();
 
-// In-memory survey submissions (replace with DB as needed)
-const surveySubmissions = [];
-
 /* -----------------------------
    Database (Postgres)
 ----------------------------- */
@@ -23,6 +20,212 @@ const pool = new Pool({
   port: Number(process.env.PGPORT || process.env.DB_PORT || 5432),
   ssl: process.env.PGSSL === 'true' ? { rejectUnauthorized: false } : false,
 });
+
+/* -----------------------------
+   Survey helpers (DB-backed)
+----------------------------- */
+async function getParticipantById(id) {
+  if (!id) return null;
+  const { rows } = await pool.query(
+    `SELECT participantid,
+            participantfirstname,
+            participantlastname,
+            participantemail
+     FROM participant
+     WHERE participantid = $1
+     LIMIT 1`,
+    [id]
+  );
+  return rows[0] || null;
+}
+
+async function findParticipantByEmail(email) {
+  if (!email) return null;
+  const { rows } = await pool.query(
+    `SELECT participantid,
+            participantfirstname,
+            participantlastname,
+            participantemail
+     FROM participant
+     WHERE LOWER(participantemail) = LOWER($1)
+     LIMIT 1`,
+    [email]
+  );
+  return rows[0] || null;
+}
+
+async function findParticipantForUser(user) {
+  if (!user) return null;
+  if (user.participantid) {
+    const byId = await getParticipantById(user.participantid);
+    if (byId) return byId;
+  }
+
+  const byEmail = await findParticipantByEmail(user.username);
+  if (byEmail) return byEmail;
+
+  const maybeId = Number(user.username);
+  if (!Number.isNaN(maybeId)) {
+    const byNumeric = await getParticipantById(maybeId);
+    if (byNumeric) return byNumeric;
+  }
+
+  return null;
+}
+
+async function getRecentPastEventsForSurvey() {
+  const { rows } = await pool.query(
+    `SELECT eo.eventoccurrenceid,
+            et.eventname,
+            eo.eventdatetimestart,
+            eo.eventdatetimeend
+     FROM eventoccurrence eo
+     JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
+     WHERE eo.eventdatetimeend < NOW()
+       AND eo.eventdatetimeend >= NOW() - INTERVAL '1 month'
+     ORDER BY eo.eventdatetimestart DESC`
+  );
+  return rows;
+}
+
+async function getSurveysForParticipant(participantId) {
+  const { rows } = await pool.query(
+    `SELECT s.surveyid AS id,
+            s.participantid,
+            s.eventoccurrenceid,
+            s.surveysatisfactionscore AS satisfaction,
+            s.surveyusefulnessscore AS usefulness,
+            s.surveyinstructorscore AS instructor,
+            s.surveyrecommendationscore AS recommendation,
+            s.surveyoverallscore AS overall,
+            s.surveynpsbucket AS npsBucket,
+            s.surveycomments AS comments,
+            s.surveysubmissiondate AS submittedAt,
+            TRIM(BOTH ' ' FROM COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,'')) AS participantName,
+            et.eventname AS eventName
+     FROM survey s
+     LEFT JOIN participant p ON s.participantid = p.participantid
+     LEFT JOIN eventoccurrence eo ON s.eventoccurrenceid = eo.eventoccurrenceid
+     LEFT JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
+     WHERE s.participantid = $1
+     ORDER BY s.surveysubmissiondate DESC`,
+    [participantId]
+  );
+  return rows;
+}
+
+async function getAllSurveys() {
+  const { rows } = await pool.query(
+    `SELECT s.surveyid AS id,
+            s.participantid,
+            s.eventoccurrenceid,
+            s.surveysatisfactionscore AS satisfaction,
+            s.surveyusefulnessscore AS usefulness,
+            s.surveyinstructorscore AS instructor,
+            s.surveyrecommendationscore AS recommendation,
+            s.surveyoverallscore AS overall,
+            s.surveynpsbucket AS npsBucket,
+            s.surveycomments AS comments,
+            s.surveysubmissiondate AS submittedAt,
+            TRIM(BOTH ' ' FROM COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,'')) AS participantName,
+            et.eventname AS eventName
+     FROM survey s
+     LEFT JOIN participant p ON s.participantid = p.participantid
+     LEFT JOIN eventoccurrence eo ON s.eventoccurrenceid = eo.eventoccurrenceid
+     LEFT JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
+     ORDER BY s.surveysubmissiondate DESC`
+  );
+  return rows;
+}
+
+async function getSurveyById(id) {
+  const { rows } = await pool.query(
+    `SELECT s.surveyid AS id,
+            s.participantid,
+            s.eventoccurrenceid,
+            s.surveysatisfactionscore AS satisfaction,
+            s.surveyusefulnessscore AS usefulness,
+            s.surveyinstructorscore AS instructor,
+            s.surveyrecommendationscore AS recommendation,
+            s.surveyoverallscore AS overall,
+            s.surveynpsbucket AS npsBucket,
+            s.surveycomments AS comments,
+            s.surveysubmissiondate AS submittedAt,
+            TRIM(BOTH ' ' FROM COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,'')) AS participantName,
+            et.eventname AS eventName
+     FROM survey s
+     LEFT JOIN participant p ON s.participantid = p.participantid
+     LEFT JOIN eventoccurrence eo ON s.eventoccurrenceid = eo.eventoccurrenceid
+     LEFT JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
+     WHERE s.surveyid = $1
+     LIMIT 1`,
+    [id]
+  );
+  return rows[0] || null;
+}
+
+async function insertSurvey({
+  participantId,
+  eventoccurrenceid,
+  satisfaction,
+  usefulness,
+  instructor,
+  recommendation,
+  comments,
+}) {
+  const overall = Number(((satisfaction + usefulness + instructor + recommendation) / 4).toFixed(2));
+  const npsBucket =
+    recommendation >= 4 ? 'Promoter' : recommendation === 3 ? 'Passive' : 'Detractor';
+
+  await pool.query(
+    `INSERT INTO survey (
+        participantid,
+        eventoccurrenceid,
+        surveysatisfactionscore,
+        surveyusefulnessscore,
+        surveyinstructorscore,
+        surveyrecommendationscore,
+        surveyoverallscore,
+        surveynpsbucket,
+        surveycomments,
+        surveysubmissiondate
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())`,
+    [
+      participantId,
+      eventoccurrenceid,
+      satisfaction,
+      usefulness,
+      instructor,
+      recommendation,
+      overall,
+      npsBucket,
+      comments || null,
+    ]
+  );
+}
+
+async function updateSurveyRecord(id, { satisfaction, usefulness, instructor, recommendation, comments }) {
+  const overall = Number(((satisfaction + usefulness + instructor + recommendation) / 4).toFixed(2));
+  const npsBucket =
+    recommendation >= 4 ? 'Promoter' : recommendation === 3 ? 'Passive' : 'Detractor';
+
+  await pool.query(
+    `UPDATE survey
+     SET surveysatisfactionscore = $1,
+         surveyusefulnessscore = $2,
+         surveyinstructorscore = $3,
+         surveyrecommendationscore = $4,
+         surveyoverallscore = $5,
+         surveynpsbucket = $6,
+         surveycomments = $7
+     WHERE surveyid = $8`,
+    [satisfaction, usefulness, instructor, recommendation, overall, npsBucket, comments || null, id]
+  );
+}
+
+async function deleteSurveyRecord(id) {
+  await pool.query('DELETE FROM survey WHERE surveyid = $1', [id]);
+}
 
 /* -----------------------------
    EJS + Layouts + Static
@@ -176,42 +379,96 @@ app.get('/events', async (req, res) => {
 });
 
 // /surveys -> user submission form (auth required)
-app.get('/surveys', requireAuth, (req, res) => {
-  res.render(path.join('milestones', 'userMilestones'), {
-    title: 'Surveys',
-    surveys: surveySubmissions,
-    formValues: {},
-    error: null,
-  });
+app.get('/surveys', requireAuth, async (req, res) => {
+  try {
+    const participant = await findParticipantForUser(req.session.user);
+    if (!participant) {
+      return res.status(400).render(path.join('milestones', 'userMilestones'), {
+        title: 'Surveys',
+        surveys: [],
+        events: [],
+        error: 'No participant record found for your account. Please contact support.',
+        formValues: {},
+      });
+    }
+
+    const [events, surveys] = await Promise.all([
+      getRecentPastEventsForSurvey(),
+      getSurveysForParticipant(participant.participantid),
+    ]);
+
+    return res.render(path.join('milestones', 'userMilestones'), {
+      title: 'Surveys',
+      surveys,
+      events,
+      error: null,
+      formValues: {},
+    });
+  } catch (err) {
+    console.error('Survey form load error:', err);
+    return res.status(500).send('Could not load survey form');
+  }
 });
 
-// Submit a survey (simple in-memory storage)
-app.post('/surveys', requireAuth, (req, res) => {
-  const { participantName, eventName, satisfaction, comments } = req.body;
-  const trimmedName = (participantName || '').trim();
-  const trimmedEvent = (eventName || '').trim();
-  const sat = Number(satisfaction);
+// Submit a survey -> DB
+app.post('/surveys', requireAuth, async (req, res) => {
+  const { eventoccurrenceid, satisfaction, usefulness, instructor, recommendation, comments } =
+    req.body;
 
-  if (!trimmedName || !trimmedEvent || Number.isNaN(sat)) {
-    return res.status(400).render(path.join('milestones', 'userMilestones'), {
-      title: 'Surveys',
-      surveys: surveySubmissions,
-      error: 'Please provide your name, event, and a satisfaction score.',
-      formValues: { participantName, eventName, satisfaction, comments },
+  try {
+    const participant = await findParticipantForUser(req.session.user);
+    if (!participant) {
+      return res.status(400).render(path.join('milestones', 'userMilestones'), {
+        title: 'Surveys',
+        surveys: [],
+        events: [],
+        error: 'No participant record found for your account. Please contact support.',
+        formValues: {},
+      });
+    }
+
+    const events = await getRecentPastEventsForSurvey();
+    const eventId = Number(eventoccurrenceid);
+    const sat = Number(satisfaction);
+    const use = Number(usefulness);
+    const instr = Number(instructor);
+    const rec = Number(recommendation);
+
+    const invalid =
+      !eventId ||
+      Number.isNaN(sat) ||
+      Number.isNaN(use) ||
+      Number.isNaN(instr) ||
+      Number.isNaN(rec);
+
+    const eventIsValid = events.some((ev) => ev.eventoccurrenceid === eventId);
+
+    if (invalid || !eventIsValid) {
+      const surveys = await getSurveysForParticipant(participant.participantid);
+      return res.status(400).render(path.join('milestones', 'userMilestones'), {
+        title: 'Surveys',
+        surveys,
+        events,
+        error: 'Please select a valid recent event and provide scores for all questions.',
+        formValues: { eventoccurrenceid, satisfaction, usefulness, instructor, recommendation, comments },
+      });
+    }
+
+    await insertSurvey({
+      participantId: participant.participantid,
+      eventoccurrenceid: eventId,
+      satisfaction: Math.max(1, Math.min(5, sat)),
+      usefulness: Math.max(1, Math.min(5, use)),
+      instructor: Math.max(1, Math.min(5, instr)),
+      recommendation: Math.max(1, Math.min(5, rec)),
+      comments: (comments || '').trim(),
     });
+
+    return res.redirect('/surveys');
+  } catch (err) {
+    console.error('Survey submit error:', err);
+    return res.status(500).send('Could not submit survey');
   }
-
-  const newSurvey = {
-    id: Date.now().toString(),
-    participantName: trimmedName,
-    eventName: trimmedEvent,
-    satisfaction: Math.max(1, Math.min(5, sat)),
-    comments: (comments || '').trim(),
-    submittedBy: req.session.user?.username || 'anonymous',
-  };
-
-  surveySubmissions.unshift(newSurvey);
-  res.redirect('/surveys');
 });
 
 // /milestones (public) -> views/milestones/userMilestones.ejs
@@ -263,10 +520,19 @@ app.post('/login', async (req, res) => {
       });
     }
 
+    let participantId = null;
+    try {
+      const participant = await findParticipantForUser({ username: user.username });
+      if (participant) participantId = participant.participantid;
+    } catch (e) {
+      console.warn('Could not map participant for user on login:', e);
+    }
+
     req.session.user = {
       id: user.userid,
       username: user.username,
       role: mapRole(user.level),
+      participantid: participantId,
     };
     return res.redirect('/');
   } catch (err) {
@@ -835,51 +1101,84 @@ app.get('/admin/milestones', requireManager, (req, res) => {
 });
 
 // Manager survey list
-app.get('/admin/surveys', requireManager, (req, res) => {
-  res.render(path.join('milestones', 'manMilestones'), {
-    title: 'Manage Surveys',
-    surveys: surveySubmissions,
-  });
+app.get('/admin/surveys', requireManager, async (req, res) => {
+  try {
+    const surveys = await getAllSurveys();
+    res.render(path.join('milestones', 'manMilestones'), {
+      title: 'Manage Surveys',
+      surveys,
+    });
+  } catch (err) {
+    console.error('Admin survey list error:', err);
+    res.status(500).send('Could not load surveys');
+  }
 });
 
 // Edit a survey
-app.get('/admin/surveys/:id/edit', requireManager, (req, res) => {
-  const survey = surveySubmissions.find((s) => s.id === req.params.id);
-  if (!survey) return res.status(404).send('Survey not found');
-  res.render(path.join('milestones', 'manMilestones_edit'), {
-    title: 'Edit Survey',
-    survey,
-  });
+app.get('/admin/surveys/:id/edit', requireManager, async (req, res) => {
+  try {
+    const survey = await getSurveyById(req.params.id);
+    if (!survey) return res.status(404).send('Survey not found');
+    res.render(path.join('milestones', 'manMilestones_edit'), {
+      title: 'Edit Survey',
+      survey,
+    });
+  } catch (err) {
+    console.error('Admin survey edit load error:', err);
+    res.status(500).send('Could not load survey');
+  }
 });
 
-app.post('/admin/surveys/:id/edit', requireManager, (req, res) => {
-  const survey = surveySubmissions.find((s) => s.id === req.params.id);
-  if (!survey) return res.status(404).send('Survey not found');
+app.post('/admin/surveys/:id/edit', requireManager, async (req, res) => {
+  try {
+    const { satisfaction, usefulness, instructor, recommendation, comments } = req.body;
+    const sat = Number(satisfaction);
+    const use = Number(usefulness);
+    const instr = Number(instructor);
+    const rec = Number(recommendation);
 
-  const { participantName, eventName, satisfaction, comments } = req.body;
-  survey.participantName = (participantName || survey.participantName).trim();
-  survey.eventName = (eventName || survey.eventName).trim();
-  const sat = Number(satisfaction);
-  if (!Number.isNaN(sat)) survey.satisfaction = Math.max(1, Math.min(5, sat));
-  survey.comments = (comments || '').trim();
+    if ([sat, use, instr, rec].some((n) => Number.isNaN(n))) {
+      return res.status(400).send('All scores are required');
+    }
 
-  res.redirect('/admin/surveys');
+    await updateSurveyRecord(req.params.id, {
+      satisfaction: Math.max(1, Math.min(5, sat)),
+      usefulness: Math.max(1, Math.min(5, use)),
+      instructor: Math.max(1, Math.min(5, instr)),
+      recommendation: Math.max(1, Math.min(5, rec)),
+      comments: (comments || '').trim(),
+    });
+
+    res.redirect('/admin/surveys');
+  } catch (err) {
+    console.error('Admin survey edit submit error:', err);
+    res.status(500).send('Could not update survey');
+  }
 });
 
 // Delete a survey
-app.get('/admin/surveys/:id/delete', requireManager, (req, res) => {
-  const survey = surveySubmissions.find((s) => s.id === req.params.id);
-  if (!survey) return res.status(404).send('Survey not found');
-  res.render(path.join('milestones', 'manMilestones_delete'), {
-    title: 'Delete Survey',
-    survey,
-  });
+app.get('/admin/surveys/:id/delete', requireManager, async (req, res) => {
+  try {
+    const survey = await getSurveyById(req.params.id);
+    if (!survey) return res.status(404).send('Survey not found');
+    res.render(path.join('milestones', 'manMilestones_delete'), {
+      title: 'Delete Survey',
+      survey,
+    });
+  } catch (err) {
+    console.error('Admin survey delete load error:', err);
+    res.status(500).send('Could not load survey');
+  }
 });
 
-app.post('/admin/surveys/:id/delete', requireManager, (req, res) => {
-  const idx = surveySubmissions.findIndex((s) => s.id === req.params.id);
-  if (idx !== -1) surveySubmissions.splice(idx, 1);
-  res.redirect('/admin/surveys');
+app.post('/admin/surveys/:id/delete', requireManager, async (req, res) => {
+  try {
+    await deleteSurveyRecord(req.params.id);
+    res.redirect('/admin/surveys');
+  } catch (err) {
+    console.error('Admin survey delete error:', err);
+    res.status(500).send('Could not delete survey');
+  }
 });
 
 // If you later add an “all users” page, point it at the real file:
