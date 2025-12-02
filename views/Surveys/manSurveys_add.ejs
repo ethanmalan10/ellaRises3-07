@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Add Survey | Ella Rises</title>
+  <link rel="stylesheet" href="/css/ella.css">
+  <style>
+    .form-section {
+      margin-bottom: 2rem;
+      padding-bottom: 2rem;
+      border-bottom: 2px solid var(--pink-light);
+    }
+    .form-section:last-of-type {
+      border-bottom: none;
+    }
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+      color: var(--charcoal);
+      font-size: 0.95rem;
+    }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .form-group small {
+      display: block;
+      margin-top: 0.4rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+      font-size: 0.85rem;
+      line-height: 1.4;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.25rem;
+    }
+    .error-message {
+      background: linear-gradient(135deg, #fee 0%, #fdd 100%);
+      border-left: 4px solid var(--pink-dark);
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      color: var(--charcoal);
+    }
+    .info-box {
+      background: var(--pink-light);
+      border-left: 4px solid var(--sage);
+      padding: 1.25rem;
+      border-radius: 8px;
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+
+  <%- include('partials/header') %>
+
+  <main class="main-content">
+    
+    <!-- COMPANY TITLE -->
+    <section class="container" style="margin-top:1.25rem; text-align:center;">
+      <h1 style="font-family: var(--font-serif); font-size: 3rem; color: var(--charcoal); margin: 0 0 0.75rem 0;">
+        Ella Rises
+      </h1>
+    </section>
+
+    <!-- PAGE HEADER -->
+    <section class="container" style="margin-top:0; max-width: 900px;">
+      <div style="margin-bottom: 1.5rem;">
+        <h2 style="font-family: var(--font-serif); font-size: 2.5rem; color: var(--charcoal); margin: 0 0 0.5rem 0;">
+          Add New Survey
+        </h2>
+        <p style="margin: 0; color: var(--charcoal); opacity: 0.8; font-size: 1.1rem;">
+          Record participant feedback for an event
+        </p>
+      </div>
+    </section>
+
+    <!-- ERROR MESSAGE -->
+    <% if (locals.error) { %>
+      <section class="container" style="max-width: 900px; margin-top: 1rem;">
+        <div class="error-message">
+          <strong>⚠️ Error:</strong> <%= error %>
+        </div>
+      </section>
+    <% } %>
+
+    <!-- ADD SURVEY FORM -->
+    <section class="container" style="margin-top: 1rem; max-width: 900px;">
+      <div class="card" style="padding: 2rem;">
+        <form action="/surveys/add" method="POST">
+          
+          <!-- SECTION: Basic Information -->
+          <div class="form-section">
+            <h3 style="font-family: var(--font-serif); margin: 0 0 1.25rem 0; color: var(--pink-dark);">
+              Basic Information
+            </h3>
+            
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="participantid">
+                  Participant ID <span style="color: var(--pink-dark);">*</span>
+                </label>
+                <input 
+                  type="number" 
+                  id="participantid" 
+                  name="participantid" 
+                  required
+                  min="1"
+                  placeholder="e.g., 1001"
+                  value="<%= locals.formData?.participantid || '' %>"
+                >
+                <small>The ID of the participant completing this survey</small>
+              </div>
+
+              <div class="form-group">
+                <label for="eventoccurrenceid">
+                  Event Occurrence ID <span style="color: var(--pink-dark);">*</span>
+                </label>
+                <input 
+                  type="number" 
+                  id="eventoccurrenceid" 
+                  name="eventoccurrenceid" 
+                  required
+                  min="1"
+                  placeholder="e.g., 205"
+                  value="<%= locals.formData?.eventoccurrenceid || '' %>"
+                >
+                <small>The specific event being reviewed</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION: Survey Ratings -->
+          <div class="form-section">
+            <h3 style="font-family: var(--font-serif); margin: 0 0 1.25rem 0; color: var(--pink-dark);">
+              Survey Ratings (1-5 Scale)
+            </h3>
+            
+            <div class="form-grid">
+              
+              <div class="form-group">
+                <label for="surveysatisfactionscore">
+                  Satisfaction Score <span style="color: var(--pink-dark);">*</span>
+                </label>
+                <select id="surveysatisfactionscore" name="surveysatisfactionscore" required>
+                  <option value="">Select rating...</option>
+                  <option value="1" <%= locals.formData?.surveysatisfactionscore == 1 ? 'selected' : '' %>>1 - Very Dissatisfied</option>
+                  <option value="2" <%= locals.formData?.surveysatisfactionscore == 2 ? 'selected' : '' %>>2 - Dissatisfied</option>
+                  <option value="3" <%= locals.formData?.surveysatisfactionscore == 3 ? 'selected' : '' %>>3 - Neutral</option>
+                  <option value="4" <%= locals.formData?.surveysatisfactionscore == 4 ? 'selected' : '' %>>4 - Satisfied</option>
+                  <option value="5" <%= locals.formData?.surveysatisfactionscore == 5 ? 'selected' : '' %>>5 - Very Satisfied</option>
+                </select>
+                <small>Overall satisfaction with the event</small>
+              </div>
+
+              <div class="form-group">
+                <label for="surveyusefulnessscore">
+                  Usefulness Score <span style="color: var(--pink-dark);">*</span>
+                </label>
+                <select id="surveyusefulnessscore" name="surveyusefulnessscore" required>
+                  <option value="">Select rating...</option>
+                  <option value="1" <%= locals.formData?.surveyusefulnessscore == 1 ? 'selected' : '' %>>1 - Not Useful</option>
+                  <option value="2" <%= locals.formData?.surveyusefulnessscore == 2 ? 'selected' : '' %>>2 - Slightly Useful</option>
+                  <option value="3" <%= locals.formData?.surveyusefulnessscore == 3 ? 'selected' : '' %>>3 - Moderately Useful</option>
+                  <option value="4" <%= locals.formData?.surveyusefulnessscore == 4 ? 'selected' : '' %>>4 - Very Useful</option>
+                  <option value="5" <%= locals.formData?.surveyusefulnessscore == 5 ? 'selected' : '' %>>5 - Extremely Useful</option>
+                </select>
+                <small>How useful was the event content</small>
+              </div>
+
+              <div class="form-group">
+                <label for="surveyinstructorscore">
+                  Instructor Score <span style="color: var(--pink-dark);">*</span>
+                </label>
+                <select id="surveyinstructorscore" name="surveyinstructorscore" required>
+                  <option value="">Select rating...</option>
+                  <option value="1" <%= locals.formData?.surveyinstructorscore == 1 ? 'selected' : '' %>>1 - Poor</option>
+                  <option value="2" <%= locals.formData?.surveyinstructorscore == 2 ? 'selected' : '' %>>2 - Fair</option>
+                  <option value="3" <%= locals.formData?.surveyinstructorscore == 3 ? 'selected' : '' %>>3 - Good</option>
+                  <option value="4" <%= locals.formData?.surveyinstructorscore == 4 ? 'selected' : '' %>>4 - Very Good</option>
+                  <option value="5" <%= locals.formData?.surveyinstructorscore == 5 ? 'selected' : '' %>>5 - Excellent</option>
+                </select>
+                <small>Quality of instruction provided</small>
+              </div>
+
+              <div class="form-group">
+                <label for="surveyrecommendationscore">
+                  Recommendation Score <span style="color: var(--pink-dark);">*</span>
+                </label>
+                <select id="surveyrecommendationscore" name="surveyrecommendationscore" required>
+                  <option value="">Select rating...</option>
+                  <option value="1" <%= locals.formData?.surveyrecommendationscore == 1 ? 'selected' : '' %>>1 - Would Not Recommend</option>
+                  <option value="2" <%= locals.formData?.surveyrecommendationscore == 2 ? 'selected' : '' %>>2 - Probably Not</option>
+                  <option value="3" <%= locals.formData?.surveyrecommendationscore == 3 ? 'selected' : '' %>>3 - Maybe</option>
+                  <option value="4" <%= locals.formData?.surveyrecommendationscore == 4 ? 'selected' : '' %>>4 - Probably</option>
+                  <option value="5" <%= locals.formData?.surveyrecommendationscore == 5 ? 'selected' : '' %>>5 - Definitely Recommend</option>
+                </select>
+                <small>Likelihood to recommend this event</small>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- SECTION: Additional Details -->
+          <div class="form-section">
+            <h3 style="font-family: var(--font-serif); margin: 0 0 1.25rem 0; color: var(--pink-dark);">
+              Additional Details
+            </h3>
+
+            <div class="form-group">
+              <label for="surveynpsbucket">
+                NPS Bucket
+              </label>
+              <select id="surveynpsbucket" name="surveynpsbucket">
+                <option value="">Select (optional)...</option>
+                <option value="Promoter" <%= locals.formData?.surveynpsbucket === 'Promoter' ? 'selected' : '' %>>Promoter (9-10)</option>
+                <option value="Passive" <%= locals.formData?.surveynpsbucket === 'Passive' ? 'selected' : '' %>>Passive (7-8)</option>
+                <option value="Detractor" <%= locals.formData?.surveynpsbucket === 'Detractor' ? 'selected' : '' %>>Detractor (0-6)</option>
+              </select>
+              <small>Net Promoter Score categorization based on recommendation likelihood</small>
+            </div>
+
+            <div class="form-group">
+              <label for="surveycomments">
+                Comments
+              </label>
+              <textarea 
+                id="surveycomments" 
+                name="surveycomments" 
+                rows="4"
+                placeholder="Enter any additional feedback or comments from the participant..."
+                style="resize: vertical; min-height: 100px;"
+              ><%= locals.formData?.surveycomments || '' %></textarea>
+              <small>Any additional comments or qualitative feedback</small>
+            </div>
+
+            <div class="form-group">
+              <label for="surveysubmissiondate">
+                Submission Date & Time
+              </label>
+              <input 
+                type="datetime-local" 
+                id="surveysubmissiondate" 
+                name="surveysubmissiondate"
+                value="<%= locals.formData?.surveysubmissiondate || new Date().toISOString().slice(0, 16) %>"
+              >
+              <small>Date and time when the survey was submitted (defaults to now)</small>
+            </div>
+          </div>
+
+          <!-- FORM ACTIONS -->
+          <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+            <button type="submit" class="btn-login-home" style="flex: 1; padding: 1rem;">
+              ✓ Add Survey
+            </button>
+            <a href="/surveys/manage" class="btn-cream" style="flex: 1; text-align: center; padding: 1rem; text-decoration: none; display: block;">
+              Cancel
+            </a>
+          </div>
+
+        </form>
+      </div>
+    </section>
+
+    <!-- INFO BOX -->
+    <section class="container" style="margin-top: 1.5rem; max-width: 900px;">
+      <div class="info-box">
+        <h4 style="font-family: var(--font-serif); margin: 0 0 0.5rem 0; color: var(--charcoal);">

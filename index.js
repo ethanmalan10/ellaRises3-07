@@ -9,6 +9,9 @@ const { Pool } = require('pg');
 
 const app = express();
 
+// In-memory survey submissions (replace with DB as needed)
+const surveySubmissions = [];
+
 /* -----------------------------
    Database (Postgres)
 ----------------------------- */
@@ -99,9 +102,43 @@ app.get('/events', (req, res) => {
   res.render(path.join('events', 'events'), { title: 'Events' });
 });
 
-// /surveys -> views/Surveys/userSurveys.ejs   (capital S in your folder)
-app.get('/surveys', (req, res) => {
-  res.render(path.join('Surveys', 'userSurveys'), { title: 'Surveys' });
+// /surveys -> user submission form (auth required)
+app.get('/surveys', requireAuth, (req, res) => {
+  res.render(path.join('milestones', 'userMilestones'), {
+    title: 'Surveys',
+    surveys: surveySubmissions,
+    formValues: {},
+    error: null,
+  });
+});
+
+// Submit a survey (simple in-memory storage)
+app.post('/surveys', requireAuth, (req, res) => {
+  const { participantName, eventName, satisfaction, comments } = req.body;
+  const trimmedName = (participantName || '').trim();
+  const trimmedEvent = (eventName || '').trim();
+  const sat = Number(satisfaction);
+
+  if (!trimmedName || !trimmedEvent || Number.isNaN(sat)) {
+    return res.status(400).render(path.join('milestones', 'userMilestones'), {
+      title: 'Surveys',
+      surveys: surveySubmissions,
+      error: 'Please provide your name, event, and a satisfaction score.',
+      formValues: { participantName, eventName, satisfaction, comments },
+    });
+  }
+
+  const newSurvey = {
+    id: Date.now().toString(),
+    participantName: trimmedName,
+    eventName: trimmedEvent,
+    satisfaction: Math.max(1, Math.min(5, sat)),
+    comments: (comments || '').trim(),
+    submittedBy: req.session.user?.username || 'anonymous',
+  };
+
+  surveySubmissions.unshift(newSurvey);
+  res.redirect('/surveys');
 });
 
 // /milestones (public) -> views/milestones/userMilestones.ejs
@@ -319,6 +356,54 @@ app.get('/my-account', requireAuth, (req, res) => {
 // /admin/milestones -> views/milestones/manMilestones.ejs
 app.get('/admin/milestones', requireManager, (req, res) => {
   res.render(path.join('milestones', 'manMilestones'), { title: 'Manage Milestones' });
+});
+
+// Manager survey list
+app.get('/admin/surveys', requireManager, (req, res) => {
+  res.render(path.join('milestones', 'manMilestones'), {
+    title: 'Manage Surveys',
+    surveys: surveySubmissions,
+  });
+});
+
+// Edit a survey
+app.get('/admin/surveys/:id/edit', requireManager, (req, res) => {
+  const survey = surveySubmissions.find((s) => s.id === req.params.id);
+  if (!survey) return res.status(404).send('Survey not found');
+  res.render(path.join('milestones', 'manMilestones_edit'), {
+    title: 'Edit Survey',
+    survey,
+  });
+});
+
+app.post('/admin/surveys/:id/edit', requireManager, (req, res) => {
+  const survey = surveySubmissions.find((s) => s.id === req.params.id);
+  if (!survey) return res.status(404).send('Survey not found');
+
+  const { participantName, eventName, satisfaction, comments } = req.body;
+  survey.participantName = (participantName || survey.participantName).trim();
+  survey.eventName = (eventName || survey.eventName).trim();
+  const sat = Number(satisfaction);
+  if (!Number.isNaN(sat)) survey.satisfaction = Math.max(1, Math.min(5, sat));
+  survey.comments = (comments || '').trim();
+
+  res.redirect('/admin/surveys');
+});
+
+// Delete a survey
+app.get('/admin/surveys/:id/delete', requireManager, (req, res) => {
+  const survey = surveySubmissions.find((s) => s.id === req.params.id);
+  if (!survey) return res.status(404).send('Survey not found');
+  res.render(path.join('milestones', 'manMilestones_delete'), {
+    title: 'Delete Survey',
+    survey,
+  });
+});
+
+app.post('/admin/surveys/:id/delete', requireManager, (req, res) => {
+  const idx = surveySubmissions.findIndex((s) => s.id === req.params.id);
+  if (idx !== -1) surveySubmissions.splice(idx, 1);
+  res.redirect('/admin/surveys');
 });
 
 // If you later add an “all users” page, point it at the real file:

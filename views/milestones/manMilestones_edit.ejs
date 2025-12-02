@@ -1,0 +1,58 @@
+<section class="main-content" style="max-width: 720px; margin: 0 auto;">
+  <div class="card" style="padding: 28px; border-radius: 18px;">
+    <h2 style="margin:0 0 12px 0; font-family: var(--font-serif);">Edit Survey</h2>
+    <p style="margin:0 0 20px 0; color:var(--charcoal); opacity:0.8;">
+      Update details below and save.
+    </p>
+
+    <form method="POST" action="/admin/surveys/<%= survey.id %>/edit" style="display:grid; gap:14px;">
+      <div>
+        <label for="participantName" style="font-weight:600; display:block; margin-bottom:.35rem;">Participant Name</label>
+        <input
+          type="text"
+          id="participantName"
+          name="participantName"
+          value="<%= survey.participantName %>"
+          style="width:100%; padding:12px; border-radius:10px;"
+          required
+        />
+      </div>
+
+      <div>
+        <label for="eventName" style="font-weight:600; display:block; margin-bottom:.35rem;">Event</label>
+        <input
+          type="text"
+          id="eventName"
+          name="eventName"
+          value="<%= survey.eventName %>"
+          style="width:100%; padding:12px; border-radius:10px;"
+          required
+        />
+      </div>
+
+      <div>
+        <label for="satisfaction" style="font-weight:600; display:block; margin-bottom:.35rem;">Satisfaction (1-5)</label>
+        <select id="satisfaction" name="satisfaction" required style="width:100%; padding:12px; border-radius:10px;">
+          <% for (let i = 1; i <= 5; i++) { %>
+            <option value="<%= i %>" <%= survey.satisfaction === i ? 'selected' : '' %>><%= i %></option>
+          <% } %>
+        </select>
+      </div>
+
+      <div>
+        <label for="comments" style="font-weight:600; display:block; margin-bottom:.35rem;">Comments</label>
+        <textarea
+          id="comments"
+          name="comments"
+          rows="4"
+          style="width:100%; padding:12px; border-radius:10px;"
+        ><%= survey.comments %></textarea>
+      </div>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button type="submit" class="btn-login-home" style="padding:12px 18px; border-radius:10px;">Save</button>
+        <a href="/admin/surveys" class="btn-login-home" style="padding:12px 18px; border-radius:10px; background:#f0f0f0; color:var(--charcoal);">Cancel</a>
+      </div>
+    </form>
+  </div>
+</section>

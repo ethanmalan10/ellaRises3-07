@@ -1,0 +1,17 @@
+<section class="main-content" style="max-width: 640px; margin: 0 auto;">
+  <div class="card" style="padding: 28px; border-radius: 18px;">
+    <h2 style="margin:0 0 12px 0; font-family: var(--font-serif); color: #a33;">Delete Survey</h2>
+    <p style="margin:0 0 20px 0; color:var(--charcoal); opacity:0.8;">
+      Are you sure you want to delete the survey from <strong><%= survey.participantName %></strong> about <strong><%= survey.eventName %></strong>?
+    </p>
+
+    <form method="POST" action="/admin/surveys/<%= survey.id %>/delete" style="display:flex; gap:12px; flex-wrap:wrap;">
+      <button type="submit" class="btn-login-home" style="padding:12px 18px; border-radius:10px; background:#ffe1e1; color:#7a2e2e;">
+        Yes, delete
+      </button>
+      <a href="/admin/surveys" class="btn-login-home" style="padding:12px 18px; border-radius:10px; background:#f0f0f0; color:var(--charcoal);">
+        Cancel
+      </a>
+    </form>
+  </div>
+</section>

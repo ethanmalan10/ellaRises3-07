@@ -12,10 +12,60 @@
 
 <body>
 
-  <!-- NAVBAR (No variables passed, _nav reads currentUser directly) -->
-  <%- include('_nav') %>
+  <!-- NAVBAR -->
+  <nav class="navbar">
 
-  <!-- Main page content from each EJS view -->
+    <!-- Logo -->
+    <a href="/" class="navbar-brand">
+      <img src="/images/EllaRisesLogo.avif" alt="Ella Rises" class="logo-img">
+    </a>
+
+    <!-- Center Section: Main Links -->
+    <div class="navbar-nav" style="margin-left: .25rem;">
+      <a href="/donations" class="nav-link">Donations</a>
+      <a href="/surveys"   class="nav-link">Surveys</a>
+      <a href="/events"    class="nav-link">Events</a>
+    </div>
+
+    <!-- Right Side -->
+    <div class="navbar-nav" style="margin-left:auto;">
+
+      <% if (!user) { %>
+        <!-- Login / Register Dropdown -->
+        <div class="dropdown">
+          <a href="#" class="nav-link">Login / Register</a>
+          <div class="dropdown-content">
+            <a href="/login">Login</a>
+            <a href="/register">Create Account</a>
+          </div>
+        </div>
+
+      <% } else { %>
+        <!-- User Dropdown -->
+        <div class="dropdown">
+          <a href="#" class="nav-link">My Account</a>
+          <div class="dropdown-content">
+
+            <!-- Always available -->
+            <a href="/my-account">Profile</a>
+
+            <!-- Manager/Admin Only -->
+            <% if (isManager) { %>
+              <a href="/admin/users">All Participants</a>
+              <a href="/milestones">Milestones</a>
+              <a href="/dashboard">Dashboard</a>
+            <% } %>
+
+            <!-- Logout -->
+            <a href="/logout">Logout</a>
+
+          </div>
+        </div>
+      <% } %>
+
+    </div>
+  </nav>
+
   <main class="container">
     <%- body %>
   </main>
