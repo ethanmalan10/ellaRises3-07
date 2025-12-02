@@ -28,17 +28,17 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 app.use(expressLayouts);
-app.set('layout', path.join('partials', 'layout')); // views/partials/layout.ejs
+// Global layout: views/partials/layout.ejs
+app.set('layout', path.join('partials', 'layout'));
 
-// parse bodies
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// static assets (CSS, images, client JS)
+// Static assets (CSS, images, JS in /public)
 app.use(express.static(path.join(__dirname, 'public')));
 
 /* -----------------------------
-   Sessions
+   Sessions + View locals
 ----------------------------- */
 app.use(
   session({
@@ -49,14 +49,9 @@ app.use(
   })
 );
 
-/* -----------------------------
-   Template locals (fixes user/isManager undefined)
------------------------------ */
+// Make the logged-in user available to all EJS views as `currentUser`
 app.use((req, res, next) => {
-  const user = req.session.user || null; // { id, email, role }
-  res.locals.user = user;
-  res.locals.isManager = !!(user && user.role === 'manager');
-  res.locals.title = 'Ella Rises'; // default title
+  res.locals.currentUser = req.session.user || null; // { id, email, role }
   next();
 });
 
@@ -67,96 +62,154 @@ function requireAuth(req, res, next) {
   if (!req.session.user) return res.redirect('/login');
   next();
 }
+
 function requireManager(req, res, next) {
-  if (!req.session.user || req.session.user.role !== 'manager') {
+  const u = req.session.user;
+  if (!u || (u.role !== 'manager' && u.role !== 'admin')) {
     return res.status(403).send('Forbidden (manager only)');
   }
   next();
 }
 
 /* -----------------------------
-   Routes: Landing + Public
+   PUBLIC PAGES (match your folders)
 ----------------------------- */
+
+// Landing page -> views/index.ejs
 app.get('/', (req, res) => {
-  res.render('index'); // title provided by res.locals
+  res.render('index', { title: 'Ella Rises' });
 });
 
-app.get('/participants', (req, res) => res.render('participants', { title: 'Participants' }));
-app.get('/events', (req, res) => res.render('events', { title: 'Events' }));
-app.get('/surveys', (req, res) => res.render('surveys', { title: 'Surveys' }));
-app.get('/milestones', (req, res) => res.render('milestones', { title: 'Milestones' }));
-app.get('/donations', (req, res) => res.render('donations', { title: 'Donations' }));
+// Donations -> views/donations/index.ejs (or adjust if you have a different file)
+app.get('/donations', (req, res) => {
+  res.render(path.join('donations', 'index'), { title: 'Donations' });
+});
+
+// Events -> views/events/index.ejs
+app.get('/events', (req, res) => {
+  res.render(path.join('events', 'index'), { title: 'Events' });
+});
+
+// Surveys -> views/Surveys/index.ejs  (note the capital “S” in your tree)
+app.get('/surveys', (req, res) => {
+  res.render(path.join('Surveys', 'index'), { title: 'Surveys' });
+});
+
+// Milestones -> views/milestones/index.ejs
+app.get('/milestones', (req, res) => {
+  res.render(path.join('milestones', 'index'), { title: 'Milestones' });
+});
 
 /* -----------------------------
-   Auth: Login / Register / Logout
+   AUTH (Login / Register / Logout)
 ----------------------------- */
-// Login page
+
+// Login page -> views/login/login.ejs
 app.get('/login', (req, res) => {
-  res.render('login', { title: 'Login', error: null, created: undefined });
+  res.render(path.join('login', 'login'), { title: 'Login', error: null, created: undefined });
 });
 
-// Handle login  (NOTE: replace with bcrypt compare soon)
+// Handle Login (simple demo; replace with bcrypt later)
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
-    const q = 'SELECT userid, email, passwordhash, role FROM "User" WHERE email = $1 LIMIT 1';
+    // Example schema: "User"(userid, email, passwordhash, role)
+    const q =
+      'SELECT userid, email, passwordhash, role FROM "User" WHERE email = $1 LIMIT 1';
     const { rows } = await pool.query(q, [email]);
 
     if (rows.length === 0) {
-      return res.render('login', { title: 'Login', error: 'Invalid email or password', created: undefined });
+      return res.render(path.join('login', 'login'), {
+        title: 'Login',
+        error: 'Invalid email or password',
+        created: undefined
+      });
     }
-    const user = rows[0];
 
-    // TODO: bcrypt.compare(password, user.passwordhash)
+    const user = rows[0];
+    // TODO: bcrypt compare
     const ok = user.passwordhash === password;
     if (!ok) {
-      return res.render('login', { title: 'Login', error: 'Invalid email or password', created: undefined });
+      return res.render(path.join('login', 'login'), {
+        title: 'Login',
+        error: 'Invalid email or password',
+        created: undefined
+      });
     }
 
     req.session.user = { id: user.userid, email: user.email, role: user.role || 'user' };
-    res.redirect('/dashboard');
+    return res.redirect('/my-account');
   } catch (err) {
     console.error('Login error:', err);
-    res.render('login', { title: 'Login', error: 'Unexpected error. Please try again.', created: undefined });
+    return res.render(path.join('login', 'login'), {
+      title: 'Login',
+      error: 'Unexpected error. Please try again.',
+      created: undefined
+    });
   }
 });
 
-// Register page -> views/users/addusers.ejs
+// Register page -> views/login/register.ejs
 app.get('/register', (req, res) => {
-  res.render(path.join('users', 'addusers'), {
-    title: 'Create Account',
-    error: null,
-    created: undefined,
-  });
+  res.render(path.join('login', 'register'), { title: 'Create Account', error: null });
 });
 
-// Handle register (simple demo insert)
+// Handle Register -> inserts, then shows login success note
 app.post('/register', async (req, res) => {
-  const { firstName, lastName, email, password, role } = req.body;
+  const {
+    firstName, lastName, email, password, confirmPassword,
+    dob, schoolOrJob, phone, city, state, zipcode,
+    interest_arts, interest_stem, interest_both
+  } = req.body;
+
   try {
-    const q =
-      'INSERT INTO "User"(firstname, lastname, email, passwordhash, role) VALUES ($1,$2,$3,$4,$5) RETURNING userid, email, role';
-    const { rows } = await pool.query(q, [
+    if (password !== confirmPassword) {
+      return res.render(path.join('login', 'register'), {
+        title: 'Create Account',
+        error: 'Passwords do not match.',
+      });
+    }
+
+    const q = `
+      INSERT INTO "User" (
+        firstname, lastname, email, passwordhash, dob,
+        school_or_job, phone, city, state, zipcode,
+        interest_arts, interest_stem, interest_both, role
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+      RETURNING userid, email, role
+    `;
+    const params = [
       firstName || null,
-      lastName || null,
+      lastName  || null,
       email,
       password, // TODO: bcrypt hash
-      role || 'user',
-    ]);
+      dob       || null,
+      schoolOrJob || null,
+      phone     || null,
+      city      || null,
+      state     || null,
+      zipcode   || null,
+      !!interest_arts,
+      !!interest_stem,
+      !!interest_both,
+      'user'
+    ];
 
-    res.render('login', {
+    await pool.query(q, params);
+
+    // Show success ribbon on login screen
+    return res.render(path.join('login', 'login'), {
       title: 'Login',
       error: null,
-      created: `Account created for ${rows[0].email}. You can log in now.`,
+      created: true
     });
   } catch (err) {
     console.error('Register error:', err);
     let msg = 'Could not create account.';
     if (err.code === '23505') msg = 'Email already exists.';
-    res.render(path.join('users', 'addusers'), {
+    return res.render(path.join('login', 'register'), {
       title: 'Create Account',
       error: msg,
-      created: undefined,
     });
   }
 });
@@ -167,22 +220,27 @@ app.post('/logout', (req, res) => {
 });
 
 /* -----------------------------
-   Authenticated pages
+   AUTHENTICATED PAGES
 ----------------------------- */
-app.get('/dashboard', requireAuth, (req, res) => {
-  res.render('dashboard', { title: 'Dashboard' });
+
+// My Account -> views/account/index.ejs
+app.get('/my-account', requireAuth, (req, res) => {
+  res.render(path.join('account', 'index'), { title: 'My Account' });
 });
 
-// Manager-only
-app.get('/admin/milestones', requireManager, (req, res) => {
-  res.render('admin/milestones', { title: 'Manage Milestones' });
-});
+// Manager/Admin pages
+// All Users -> views/allUsers/index.ejs
 app.get('/admin/users', requireManager, (req, res) => {
-  res.render('admin/users', { title: 'Manage Users' });
+  res.render(path.join('allUsers', 'index'), { title: 'All Users' });
+});
+
+// Manage Milestones (admin) -> views/milestones/manage.ejs (if you have it)
+app.get('/admin/milestones', requireManager, (req, res) => {
+  res.render(path.join('milestones', 'manage'), { title: 'Manage Milestones' });
 });
 
 /* -----------------------------
-   Health
+   Health & 404
 ----------------------------- */
 app.get('/healthz', async (_req, res) => {
   try {
@@ -193,10 +251,15 @@ app.get('/healthz', async (_req, res) => {
   }
 });
 
+// 404
+app.use((req, res) => {
+  res.status(404).render('partials/404', { title: 'Not Found' });
+});
+
 /* -----------------------------
    Start
 ----------------------------- */
 const PORT = Number(process.env.PORT || 3000);
 app.listen(PORT, () => {
-  console.log(`✅ Ella Rises running → http://localhost:${PORT}`);
+  console.log(`Ella Rises running → http://localhost:${PORT}`);
 });
