@@ -87,6 +87,14 @@ h1,h2,h3,h4,h5{
   box-shadow:0 4px 6px rgba(0,0,0,.1);
 }
 
+/* This makes the navigation bar at the top sticky so that when you scroll,
+it stays on your screen */
+.navbar {
+  position: sticky; /* or `fixed` if you want it to stay even past its container */
+  top: 0;
+  z-index: 1000;
+}
+
 .navbar-brand{
   display:flex;
   align-items:center;
