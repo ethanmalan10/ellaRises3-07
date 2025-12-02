@@ -1,22 +1,35 @@
-<% if (typeof donated !== 'undefined' && donated) { %>
+<%
+  // Normalize possible names for the donation flash coming from server
+  const _donated = (typeof donated !== 'undefined' ? donated : (typeof thanks !== 'undefined' ? thanks : undefined));
+  const _donor   = (typeof donor   !== 'undefined' ? donor   : (typeof donorName   !== 'undefined' ? donorName   : ''));
+  const _amount  = (typeof amount  !== 'undefined' ? amount  : (typeof donorAmount !== 'undefined' ? donorAmount : ''));
+%>
+
+<% if (typeof _donated !== 'undefined' && _donated) { %>
   <div id="donation-toast"
        style="
          position:fixed; left:50%; bottom:24px; transform:translateX(-50%);
          background:#2e2f2e; color:white; padding:14px 18px; border-radius:12px;
          box-shadow:0 8px 24px rgba(0,0,0,.25); z-index:9999; font-weight:600;">
-    <%= (donor && donor.trim().length) ? donor : 'Thank you' %> donated
-    <%= (amount && amount.trim().length) ? `$${amount}` : '' %> 🎉
+    <%= (_donor && _donor.trim().length) ? _donor : 'Thank you' %>
+    donated <%= (_amount && _amount.trim().length) ? `$${_amount}` : '' %> 🎉
   </div>
   <script>
+    // Auto-hide after 4s and clean query params so it won't reappear on refresh
     setTimeout(() => {
       const t = document.getElementById('donation-toast');
       if (t) t.remove();
+      try {
+        const url = new URL(window.location.href);
+        ['thanks','donated','name','donor','amount','donorName','donorAmount'].forEach(k => url.searchParams.delete(k));
+        window.history.replaceState({}, '', url);
+      } catch {}
     }, 4000);
   </script>
 <% } %>
 
 <%
-  // Correct & safe: Express stores all view variables in locals
+  // Safely read logged-in user from locals
   const user = locals.currentUser || null;
 %>
 
