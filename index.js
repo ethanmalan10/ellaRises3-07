@@ -396,7 +396,7 @@ app.get('/events', async (req, res) => {
     return res.render(path.join('events', 'events'), {
       title: 'Events',
       upcomingEvents: upcomingResult.rows,
-      pastEvents: isManager ? pastResult.rows : [],
+      pastEvents: [], // past events now shown on separate page
       message: req.query.msg || null,
       error: req.query.err || null,
       isManager,
@@ -572,7 +572,7 @@ app.post('/login', async (req, res) => {
     }
 
     req.session.user = {
-      id: participantId || user.participantid || null,
+      id: user.userid,
       username: user.username,
       role: mapRole(user.level),
       participantid: participantId,
@@ -645,7 +645,14 @@ app.post('/register', async (req, res) => {
     client = await pool.connect();
     await client.query('BEGIN');
 
-    const participantInsert = await client.query(
+    const authInsert = await client.query(
+      `INSERT INTO users (username, password, level)
+       VALUES ($1, $2, $3)
+       RETURNING userid, username, level`,
+      [username, password, 'u'] // TODO: bcrypt hash
+    );
+
+    await client.query(
       `INSERT INTO participant (
         participantemail,
         participantfirstname,
@@ -992,6 +999,281 @@ app.post('/events/:id/delete', requireManager, async (req, res) => {
       }
     }
     return res.redirect('/events?err=delete');
+  } finally {
+    if (client) client.release();
+  }
+});
+
+// Manager: past events with filters (lazy load)
+app.get('/events/past', requireManager, async (req, res) => {
+  const { eventtypeid, eventtemplateid, search, datefrom, dateto } = req.query;
+  const filters = [];
+  const values = [];
+  let shouldQuery = true; // always allow querying; filters refine results
+
+  if (eventtypeid) {
+    values.push(Number(eventtypeid));
+    filters.push(`et.eventtypeid = $${values.length}`);
+  }
+  if (eventtemplateid) {
+    values.push(Number(eventtemplateid));
+    filters.push(`eo.eventtemplateid = $${values.length}`);
+  }
+  if (typeof search !== 'undefined') {
+    values.push(`%${search || ''}%`);
+    filters.push(`(LOWER(et.eventname) LIKE LOWER($${values.length}) OR LOWER(et.eventdescription) LIKE LOWER($${values.length}))`);
+  }
+  if (datefrom) {
+    values.push(datefrom);
+    filters.push(`eo.eventdatetimeend >= $${values.length}`);
+  }
+  if (dateto) {
+    values.push(dateto);
+    filters.push(`eo.eventdatetimeend <= $${values.length}`);
+  }
+
+  const whereParts = [`eo.eventdatetimeend < NOW()`];
+  if (filters.length > 0) whereParts.push(filters.join(' AND '));
+  const whereClause = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
+
+  const baseQuery = `
+    SELECT
+      eo.eventoccurrenceid,
+      eo.eventtemplateid,
+      eo.eventdatetimestart,
+      eo.eventdatetimeend,
+      eo.eventlocation,
+      eo.eventcapacity,
+      eo.eventregistrationdeadline,
+      et.eventname,
+      et.eventdescription,
+      et.eventtypeid,
+      COALESCE(regs.count, 0) AS registrations_count
+    FROM eventoccurrence eo
+    JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
+    LEFT JOIN (
+      SELECT eventoccurrenceid, COUNT(*) AS count
+      FROM registration
+      GROUP BY eventoccurrenceid
+    ) regs ON regs.eventoccurrenceid = eo.eventoccurrenceid
+    ${whereClause}
+    ORDER BY eo.eventdatetimestart DESC
+    LIMIT 200;
+  `;
+
+  try {
+    const [typesRes, templatesRes, eventsRes] = await Promise.all([
+      pool.query('SELECT eventtypeid, eventtypename FROM eventtype ORDER BY eventtypename'),
+      pool.query('SELECT eventtemplateid, eventname FROM eventtemplate ORDER BY eventname'),
+      shouldQuery ? pool.query(baseQuery, values) : Promise.resolve({ rows: [] }),
+    ]);
+
+    return res.render(path.join('events', 'events_past'), {
+      title: 'Past Events',
+      events: eventsRes.rows,
+      filters: { eventtypeid, eventtemplateid, search, datefrom, dateto },
+      types: typesRes.rows,
+      templates: templatesRes.rows,
+    });
+  } catch (err) {
+    console.error('Past events error:', err);
+    return res.status(500).send('Could not load past events');
+  }
+});
+
+// Manager: create event template (form)
+app.get('/event-templates/new', requireManager, async (_req, res) => {
+  try {
+    const types = await pool.query('SELECT eventtypeid, eventtypename FROM eventtype ORDER BY eventtypename');
+    return res.render(path.join('events', 'events_template'), {
+      title: 'Create Event Template',
+      types: types.rows,
+      error: null,
+    });
+  } catch (err) {
+    console.error('Template form error:', err);
+    return res.status(500).send('Could not load template form');
+  }
+});
+
+// Manager: create event template (submit)
+app.post('/event-templates', requireManager, async (req, res) => {
+  const { eventtypeid, eventname, eventdescription, eventrecurrencepattern, eventdefaultcapacity } = req.body;
+
+  try {
+    if (!eventtypeid) throw new Error('Event type is required.');
+    if (!eventname) throw new Error('Event name is required.');
+
+    await pool.query(
+      `INSERT INTO eventtemplate (
+        eventtypeid,
+        eventname,
+        eventdescription,
+        eventrecurrencepattern,
+        eventdefaultcapacity
+      ) VALUES ($1, $2, $3, $4, $5)`,
+      [
+        Number(eventtypeid),
+        eventname,
+        eventdescription || null,
+        eventrecurrencepattern || null,
+        eventdefaultcapacity ? Number(eventdefaultcapacity) : null,
+      ]
+    );
+
+    return res.redirect('/event-templates?msg=template-created');
+  } catch (err) {
+    console.error('Create template error:', err);
+    try {
+      const types = await pool.query('SELECT eventtypeid, eventtypename FROM eventtype ORDER BY eventtypename');
+      return res.render(path.join('events', 'events_template'), {
+        title: 'Create Event Template',
+        types: types.rows,
+        error: err.message || 'Could not create template.',
+      });
+    } catch (innerErr) {
+      console.error('Create template fallback error:', innerErr);
+      return res.status(500).send('Could not create template');
+    }
+  }
+});
+
+// Manager: manage templates list
+app.get('/event-templates', requireManager, async (req, res) => {
+  const msg = req.query.msg || null;
+  try {
+    const templates = await pool.query(
+      `SELECT
+         et.eventtemplateid,
+         et.eventtypeid,
+         et.eventname,
+         et.eventdescription,
+         et.eventrecurrencepattern,
+         et.eventdefaultcapacity,
+         t.eventtypename,
+         COALESCE(o.count, 0) AS occurrences_count
+       FROM eventtemplate et
+       LEFT JOIN eventtype t ON et.eventtypeid = t.eventtypeid
+       LEFT JOIN (
+         SELECT eventtemplateid, COUNT(*) AS count
+         FROM eventoccurrence
+         GROUP BY eventtemplateid
+       ) o ON o.eventtemplateid = et.eventtemplateid
+       ORDER BY et.eventname`
+    );
+
+    return res.render(path.join('events', 'events_templates'), {
+      title: 'Manage Event Templates',
+      templates: templates.rows,
+      message: msg,
+    });
+  } catch (err) {
+    console.error('Templates list error:', err);
+    return res.status(500).send('Could not load templates');
+  }
+});
+
+// Manager: edit template form
+app.get('/event-templates/:id/edit', requireManager, async (req, res) => {
+  const templateId = Number(req.params.id);
+  if (!templateId) return res.redirect('/event-templates?msg=bad-template');
+
+  try {
+    const [tplRes, typesRes] = await Promise.all([
+      pool.query('SELECT * FROM eventtemplate WHERE eventtemplateid = $1', [templateId]),
+      pool.query('SELECT eventtypeid, eventtypename FROM eventtype ORDER BY eventtypename'),
+    ]);
+
+    if (tplRes.rows.length === 0) return res.redirect('/event-templates?msg=notfound');
+
+    return res.render(path.join('events', 'events_template_edit'), {
+      title: 'Edit Event Template',
+      template: tplRes.rows[0],
+      types: typesRes.rows,
+      error: null,
+    });
+  } catch (err) {
+    console.error('Template edit load error:', err);
+    return res.status(500).send('Could not load template');
+  }
+});
+
+// Manager: update template
+app.post('/event-templates/:id/edit', requireManager, async (req, res) => {
+  const templateId = Number(req.params.id);
+  const { eventtypeid, eventname, eventdescription, eventrecurrencepattern, eventdefaultcapacity } = req.body;
+
+  try {
+    if (!templateId) throw new Error('Bad template id.');
+    if (!eventtypeid) throw new Error('Event type is required.');
+    if (!eventname) throw new Error('Event name is required.');
+
+    await pool.query(
+      `UPDATE eventtemplate
+       SET eventtypeid = $1,
+           eventname = $2,
+           eventdescription = $3,
+           eventrecurrencepattern = $4,
+           eventdefaultcapacity = $5
+       WHERE eventtemplateid = $6`,
+      [
+        Number(eventtypeid),
+        eventname,
+        eventdescription || null,
+        eventrecurrencepattern || null,
+        eventdefaultcapacity ? Number(eventdefaultcapacity) : null,
+        templateId,
+      ]
+    );
+
+    return res.redirect('/event-templates?msg=template-updated');
+  } catch (err) {
+    console.error('Update template error:', err);
+    try {
+      const types = await pool.query('SELECT eventtypeid, eventtypename FROM eventtype ORDER BY eventtypename');
+      return res.render(path.join('events', 'events_template_edit'), {
+        title: 'Edit Event Template',
+        template: { eventtemplateid: templateId, eventtypeid, eventname, eventdescription, eventrecurrencepattern, eventdefaultcapacity },
+        types: types.rows,
+        error: err.message || 'Could not update template.',
+      });
+    } catch (innerErr) {
+      console.error('Update template fallback error:', innerErr);
+      return res.status(500).send('Could not update template');
+    }
+  }
+});
+
+// Manager: delete template (and linked occurrences/registrations)
+app.post('/event-templates/:id/delete', requireManager, async (req, res) => {
+  const templateId = Number(req.params.id);
+  if (!templateId) return res.redirect('/event-templates?msg=bad-template');
+
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    await client.query(
+      `DELETE FROM registration
+       WHERE eventoccurrenceid IN (
+         SELECT eventoccurrenceid FROM eventoccurrence WHERE eventtemplateid = $1
+       )`,
+      [templateId]
+    );
+    await client.query('DELETE FROM eventoccurrence WHERE eventtemplateid = $1', [templateId]);
+    await client.query('DELETE FROM eventtemplate WHERE eventtemplateid = $1', [templateId]);
+    await client.query('COMMIT');
+    return res.redirect('/event-templates?msg=template-deleted');
+  } catch (err) {
+    console.error('Delete template error:', err);
+    if (client) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackErr) {
+        console.error('Delete template rollback error:', rollbackErr);
+      }
+    }
+    return res.redirect('/event-templates?msg=template-delete-error');
   } finally {
     if (client) client.release();
   }
