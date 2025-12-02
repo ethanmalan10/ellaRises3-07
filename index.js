@@ -164,7 +164,7 @@ app.get('/events', async (req, res) => {
     return res.render(path.join('events', 'events'), {
       title: 'Events',
       upcomingEvents: upcomingResult.rows,
-      pastEvents: isManager ? pastResult.rows : [],
+      pastEvents: [], // past events now shown on separate page
       message: req.query.msg || null,
       error: req.query.err || null,
       isManager,
@@ -681,6 +681,140 @@ app.post('/events/:id/delete', requireManager, async (req, res) => {
     return res.redirect('/events?err=delete');
   } finally {
     if (client) client.release();
+  }
+});
+
+// Manager: past events with filters (lazy load)
+app.get('/events/past', requireManager, async (req, res) => {
+  const { eventtypeid, eventtemplateid, search, datefrom, dateto } = req.query;
+  const filters = [];
+  const values = [];
+  let shouldQuery = true; // always allow querying; filters refine results
+
+  if (eventtypeid) {
+    values.push(Number(eventtypeid));
+    filters.push(`et.eventtypeid = $${values.length}`);
+  }
+  if (eventtemplateid) {
+    values.push(Number(eventtemplateid));
+    filters.push(`eo.eventtemplateid = $${values.length}`);
+  }
+  if (typeof search !== 'undefined') {
+    values.push(`%${search || ''}%`);
+    filters.push(`(LOWER(et.eventname) LIKE LOWER($${values.length}) OR LOWER(et.eventdescription) LIKE LOWER($${values.length}))`);
+  }
+  if (datefrom) {
+    values.push(datefrom);
+    filters.push(`eo.eventdatetimeend >= $${values.length}`);
+  }
+  if (dateto) {
+    values.push(dateto);
+    filters.push(`eo.eventdatetimeend <= $${values.length}`);
+  }
+
+  const whereParts = [`eo.eventdatetimeend < NOW()`];
+  if (filters.length > 0) whereParts.push(filters.join(' AND '));
+  const whereClause = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
+
+  const baseQuery = `
+    SELECT
+      eo.eventoccurrenceid,
+      eo.eventtemplateid,
+      eo.eventdatetimestart,
+      eo.eventdatetimeend,
+      eo.eventlocation,
+      eo.eventcapacity,
+      eo.eventregistrationdeadline,
+      et.eventname,
+      et.eventdescription,
+      et.eventtypeid,
+      COALESCE(regs.count, 0) AS registrations_count
+    FROM eventoccurrence eo
+    JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
+    LEFT JOIN (
+      SELECT eventoccurrenceid, COUNT(*) AS count
+      FROM registration
+      GROUP BY eventoccurrenceid
+    ) regs ON regs.eventoccurrenceid = eo.eventoccurrenceid
+    ${whereClause}
+    ORDER BY eo.eventdatetimestart DESC
+    LIMIT 200;
+  `;
+
+  try {
+    const [typesRes, templatesRes, eventsRes] = await Promise.all([
+      pool.query('SELECT eventtypeid, eventtypename FROM eventtype ORDER BY eventtypename'),
+      pool.query('SELECT eventtemplateid, eventname FROM eventtemplate ORDER BY eventname'),
+      shouldQuery ? pool.query(baseQuery, values) : Promise.resolve({ rows: [] }),
+    ]);
+
+    return res.render(path.join('events', 'events_past'), {
+      title: 'Past Events',
+      events: eventsRes.rows,
+      filters: { eventtypeid, eventtemplateid, search, datefrom, dateto },
+      types: typesRes.rows,
+      templates: templatesRes.rows,
+    });
+  } catch (err) {
+    console.error('Past events error:', err);
+    return res.status(500).send('Could not load past events');
+  }
+});
+
+// Manager: create event template (form)
+app.get('/event-templates/new', requireManager, async (_req, res) => {
+  try {
+    const types = await pool.query('SELECT eventtypeid, eventtypename FROM eventtype ORDER BY eventtypename');
+    return res.render(path.join('events', 'events_template'), {
+      title: 'Create Event Template',
+      types: types.rows,
+      error: null,
+    });
+  } catch (err) {
+    console.error('Template form error:', err);
+    return res.status(500).send('Could not load template form');
+  }
+});
+
+// Manager: create event template (submit)
+app.post('/event-templates', requireManager, async (req, res) => {
+  const { eventtypeid, eventname, eventdescription, eventrecurrencepattern, eventdefaultcapacity } = req.body;
+
+  try {
+    if (!eventtypeid) throw new Error('Event type is required.');
+    if (!eventname) throw new Error('Event name is required.');
+
+    await pool.query(
+      `INSERT INTO eventtemplate (
+        eventtypeid,
+        eventname,
+        eventdescription,
+        eventrecurrencepattern,
+        eventdefaultcapacity
+      ) VALUES ($1, $2, $3, $4, $5)`,
+      [
+        Number(eventtypeid),
+        eventname,
+        eventdescription || null,
+        eventrecurrencepattern || null,
+        eventdefaultcapacity ? Number(eventdefaultcapacity) : null,
+      ]
+    );
+
+    return res.redirect('/events?msg=template-created');
+  } catch (err) {
+    console.error('Create template error:', err);
+    try {
+      const types = await pool.query('SELECT eventtypeid, eventtypename FROM eventtype ORDER BY eventtypename');
+      return res.render(path.join('events', 'events_template'), {
+        title: 'Create Event Template',
+        types: types.rows,
+        error: err.message || 'Could not create template.',
+      });
+    } catch (innerErr) {
+      console.error('Create template fallback error:', innerErr);
+      return res.status(500).send('Could not create template');
+    }
   }
 });
 

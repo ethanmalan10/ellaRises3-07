@@ -1,0 +1,81 @@
+<main class="container main-content" style="max-width:1100px; margin-top:2.5rem;">
+  <% function fmtDate(d){ return d ? new Date(d).toLocaleString('en-US', { dateStyle:'medium', timeStyle:'short' }) : ''; } %>
+
+  <header style="display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:1.25rem;">
+    <div>
+      <h1 style="margin:0; font-family:var(--font-serif); color:var(--charcoal);">Past Events</h1>
+      <p style="margin:.3rem 0 0 0; color:#4b5563;">Filter or search past events by type, template, or text.</p>
+    </div>
+    <a href="/events" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Back to Events</a>
+  </header>
+
+  <form method="GET" action="/events/past" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px,1fr)); gap:12px; padding:20px; border:1px solid #e5e7eb; border-radius:16px; background:#f8fafc; margin-bottom:1.25rem; align-items:end;">
+    <div>
+      <label style="font-weight:600; display:block; margin-bottom:.35rem;">Event Type</label>
+      <select name="eventtypeid" style="width:100%; padding:10px; border-radius:10px;">
+        <option value="">All types</option>
+        <% types.forEach(t => { %>
+          <option value="<%= t.eventtypeid %>" <%= filters.eventtypeid == t.eventtypeid ? 'selected' : '' %>><%= t.eventtypename %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div>
+      <label style="font-weight:600; display:block; margin-bottom:.35rem;">Event Template</label>
+      <select name="eventtemplateid" style="width:100%; padding:10px; border-radius:10px;">
+        <option value="">All templates</option>
+        <% templates.forEach(t => { %>
+          <option value="<%= t.eventtemplateid %>" <%= filters.eventtemplateid == t.eventtemplateid ? 'selected' : '' %>><%= t.eventname %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div>
+      <label style="font-weight:600; display:block; margin-bottom:.35rem;">Search (name/description)</label>
+      <input type="text" name="search" value="<%= filters.search || '' %>" placeholder="e.g., robotics" style="width:90%; padding:10px; border-radius:10px;">
+    </div>
+    <div>
+      <label style="font-weight:600; display:block; margin-bottom:.35rem;">Ended On/After</label>
+      <input type="date" name="datefrom" value="<%= filters.datefrom || '' %>" style="width:90%; padding:10px; border-radius:10px;">
+    </div>
+    <div>
+      <label style="font-weight:600; display:block; margin-bottom:.35rem;">Ended On/Before</label>
+      <input type="date" name="dateto" value="<%= filters.dateto || '' %>" style="width:100%; padding:10px; border-radius:10px;">
+    </div>
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; grid-column:1 / -1; padding-top:4px;">
+      <button type="submit" class="btn-gradient" style="padding:12px 20px; border-radius:12px; min-width:120px; text-align:center;">Search</button>
+      <a href="/events/past" class="btn-cream" style="padding:12px 18px; border-radius:10px; text-decoration:none;">Clear</a>
+    </div>
+  </form>
+
+  <% if (events && events.length > 0) { %>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px;">
+      <% events.forEach(ev => { %>
+        <div class="card" style="padding:16px; border-radius:14px; border:1px solid #e5e7eb; box-shadow:0 10px 30px rgba(0,0,0,0.04); background:#f9fafb;">
+          <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
+            <div>
+              <h4 style="margin:0 0 .3rem 0; font-size:1.1rem; color:var(--charcoal);"><%= ev.eventname %></h4>
+              <p style="margin:0; color:#4b5563;"><%= ev.eventdescription %></p>
+            </div>
+            <span style="background:#fee2e2; color:#991b1b; padding:4px 8px; border-radius:8px; font-size:.8rem;">Past</span>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:8px; margin-top:12px; color:#374151; font-size:.95rem;">
+            <div><strong>Date</strong><br><%= fmtDate(ev.eventdatetimestart) %></div>
+            <div><strong>Ended</strong><br><%= fmtDate(ev.eventdatetimeend) %></div>
+            <div><strong>Location</strong><br><%= ev.eventlocation || 'TBD' %></div>
+            <div><strong>Capacity</strong><br><%= ev.eventcapacity || '—' %></div>
+            <div><strong>Registered</strong><br><%= ev.registrations_count %></div>
+          </div>
+
+          <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:14px;">
+            <a href="/events/<%= ev.eventoccurrenceid %>/edit" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Edit</a>
+            <form method="POST" action="/events/<%= ev.eventoccurrenceid %>/delete" onsubmit="return confirm('Delete this event?');">
+              <button type="submit" class="btn-outline" style="padding:10px 14px; border-radius:10px; border:1px solid #dc2626; color:#dc2626;">Delete</button>
+            </form>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } else { %>
+    <p style="color:#6b7280;">No past events match those filters.</p>
+  <% } %>
+</main>
