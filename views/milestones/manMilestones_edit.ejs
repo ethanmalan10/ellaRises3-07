@@ -7,34 +7,55 @@
 
     <form method="POST" action="/admin/surveys/<%= survey.id %>/edit" style="display:grid; gap:14px;">
       <div>
-        <label for="participantName" style="font-weight:600; display:block; margin-bottom:.35rem;">Participant Name</label>
-        <input
-          type="text"
-          id="participantName"
-          name="participantName"
-          value="<%= survey.participantName %>"
-          style="width:100%; padding:12px; border-radius:10px;"
-          required
-        />
+        <label style="font-weight:600; display:block; margin-bottom:.35rem;">Participant</label>
+        <div style="padding:12px; border-radius:10px; background:#f7f7f7;">
+          <%= survey.participantName || 'Unknown participant' %>
+        </div>
       </div>
 
       <div>
-        <label for="eventName" style="font-weight:600; display:block; margin-bottom:.35rem;">Event</label>
-        <input
-          type="text"
-          id="eventName"
-          name="eventName"
-          value="<%= survey.eventName %>"
-          style="width:100%; padding:12px; border-radius:10px;"
-          required
-        />
+        <label style="font-weight:600; display:block; margin-bottom:.35rem;">Event</label>
+        <div style="padding:12px; border-radius:10px; background:#f7f7f7;">
+          <%= survey.eventName || 'Unknown event' %>
+        </div>
       </div>
 
       <div>
         <label for="satisfaction" style="font-weight:600; display:block; margin-bottom:.35rem;">Satisfaction (1-5)</label>
+        <% const satVal = Number(survey.satisfaction); %>
         <select id="satisfaction" name="satisfaction" required style="width:100%; padding:12px; border-radius:10px;">
           <% for (let i = 1; i <= 5; i++) { %>
-            <option value="<%= i %>" <%= survey.satisfaction === i ? 'selected' : '' %>><%= i %></option>
+            <option value="<%= i %>" <%= satVal === i ? 'selected' : '' %>><%= i %></option>
+          <% } %>
+        </select>
+      </div>
+
+      <div>
+        <label for="usefulness" style="font-weight:600; display:block; margin-bottom:.35rem;">Usefulness (1-5)</label>
+        <% const useVal = Number(survey.usefulness); %>
+        <select id="usefulness" name="usefulness" required style="width:100%; padding:12px; border-radius:10px;">
+          <% for (let i = 1; i <= 5; i++) { %>
+            <option value="<%= i %>" <%= useVal === i ? 'selected' : '' %>><%= i %></option>
+          <% } %>
+        </select>
+      </div>
+
+      <div>
+        <label for="instructor" style="font-weight:600; display:block; margin-bottom:.35rem;">Instructor (1-5)</label>
+        <% const instVal = Number(survey.instructor); %>
+        <select id="instructor" name="instructor" required style="width:100%; padding:12px; border-radius:10px;">
+          <% for (let i = 1; i <= 5; i++) { %>
+            <option value="<%= i %>" <%= instVal === i ? 'selected' : '' %>><%= i %></option>
+          <% } %>
+        </select>
+      </div>
+
+      <div>
+        <label for="recommendation" style="font-weight:600; display:block; margin-bottom:.35rem;">Recommend (1-5)</label>
+        <% const recVal = Number(survey.recommendation); %>
+        <select id="recommendation" name="recommendation" required style="width:100%; padding:12px; border-radius:10px;">
+          <% for (let i = 1; i <= 5; i++) { %>
+            <option value="<%= i %>" <%= recVal === i ? 'selected' : '' %>><%= i %></option>
           <% } %>
         </select>
       </div>
@@ -46,7 +67,7 @@
           name="comments"
           rows="4"
           style="width:100%; padding:12px; border-radius:10px;"
-        ><%= survey.comments %></textarea>
+        ><%= survey.comments || '' %></textarea>
       </div>
 
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
