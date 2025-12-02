@@ -38,6 +38,32 @@ app.get('/donations',    (req, res) => res.render('donations'));
 app.get('/users',        (req, res) => res.render('users'));
 app.get('/register',     (req, res) => res.render('register'));
 
+// DB connection for local enviornment testing (delete this code when actually deploying to elastic beanstock)
+const knex = require("knex")({
+    client: "pg",
+    connection: {
+        host: process.env.RDS_HOSTNAME || "localhost",
+        user: process.env.RDS_USERNAME || "postgres",
+        password: process.env.RDS_PASSWORD || "rootuser123",
+        database: process.env.RDS_DB_NAME || "ellarises",
+        port: process.env.RDS_PORT || 5432,
+        ssl: process.env.DB_SSL ? {rejectUnauthorized: false} : false,
+    }
+});
+
+// DB connection for elastic beanstock env (uncomment this code when actually deploying)
+// const knex = require("knex")({
+//     client: "pg",
+//     connection: {
+//         host: process.env.RDS_HOSTNAME || "database-1.ccpw0keo684z.us-east-1.rds.amazonaws.com",
+//         user: process.env.RDS_USERNAME || "postgres",
+//         password: process.env.RDS_PASSWORD || "rootuser123",
+//         database: process.env.RDS_DB_NAME || "postgres",
+//         port: process.env.RDS_PORT || 5432,
+//         ssl: process.env.DB_SSL ? {rejectUnauthorized: false} : false,
+//     }
+// });
+
 // ---------- Start server ----------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
