@@ -1,4 +1,15 @@
 /* -------------------------------------------
+   MISC CSS STYLING
+------------------------------------------- */
+
+/* This line of code makes the footer always 
+sit at the bottom of the screen */
+html, body { min-height: 100vh; }
+body { display: flex; flex-direction: column; padding-bottom: 0; }
+main.container { flex: 1; }
+
+
+/* -------------------------------------------
    ELLA RISES BRAND VARIABLES
 ------------------------------------------- */
 :root {
