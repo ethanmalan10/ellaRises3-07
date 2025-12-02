@@ -92,7 +92,7 @@ async function getSurveysForParticipant(participantId) {
   const { rows } = await pool.query(
     `SELECT s.surveyid AS id,
             s.participantid,
-            s.eventoccurrenceid,
+            COALESCE(s.eventoccurrenceid, s.eventoccurenceid) AS eventoccurrenceid,
             s.surveysatisfactionscore AS satisfaction,
             s.surveyusefulnessscore AS usefulness,
             s.surveyinstructorscore AS instructor,
@@ -105,7 +105,7 @@ async function getSurveysForParticipant(participantId) {
             et.eventname AS eventName
      FROM survey s
      LEFT JOIN participant p ON s.participantid = p.participantid
-     LEFT JOIN eventoccurrence eo ON s.eventoccurrenceid = eo.eventoccurrenceid
+     LEFT JOIN eventoccurrence eo ON eo.eventoccurrenceid = COALESCE(s.eventoccurrenceid, s.eventoccurenceid)
      LEFT JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
      WHERE s.participantid = $1
      ORDER BY s.surveysubmissiondate DESC`,
@@ -118,7 +118,7 @@ async function getAllSurveys() {
   const { rows } = await pool.query(
     `SELECT s.surveyid AS id,
             s.participantid,
-            s.eventoccurrenceid,
+            COALESCE(s.eventoccurrenceid, s.eventoccurenceid) AS eventoccurrenceid,
             s.surveysatisfactionscore AS satisfaction,
             s.surveyusefulnessscore AS usefulness,
             s.surveyinstructorscore AS instructor,
@@ -131,7 +131,7 @@ async function getAllSurveys() {
             et.eventname AS eventName
      FROM survey s
      LEFT JOIN participant p ON s.participantid = p.participantid
-     LEFT JOIN eventoccurrence eo ON s.eventoccurrenceid = eo.eventoccurrenceid
+     LEFT JOIN eventoccurrence eo ON eo.eventoccurrenceid = COALESCE(s.eventoccurrenceid, s.eventoccurenceid)
      LEFT JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
      ORDER BY s.surveysubmissiondate DESC`
   );
@@ -142,7 +142,7 @@ async function getSurveyById(id) {
   const { rows } = await pool.query(
     `SELECT s.surveyid AS id,
             s.participantid,
-            s.eventoccurrenceid,
+            COALESCE(s.eventoccurrenceid, s.eventoccurenceid) AS eventoccurrenceid,
             s.surveysatisfactionscore AS satisfaction,
             s.surveyusefulnessscore AS usefulness,
             s.surveyinstructorscore AS instructor,
@@ -155,7 +155,7 @@ async function getSurveyById(id) {
             et.eventname AS eventName
      FROM survey s
      LEFT JOIN participant p ON s.participantid = p.participantid
-     LEFT JOIN eventoccurrence eo ON s.eventoccurrenceid = eo.eventoccurrenceid
+     LEFT JOIN eventoccurrence eo ON eo.eventoccurrenceid = COALESCE(s.eventoccurrenceid, s.eventoccurenceid)
      LEFT JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
      WHERE s.surveyid = $1
      LIMIT 1`,
@@ -177,31 +177,60 @@ async function insertSurvey({
   const npsBucket =
     recommendation >= 4 ? 'Promoter' : recommendation === 3 ? 'Passive' : 'Detractor';
 
-  await pool.query(
-    `INSERT INTO survey (
-        participantid,
+  // Try eventoccurrenceid first; fall back to eventoccurenceid if necessary
+  try {
+    await pool.query(
+      `INSERT INTO survey (
+          participantid,
+          eventoccurrenceid,
+          surveysatisfactionscore,
+          surveyusefulnessscore,
+          surveyinstructorscore,
+          surveyrecommendationscore,
+          surveyoverallscore,
+          surveynpsbucket,
+          surveycomments,
+          surveysubmissiondate
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())`,
+      [
+        participantId,
         eventoccurrenceid,
-        surveysatisfactionscore,
-        surveyusefulnessscore,
-        surveyinstructorscore,
-        surveyrecommendationscore,
-        surveyoverallscore,
-        surveynpsbucket,
-        surveycomments,
-        surveysubmissiondate
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())`,
-    [
-      participantId,
-      eventoccurrenceid,
-      satisfaction,
-      usefulness,
-      instructor,
-      recommendation,
-      overall,
-      npsBucket,
-      comments || null,
-    ]
-  );
+        satisfaction,
+        usefulness,
+        instructor,
+        recommendation,
+        overall,
+        npsBucket,
+        comments || null,
+      ]
+    );
+  } catch (err) {
+    await pool.query(
+      `INSERT INTO survey (
+          participantid,
+          eventoccurenceid,
+          surveysatisfactionscore,
+          surveyusefulnessscore,
+          surveyinstructorscore,
+          surveyrecommendationscore,
+          surveyoverallscore,
+          surveynpsbucket,
+          surveycomments,
+          surveysubmissiondate
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())`,
+      [
+        participantId,
+        eventoccurrenceid,
+        satisfaction,
+        usefulness,
+        instructor,
+        recommendation,
+        overall,
+        npsBucket,
+        comments || null,
+      ]
+    );
+  }
 }
 
 async function updateSurveyRecord(id, { satisfaction, usefulness, instructor, recommendation, comments }) {
@@ -415,8 +444,10 @@ app.post('/surveys', requireAuth, async (req, res) => {
   const { eventoccurrenceid, satisfaction, usefulness, instructor, recommendation, comments } =
     req.body;
 
+  let participant = null;
+  let events = [];
   try {
-    const participant = await findParticipantForUser(req.session.user);
+    participant = await findParticipantForUser(req.session.user);
     if (!participant) {
       return res.status(400).render(path.join('milestones', 'userMilestones'), {
         title: 'Surveys',
@@ -427,7 +458,7 @@ app.post('/surveys', requireAuth, async (req, res) => {
       });
     }
 
-    const events = await getRecentPastEventsForSurvey();
+    events = await getRecentPastEventsForSurvey();
     const eventId = Number(eventoccurrenceid);
     const sat = Number(satisfaction);
     const use = Number(usefulness);
@@ -467,7 +498,16 @@ app.post('/surveys', requireAuth, async (req, res) => {
     return res.redirect('/surveys');
   } catch (err) {
     console.error('Survey submit error:', err);
-    return res.status(500).send('Could not submit survey');
+    const surveys = await getSurveysForParticipant(
+      req.session.user?.participantid || participant?.participantid
+    );
+    return res.status(500).render(path.join('milestones', 'userMilestones'), {
+      title: 'Surveys',
+      surveys,
+      events,
+      error: 'Could not submit survey. Please try again or contact support.',
+      formValues: { eventoccurrenceid, satisfaction, usefulness, instructor, recommendation, comments },
+    });
   }
 });
 
@@ -494,7 +534,7 @@ app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
     const q = `
-      SELECT userid, username, password, level
+      SELECT participantid, username, password, level
       FROM users
       WHERE username = $1
       LIMIT 1
@@ -522,14 +562,17 @@ app.post('/login', async (req, res) => {
 
     let participantId = null;
     try {
-      const participant = await findParticipantForUser({ username: user.username });
-      if (participant) participantId = participant.participantid;
+      participantId = user.participantid || null;
+      if (!participantId) {
+        const participant = await findParticipantForUser({ username: user.username });
+        if (participant) participantId = participant.participantid;
+      }
     } catch (e) {
       console.warn('Could not map participant for user on login:', e);
     }
 
     req.session.user = {
-      id: user.userid,
+      id: participantId || user.participantid || null,
       username: user.username,
       role: mapRole(user.level),
       participantid: participantId,
@@ -602,14 +645,7 @@ app.post('/register', async (req, res) => {
     client = await pool.connect();
     await client.query('BEGIN');
 
-    const authInsert = await client.query(
-      `INSERT INTO users (username, password, level)
-       VALUES ($1, $2, $3)
-       RETURNING userid, username, level`,
-      [username, password, 'u'] // TODO: bcrypt hash
-    );
-
-    await client.query(
+    const participantInsert = await client.query(
       `INSERT INTO participant (
         participantemail,
         participantfirstname,
@@ -624,7 +660,8 @@ app.post('/register', async (req, res) => {
         participantaffiliationname,
         participantfieldofinterest,
         totaldonations
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      RETURNING participantid`,
       [
         email || null,
         firstName || null,
@@ -640,6 +677,15 @@ app.post('/register', async (req, res) => {
         fieldOfInterest,
         0,
       ]
+    );
+
+    const participantId = participantInsert.rows[0]?.participantid;
+    if (!participantId) throw new Error('Could not create participant record');
+
+    await client.query(
+      `INSERT INTO users (username, password, level, participantid)
+       VALUES ($1, $2, $3, $4)`,
+      [username, password, 'u', participantId] // TODO: bcrypt hash
     );
 
     await client.query('COMMIT');
@@ -702,17 +748,18 @@ app.post('/events/:id/rsvp', requireAuth, async (req, res) => {
   if (!eventId) return res.redirect('/events?err=bad-event');
 
   try {
-    const email = req.session.user.username;
-    const participantRes = await pool.query(
-      'SELECT participantid FROM participant WHERE participantemail = $1 LIMIT 1',
-      [email]
-    );
-
-    if (participantRes.rows.length === 0) {
-      return res.redirect('/events?err=noparticipant');
+    let participantId = req.session.user.participantid || null;
+    if (!participantId) {
+      const email = req.session.user.username;
+      const participantRes = await pool.query(
+        'SELECT participantid FROM participant WHERE LOWER(participantemail) = LOWER($1) LIMIT 1',
+        [email]
+      );
+      if (participantRes.rows.length === 0) {
+        return res.redirect('/events?err=noparticipant');
+      }
+      participantId = participantRes.rows[0].participantid;
     }
-
-    const participantId = participantRes.rows[0].participantid;
 
     const existing = await pool.query(
       `SELECT registrationid
