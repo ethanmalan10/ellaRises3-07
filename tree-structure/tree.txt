@@ -1,0 +1,76 @@
+C:.
+│   .env
+│   .gitignore
+│   index.js
+│   package-lock.json
+│   package.json
+│   README.md
+│   v1.zip
+│
+├───.ebextensions
+│       00_install_certbot.config
+│       02_certbot_renewal.config
+│       10_open_https_port.config
+│
+├───.platform
+│   └───hooks
+│       └───postdeploy
+│               00_get_certificate.sh
+│
+├───public
+│   ├───css
+│   ├───images
+│   │       EllaRisesLogo.avif
+│   │       woman.webp
+│   │
+│   └───styles
+│           ella.css
+│
+└───views
+    │   index.ejs
+    │
+    ├───account
+    │       account.ejs
+    │       account_edit.ejs
+    │
+    ├───allUsers
+    │       manMilestones.ejs
+    │       manMilestones_add.ejs
+    │       manMilestones_delete.ejs
+    │       manMilestones_edit.ejs
+    │       userMilestones.ejs
+    │
+    ├───dashboard
+    │       dashboard.ejs
+    │
+    ├───donations
+    │       donations.ejs
+    │
+    ├───events
+    │       events.ejs
+    │       events_add.ejs
+    │       events_delete.ejs
+    │       events_edit.ejs
+    │
+    ├───login
+    │       login.ejs
+    │       register.ejs
+    │
+    ├───milestones
+    │       manMilestones.ejs
+    │       manMilestones_add.ejs
+    │       manMilestones_delete.ejs
+    │       manMilestones_edit.ejs
+    │       userMilestones.ejs
+    │
+    ├───partials
+    │       layout.ejs
+    │       _head.ejs
+    │       _nav.ejs
+    │
+    └───Surveys
+            manSurveys.ejs
+            manSurveys_add.ejs
+            manSurveys_delete.ejs
+            manSurveys_edit.ejs
+            userSurveys.ejs
