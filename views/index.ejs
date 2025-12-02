@@ -1,3 +1,20 @@
+<% if (typeof donated !== 'undefined' && donated) { %>
+  <div id="donation-toast"
+       style="
+         position:fixed; left:50%; bottom:24px; transform:translateX(-50%);
+         background:#2e2f2e; color:white; padding:14px 18px; border-radius:12px;
+         box-shadow:0 8px 24px rgba(0,0,0,.25); z-index:9999; font-weight:600;">
+    <%= (donor && donor.trim().length) ? donor : 'Thank you' %> donated
+    <%= (amount && amount.trim().length) ? `$${amount}` : '' %> 🎉
+  </div>
+  <script>
+    setTimeout(() => {
+      const t = document.getElementById('donation-toast');
+      if (t) t.remove();
+    }, 4000);
+  </script>
+<% } %>
+
 <%
   // Correct & safe: Express stores all view variables in locals
   const user = locals.currentUser || null;

@@ -1,81 +1,26 @@
 <%
-  // Available to all views from index.js middleware
+  // Access the logged-in user (provided by index.js via res.locals.currentUser)
   const user = typeof currentUser !== 'undefined' ? currentUser : null;
   const isManager = user && (user.role === 'manager' || user.role === 'admin');
 %>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><%= typeof title !== 'undefined' ? title + ' – ' : '' %>Ella Rises</title>
-
-  <!-- Fonts + Main CSS -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles/ella.css">
+  <!-- Head partial (CSS, fonts, <meta>, etc.) -->
+  <%- include('_head') %>
 </head>
 
 <body>
 
-  <!-- NAVBAR -->
-  <nav class="navbar">
+  <!-- NAVBAR (No variables passed, _nav reads currentUser directly) -->
+  <%- include('_nav') %>
 
-    <!-- Logo -->
-    <a href="/" class="navbar-brand">
-      <img src="/images/EllaRisesLogo.avif" alt="Ella Rises" class="logo-img">
-    </a>
-
-    <!-- Center Section: Main Links -->
-    <div class="navbar-nav" style="margin-left: .25rem;">
-      <a href="/donations" class="nav-link">Donations</a>
-      <a href="/surveys"   class="nav-link">Surveys</a>
-      <a href="/events"    class="nav-link">Events</a>
-    </div>
-
-    <!-- Right Side -->
-    <div class="navbar-nav" style="margin-left:auto;">
-
-      <% if (!user) { %>
-        <!-- Login / Register Dropdown -->
-        <div class="dropdown">
-          <a href="#" class="nav-link">Login / Register</a>
-          <div class="dropdown-content">
-            <a href="/login">Login</a>
-            <a href="/register">Create Account</a>
-          </div>
-        </div>
-
-      <% } else { %>
-        <!-- User Dropdown -->
-        <div class="dropdown">
-          <a href="#" class="nav-link">My Account</a>
-          <div class="dropdown-content">
-
-            <!-- Always available -->
-            <a href="/my-account">Profile</a>
-
-            <!-- Manager/Admin Only -->
-            <% if (isManager) { %>
-              <a href="/admin/users">All Participants</a>
-              <a href="/milestones">Milestones</a>
-              <a href="/dashboard">Dashboard</a>
-            <% } %>
-
-            <!-- Logout -->
-            <a href="/logout">Logout</a>
-
-          </div>
-        </div>
-      <% } %>
-
-    </div>
-  </nav>
-
+  <!-- Main page content from each EJS view -->
   <main class="container">
     <%- body %>
   </main>
 
+  <!-- Footer -->
   <footer class="footer">
     <p>&copy; 2025 Ella Rises. Empowering the rising generation of women.</p>
   </footer>

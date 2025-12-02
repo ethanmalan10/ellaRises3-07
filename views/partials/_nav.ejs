@@ -1,20 +1,46 @@
+<%
+  // Read from res.locals safely (set in index.js)
+  const u = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
+  const manager = u && (u.role === 'manager' || u.role === 'admin');
+%>
 <nav class="navbar">
+  <!-- Logo -->
   <a href="/" class="navbar-brand">
-    <img src="/images/EllaRisesLogo.PNG" alt="Ella Rises" class="logo-img">
+    <img src="/images/EllaRisesLogo.avif" alt="Ella Rises" class="logo-img">
   </a>
-  <div class="navbar-nav">
-    <a href="/participants" class="nav-link">Participants</a>
-    <a href="/events" class="nav-link">Events</a>
-    <a href="/surveys" class="nav-link">Surveys</a>
-    <a href="/milestones" class="nav-link">Milestones</a>
+
+  <!-- Left nav links -->
+  <div class="navbar-nav" style="margin-left:.25rem;">
     <a href="/donations" class="nav-link">Donations</a>
-    <div class="dropdown">
-      <a href="#" class="nav-link">Users</a>
-      <div class="dropdown-content">
-        <a href="/login">Login</a>
-        <a href="/register">Register</a>
-        <a href="/users">Manage Users</a>
+    <a href="/surveys"   class="nav-link">Surveys</a>
+    <a href="/events"    class="nav-link">Events</a>
+  </div>
+
+  <!-- Right side -->
+  <div class="navbar-nav" style="margin-left:auto;">
+    <% if (!u) { %>
+      <!-- Login / Register dropdown -->
+      <div class="dropdown">
+        <a href="#" class="nav-link">Login / Register</a>
+        <div class="dropdown-content">
+          <a href="/login">Login</a>
+          <a href="/register">Create Account</a>
+        </div>
       </div>
-    </div>
+    <% } else { %>
+      <!-- My Account dropdown -->
+      <div class="dropdown">
+        <a href="#" class="nav-link">My Account</a>
+        <div class="dropdown-content">
+          <a href="/my-account">Profile</a>
+          <a href="/participants">All Participants</a>
+          <% if (manager) { %>
+            <a href="/milestones">Milestones</a>
+            <a href="/dashboard">Dashboard</a>
+          <% } %>
+          <a href="/logout">Logout</a>
+        </div>
+      </div>
+    <% } %>
   </div>
 </nav>
