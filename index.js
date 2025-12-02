@@ -72,7 +72,7 @@ function requireManager(req, res, next) {
 }
 
 /* -----------------------------
-   PUBLIC PAGES  (match your /views tree)
+   PUBLIC PAGES  (match your /views tree exactly)
 ----------------------------- */
 
 // / -> views/index.ejs
@@ -80,24 +80,24 @@ app.get('/', (req, res) => {
   res.render('index', { title: 'Ella Rises' });
 });
 
-// /donations -> views/donations/index.ejs
+// /donations -> views/donations/donations.ejs
 app.get('/donations', (req, res) => {
-  res.render(path.join('donations', 'index'), { title: 'Donations' });
+  res.render(path.join('donations', 'donations'), { title: 'Donations' });
 });
 
-// /events -> views/events/index.ejs
+// /events -> views/events/events.ejs
 app.get('/events', (req, res) => {
-  res.render(path.join('events', 'index'), { title: 'Events' });
+  res.render(path.join('events', 'events'), { title: 'Events' });
 });
 
-// /surveys -> views/Surveys/index.ejs   (capital S in your folder)
+// /surveys -> views/Surveys/userSurveys.ejs   (capital S in your folder)
 app.get('/surveys', (req, res) => {
-  res.render(path.join('Surveys', 'index'), { title: 'Surveys' });
+  res.render(path.join('Surveys', 'userSurveys'), { title: 'Surveys' });
 });
 
-// /milestones -> views/milestones/index.ejs
+// /milestones (public) -> views/milestones/userMilestones.ejs
 app.get('/milestones', (req, res) => {
-  res.render(path.join('milestones', 'index'), { title: 'Milestones' });
+  res.render(path.join('milestones', 'userMilestones'), { title: 'Milestones' });
 });
 
 /* -----------------------------
@@ -233,21 +233,22 @@ app.post('/logout', (req, res) => req.session.destroy(() => res.redirect('/')));
    AUTHENTICATED PAGES
 ----------------------------- */
 
-// /my-account -> views/account/index.ejs
+// /my-account -> views/account/account.ejs
 app.get('/my-account', requireAuth, (req, res) => {
-  res.render(path.join('account', 'index'), { title: 'My Account' });
+  res.render(path.join('account', 'account'), { title: 'My Account' });
 });
 
-// Admin / Manager
-// /admin/users -> views/allUsers/index.ejs
-app.get('/admin/users', requireManager, (req, res) => {
-  res.render(path.join('allUsers', 'index'), { title: 'All Users' });
-});
+/* -------- Optional manager routes based on your files -------- */
 
-// /admin/milestones -> views/milestones/manage.ejs (optional)
+// /admin/milestones -> views/milestones/manMilestones.ejs
 app.get('/admin/milestones', requireManager, (req, res) => {
-  res.render(path.join('milestones', 'manage'), { title: 'Manage Milestones' });
+  res.render(path.join('milestones', 'manMilestones'), { title: 'Manage Milestones' });
 });
+
+// If you later add an “all users” page, point it at the real file:
+// app.get('/admin/users', requireManager, (req, res) => {
+//   res.render(path.join('allUsers', 'index'), { title: 'All Users' });
+// });
 
 /* -----------------------------
    Health & 404
@@ -261,8 +262,8 @@ app.get('/healthz', async (_req, res) => {
   }
 });
 
-// Avoid crashing if views/partials/404.ejs doesn't exist yet
-app.use((req, res) => {
+// Simple 404 so we don't depend on a missing partial
+app.use((_req, res) => {
   res.status(404).send('Not Found');
 });
 
