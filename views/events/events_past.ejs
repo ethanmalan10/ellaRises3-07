@@ -1,61 +1,74 @@
 <main class="container main-content" style="max-width:1100px; margin-top:2.5rem;">
   <% function fmtDate(d){ return d ? new Date(d).toLocaleString('en-US', { dateStyle:'medium', timeStyle:'short' }) : ''; } %>
 
-  <header style="display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:1.25rem;">
+  <header style="display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:1.25rem; flex-wrap:wrap;">
     <div>
       <h1 style="margin:0; font-family:var(--font-serif); color:var(--charcoal);">Past Events</h1>
-      <p style="margin:.3rem 0 0 0; color:#4b5563;">Filter or search past events by type, template, or text.</p>
+      <p style="margin:.3rem 0 0 0; color:#4b5563;">Browse all past events. Use quick or advanced search to filter.</p>
     </div>
-    <a href="/events" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Back to Events</a>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+      <input id="past-search-live" type="text" placeholder="Quick search..." style="padding:10px 12px; border-radius:10px; border:1px solid #d1d5db; min-width:220px;">
+      <a href="/events" class="btn-cream" style="padding:12px 16px; border-radius:10px; text-decoration:none;">Back to Events</a>
+    </div>
   </header>
 
-  <form method="GET" action="/events/past" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px,1fr)); gap:12px; padding:20px; border:1px solid #e5e7eb; border-radius:16px; background:#f8fafc; margin-bottom:1.25rem; align-items:end;">
-    <div>
-      <label style="font-weight:600; display:block; margin-bottom:.35rem;">Event Type</label>
-      <select name="eventtypeid" style="width:100%; padding:10px; border-radius:10px;">
-        <option value="">All types</option>
-        <% types.forEach(t => { %>
-          <option value="<%= t.eventtypeid %>" <%= filters.eventtypeid == t.eventtypeid ? 'selected' : '' %>><%= t.eventtypename %></option>
-        <% }) %>
-      </select>
+  <section style="padding:16px; border:1px solid #e5e7eb; border-radius:16px; background:#f8fafc; margin-bottom:1rem;">
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:12px; align-items:end;">
+      <div>
+        <label style="font-weight:600; display:block; margin-bottom:.35rem;">Event Name</label>
+        <input id="past-name" type="text" placeholder="e.g., robotics" style="width:90%; padding:10px; border-radius:10px; border:1px solid #d1d5db;">
+      </div>
+      <div>
+        <label style="font-weight:600; display:block; margin-bottom:.35rem;">Location</label>
+        <input id="past-location" type="text" placeholder="e.g., library" style="width:90%; padding:10px; border-radius:10px; border:1px solid #d1d5db;">
+      </div>
+      <div>
+        <label style="font-weight:600; display:block; margin-bottom:.35rem;">Ended On/After</label>
+        <input id="past-from" type="date" style="width:90%; padding:10px; border-radius:10px; border:1px solid #d1d5db;">
+      </div>
+      <div>
+        <label style="font-weight:600; display:block; margin-bottom:.35rem;">Ended On/Before</label>
+        <input id="past-to" type="date" style="width:90%; padding:10px; border-radius:10px; border:1px solid #d1d5db;">
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button type="button" id="past-apply" class="btn-gradient" style="padding:12px 16px; border-radius:12px; min-width:110px;">Apply</button>
+        <button type="button" id="past-clear" class="btn-cream" style="padding:12px 16px; border-radius:10px;">Clear</button>
+      </div>
     </div>
-    <div>
-      <label style="font-weight:600; display:block; margin-bottom:.35rem;">Event Template</label>
-      <select name="eventtemplateid" style="width:100%; padding:10px; border-radius:10px;">
-        <option value="">All templates</option>
-        <% templates.forEach(t => { %>
-          <option value="<%= t.eventtemplateid %>" <%= filters.eventtemplateid == t.eventtemplateid ? 'selected' : '' %>><%= t.eventname %></option>
-        <% }) %>
-      </select>
-    </div>
-    <div>
-      <label style="font-weight:600; display:block; margin-bottom:.35rem;">Search (name/description)</label>
-      <input type="text" name="search" value="<%= filters.search || '' %>" placeholder="e.g., robotics" style="width:90%; padding:10px; border-radius:10px;">
-    </div>
-    <div>
-      <label style="font-weight:600; display:block; margin-bottom:.35rem;">Ended On/After</label>
-      <input type="date" name="datefrom" value="<%= filters.datefrom || '' %>" style="width:90%; padding:10px; border-radius:10px;">
-    </div>
-    <div>
-      <label style="font-weight:600; display:block; margin-bottom:.35rem;">Ended On/Before</label>
-      <input type="date" name="dateto" value="<%= filters.dateto || '' %>" style="width:100%; padding:10px; border-radius:10px;">
-    </div>
-    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; grid-column:1 / -1; padding-top:4px;">
-      <button type="submit" class="btn-gradient" style="padding:12px 20px; border-radius:12px; min-width:120px; text-align:center;">Search</button>
-      <a href="/events/past" class="btn-cream" style="padding:12px 18px; border-radius:10px; text-decoration:none;">Clear</a>
-    </div>
-  </form>
+  </section>
 
   <% if (events && events.length > 0) { %>
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px;">
-      <% events.forEach(ev => { %>
-        <div class="card" style="padding:16px; border-radius:14px; border:1px solid #e5e7eb; box-shadow:0 10px 30px rgba(0,0,0,0.04); background:#f9fafb;">
+    <div id="past-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px;">
+      <% events.forEach(ev => {
+           const start = ev.eventdatetimestart ? new Date(ev.eventdatetimestart) : null;
+           const monthName = start ? start.toLocaleString('en-US', { month: 'long' }).toLowerCase() : '';
+           const dayNum = start ? String(start.getDate()) : '';
+           const loc = (ev.eventlocation || '').toLowerCase();
+           const desc = (ev.eventdescription || '').toLowerCase();
+           const name = ev.eventname.toLowerCase();
+           const endIso = ev.eventdatetimeend ? new Date(ev.eventdatetimeend).toISOString() : '';
+         %>
+        <div
+          class="card past-card"
+          data-name="<%= name %>"
+          data-desc="<%= desc %>"
+          data-month="<%= monthName %>"
+          data-day="<%= dayNum %>"
+          data-loc="<%= loc %>"
+          data-end="<%= endIso %>"
+          style="padding:16px; border-radius:14px; border:1px solid #e5e7eb; box-shadow:0 10px 30px rgba(0,0,0,0.04); background:#f9fafb;"
+        >
           <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
             <div>
               <h4 style="margin:0 0 .3rem 0; font-size:1.1rem; color:var(--charcoal);"><%= ev.eventname %></h4>
               <p style="margin:0; color:#4b5563;"><%= ev.eventdescription %></p>
             </div>
-            <span style="background:#fee2e2; color:#991b1b; padding:4px 8px; border-radius:8px; font-size:.8rem;">Past</span>
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+              <% if (ev.eventtypename) { %>
+                <span style="background:#eef2ff; color:#3730a3; padding:4px 8px; border-radius:8px; font-size:.8rem;"><%= ev.eventtypename %></span>
+              <% } %>
+              <span style="background:#fee2e2; color:#991b1b; padding:4px 8px; border-radius:8px; font-size:.8rem;">Past</span>
+            </div>
           </div>
 
           <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:8px; margin-top:12px; color:#374151; font-size:.95rem;">
@@ -76,6 +89,74 @@
       <% }) %>
     </div>
   <% } else { %>
-    <p style="color:#6b7280;">No past events match those filters.</p>
+    <p style="color:#6b7280;">No past events found.</p>
   <% } %>
 </main>
+
+<script>
+  (() => {
+    const cards = Array.from(document.querySelectorAll('.past-card'));
+    if (cards.length === 0) return;
+
+    const quick = document.getElementById('past-search-live');
+    const nameInput = document.getElementById('past-name');
+    const locInput = document.getElementById('past-location');
+    const fromInput = document.getElementById('past-from');
+    const toInput = document.getElementById('past-to');
+    const applyBtn = document.getElementById('past-apply');
+    const clearBtn = document.getElementById('past-clear');
+
+    const filter = () => {
+      const q = (quick?.value || '').trim().toLowerCase();
+      const nameQ = (nameInput?.value || '').trim().toLowerCase();
+      const locQ = (locInput?.value || '').trim().toLowerCase();
+      const fromQ = fromInput?.value ? new Date(fromInput.value) : null;
+      const toQ = toInput?.value ? new Date(toInput.value) : null;
+
+      cards.forEach(c => {
+        const name = c.dataset.name || '';
+        const desc = c.dataset.desc || '';
+        const month = c.dataset.month || '';
+        const day = c.dataset.day || '';
+        const loc = c.dataset.loc || '';
+        const endIso = c.dataset.end || '';
+        const endDate = endIso ? new Date(endIso) : null;
+
+        const matchesQuick =
+          !q ||
+          name.includes(q) ||
+          desc.includes(q) ||
+          month.includes(q) ||
+          day.includes(q) ||
+          loc.includes(q);
+
+        const matchesName = !nameQ || name.includes(nameQ);
+        const matchesLoc = !locQ || loc.includes(locQ);
+        const matchesFrom = !fromQ || (endDate && endDate >= fromQ);
+        const matchesTo = !toQ || (endDate && endDate <= toQ);
+
+        const show = matchesQuick && matchesName && matchesLoc && matchesFrom && matchesTo;
+        c.style.display = show ? '' : 'none';
+      });
+    };
+
+    quick?.addEventListener('input', filter);
+    applyBtn?.addEventListener('click', filter);
+    [nameInput, locInput, fromInput, toInput].forEach(el => {
+      el?.addEventListener('keypress', e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          filter();
+        }
+      });
+    });
+    clearBtn?.addEventListener('click', () => {
+      [quick, nameInput, locInput, fromInput, toInput].forEach(el => {
+        if (el) el.value = '';
+      });
+      filter();
+    });
+
+    filter();
+  })();
+</script>

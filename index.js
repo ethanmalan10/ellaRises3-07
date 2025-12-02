@@ -374,12 +374,39 @@ function requireManager(req, res, next) {
 
 // / -> views/index.ejs
 app.get('/', (req, res) => {
-  res.render('index', { title: 'Ella Rises' });
+  const { donated, thanks, donor, amount, donorName, donorAmount } = req.query || {};
+
+  // Surface possible donation flash params to the view
+  res.render('index', {
+    title: 'Ella Rises',
+    donated,
+    thanks,
+    donor,
+    amount,
+    donorName,
+    donorAmount,
+  });
 });
 
 // /donations -> views/donations/donations.ejs
 app.get('/donations', (req, res) => {
   res.render(path.join('donations', 'donations'), { title: 'Donations' });
+});
+
+// Handle donation submit -> redirect home with a thank-you toast
+app.post('/donations', (req, res) => {
+  const { fullName, donationAmount } = req.body || {};
+
+  // Normalize values to avoid undefined in the query string
+  const donor = (fullName || '').trim();
+  const amount = (donationAmount || '').trim();
+
+  const params = new URLSearchParams();
+  params.set('donated', '1');
+  if (donor) params.set('donor', donor);
+  if (amount) params.set('amount', amount);
+
+  return res.redirect(`/?${params.toString()}`);
 });
 
 // /events -> views/events/events.ejs
@@ -1052,37 +1079,7 @@ app.post('/events/:id/delete', requireManager, async (req, res) => {
 });
 
 // Manager: past events with filters (lazy load)
-app.get('/events/past', requireManager, async (req, res) => {
-  const { eventtypeid, eventtemplateid, search, datefrom, dateto } = req.query;
-  const filters = [];
-  const values = [];
-  let shouldQuery = true; // always allow querying; filters refine results
-
-  if (eventtypeid) {
-    values.push(Number(eventtypeid));
-    filters.push(`et.eventtypeid = $${values.length}`);
-  }
-  if (eventtemplateid) {
-    values.push(Number(eventtemplateid));
-    filters.push(`eo.eventtemplateid = $${values.length}`);
-  }
-  if (typeof search !== 'undefined') {
-    values.push(`%${search || ''}%`);
-    filters.push(`(LOWER(et.eventname) LIKE LOWER($${values.length}) OR LOWER(et.eventdescription) LIKE LOWER($${values.length}))`);
-  }
-  if (datefrom) {
-    values.push(datefrom);
-    filters.push(`eo.eventdatetimeend >= $${values.length}`);
-  }
-  if (dateto) {
-    values.push(dateto);
-    filters.push(`eo.eventdatetimeend <= $${values.length}`);
-  }
-
-  const whereParts = [`eo.eventdatetimeend < NOW()`];
-  if (filters.length > 0) whereParts.push(filters.join(' AND '));
-  const whereClause = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
-
+app.get('/events/past', requireManager, async (_req, res) => {
   const baseQuery = `
     SELECT
       eo.eventoccurrenceid,
@@ -1095,32 +1092,28 @@ app.get('/events/past', requireManager, async (req, res) => {
       et.eventname,
       et.eventdescription,
       et.eventtypeid,
-      COALESCE(regs.count, 0) AS registrations_count
+      et.eventrecurrencepattern,
+      et.eventdefaultcapacity,
+      COALESCE(regs.count, 0) AS registrations_count,
+      etype.eventtypename
     FROM eventoccurrence eo
     JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
+    LEFT JOIN eventtype etype ON et.eventtypeid = etype.eventtypeid
     LEFT JOIN (
       SELECT eventoccurrenceid, COUNT(*) AS count
       FROM registration
       GROUP BY eventoccurrenceid
     ) regs ON regs.eventoccurrenceid = eo.eventoccurrenceid
-    ${whereClause}
+    WHERE eo.eventdatetimeend < NOW()
     ORDER BY eo.eventdatetimestart DESC
-    LIMIT 200;
+    LIMIT 500;
   `;
 
   try {
-    const [typesRes, templatesRes, eventsRes] = await Promise.all([
-      pool.query('SELECT eventtypeid, eventtypename FROM eventtype ORDER BY eventtypename'),
-      pool.query('SELECT eventtemplateid, eventname FROM eventtemplate ORDER BY eventname'),
-      shouldQuery ? pool.query(baseQuery, values) : Promise.resolve({ rows: [] }),
-    ]);
-
+    const eventsRes = await pool.query(baseQuery);
     return res.render(path.join('events', 'events_past'), {
       title: 'Past Events',
       events: eventsRes.rows,
-      filters: { eventtypeid, eventtemplateid, search, datefrom, dateto },
-      types: typesRes.rows,
-      templates: templatesRes.rows,
     });
   } catch (err) {
     console.error('Past events error:', err);
