@@ -1,347 +1,46 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Manage Surveys | Ella Rises</title>
-  <link rel="stylesheet" href="/css/ella.css">
-  <style>
-    .table-wrapper {
-      overflow-x: auto;
-      border-radius: 12px;
-      box-shadow: 0 3px 10px rgba(0,0,0,.07);
-      background: var(--cream);
-    }
-    .survey-table {
-      width: 100%;
-      border-collapse: collapse;
-      background: var(--cream);
-    }
-    .survey-table thead {
-      background: var(--charcoal);
-      color: var(--cream);
-      position: sticky;
-      top: 0;
-      z-index: 10;
-    }
-    .survey-table th {
-      padding: 1rem;
-      text-align: left;
-      font-weight: 600;
-      font-size: 0.9rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      white-space: nowrap;
-    }
-    .survey-table td {
-      padding: 0.875rem 1rem;
-      border-bottom: 1px solid var(--pink-light);
-      font-size: 0.95rem;
-    }
-    .survey-table tbody tr {
-      transition: all 0.2s ease;
-    }
-    .survey-table tbody tr:hover {
-      background: var(--pink-light);
-    }
-    .score-badge {
-      display: inline-block;
-      padding: 0.35rem 0.65rem;
-      border-radius: 6px;
-      font-weight: 700;
-      font-size: 0.9rem;
-      min-width: 35px;
-      text-align: center;
-    }
-    .score-high { background: var(--sage); color: #fff; }
-    .score-medium { background: var(--coral-soft); color: var(--charcoal); }
-    .score-low { background: var(--pink-soft); color: var(--charcoal); }
-    .action-btn {
-      padding: 0.4rem 0.9rem;
-      border-radius: 6px;
-      text-decoration: none;
-      font-size: 0.85rem;
-      font-weight: 600;
-      display: inline-block;
-      margin: 0 0.15rem;
-      transition: all 0.3s ease;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-    }
-    .btn-edit {
-      background: var(--blue-soft);
-      color: #fff;
-    }
-    .btn-edit:hover {
-      background: var(--charcoal);
-      transform: translateY(-2px);
-    }
-    .btn-delete {
-      background: var(--pink-dark);
-      color: #fff;
-    }
-    .btn-delete:hover {
-      background: var(--charcoal);
-      transform: translateY(-2px);
-    }
-  </style>
-</head>
-<body>
+<section class="main-content">
+  <div class="card" style="padding: 24px; border-radius: 18px;">
+    <h2 style="margin:0 0 8px 0; font-family: var(--font-serif);">Submitted Surveys</h2>
+    <p style="margin:0 0 16px 0; color:var(--charcoal); opacity:0.8;">
+      Hover items to see actions. Click through to edit or delete.
+    </p>
 
-  <%- include('partials/header') %>
-
-  <main class="main-content">
-    
-    <!-- COMPANY TITLE -->
-    <section class="container" style="margin-top:1.25rem; text-align:center;">
-      <h1 style="font-family: var(--font-serif); font-size: 3rem; color: var(--charcoal); margin: 0 0 0.75rem 0;">
-        Ella Rises
-      </h1>
-    </section>
-
-    <!-- PAGE HEADER -->
-    <section class="container" style="margin-top:0; max-width: 1400px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-        <div>
-          <h2 style="font-family: var(--font-serif); font-size: 2.5rem; color: var(--charcoal); margin: 0 0 0.5rem 0;">
-            Survey Management
-          </h2>
-          <p style="margin: 0; color: var(--charcoal); opacity: 0.8; font-size: 1.1rem;">
-            View and manage all event feedback surveys
-          </p>
-        </div>
-        <a href="/surveys/add" class="btn-login-home" style="white-space: nowrap;">
-          + Add Survey
-        </a>
-      </div>
-    </section>
-
-    <!-- STATISTICS CARDS -->
-    <section class="container" style="margin-top: 1.5rem; max-width: 1400px;">
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
-        
-        <div class="card" style="padding: 1.5rem; text-align: center; border-left: 4px solid var(--pink-dark);">
-          <p style="margin: 0; font-size: 0.85rem; color: var(--charcoal); opacity: 0.7; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">
-            Total Surveys
-          </p>
-          <p style="margin: 0.5rem 0 0 0; font-size: 2.5rem; font-weight: 700; color: var(--pink-dark);">
-            <%= surveys.length %>
-          </p>
-        </div>
-
-        <div class="card" style="padding: 1.5rem; text-align: center; border-left: 4px solid var(--sage);">
-          <p style="margin: 0; font-size: 0.85rem; color: var(--charcoal); opacity: 0.7; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">
-            Avg Satisfaction
-          </p>
-          <p style="margin: 0.5rem 0 0 0; font-size: 2.5rem; font-weight: 700; color: var(--sage);">
-            <%= surveys.length > 0 ? (surveys.reduce((sum, s) => sum + (s.surveysatisfactionscore || 0), 0) / surveys.length).toFixed(1) : 'N/A' %>
-          </p>
-        </div>
-
-        <div class="card" style="padding: 1.5rem; text-align: center; border-left: 4px solid var(--blue-soft);">
-          <p style="margin: 0; font-size: 0.85rem; color: var(--charcoal); opacity: 0.7; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">
-            Avg Usefulness
-          </p>
-          <p style="margin: 0.5rem 0 0 0; font-size: 2.5rem; font-weight: 700; color: var(--blue-soft);">
-            <%= surveys.length > 0 ? (surveys.reduce((sum, s) => sum + (s.surveyusefulnessscore || 0), 0) / surveys.length).toFixed(1) : 'N/A' %>
-          </p>
-        </div>
-
-        <div class="card" style="padding: 1.5rem; text-align: center; border-left: 4px solid var(--lavender);">
-          <p style="margin: 0; font-size: 0.85rem; color: var(--charcoal); opacity: 0.7; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">
-            Promoters
-          </p>
-          <p style="margin: 0.5rem 0 0 0; font-size: 2.5rem; font-weight: 700; color: var(--lavender);">
-            <%= surveys.filter(s => s.surveynpsbucket === 'Promoter').length %>
-          </p>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- FILTERS -->
-    <section class="container" style="margin-top: 1.5rem; max-width: 1400px;">
-      <div class="card" style="padding: 1.5rem;">
-        <h3 style="font-family: var(--font-serif); margin: 0 0 1rem 0; color: var(--charcoal);">
-          Filter Surveys
-        </h3>
-        <form action="/surveys/manage" method="GET">
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
-            
-            <div>
-              <label for="participantid" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--charcoal);">
-                Participant ID
-              </label>
-              <input 
-                type="text" 
-                id="participantid" 
-                name="participantid" 
-                placeholder="Enter participant ID"
-                value="<%= filters.participantid || '' %>"
-              >
+    <% if (surveys && surveys.length) { %>
+      <div style="display:grid; gap:16px;">
+        <% surveys.forEach(s => { %>
+          <div style="border:1px solid #eee; border-radius:12px; padding:14px 16px; transition: box-shadow .2s; background:#fff;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+              <div>
+                <p style="margin:0; font-weight:700; color:var(--charcoal);"><%= s.participantName || 'Unknown participant' %></p>
+                <p style="margin:0; color:var(--charcoal); opacity:0.7;">Event: <%= s.eventName || 'Unknown event' %></p>
+                <p style="margin:0; color:var(--charcoal); opacity:0.6;">Submitted: <%= new Date(s.submittedAt).toLocaleDateString() %></p>
+              </div>
+              <div>
+                <% const avg = Number(((Number(s.satisfaction) + Number(s.usefulness) + Number(s.instructor) + Number(s.recommendation))/4).toFixed(1)); %>
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <span style="color:<%= i <= Math.round(avg) ? '#f7b500' : '#d8d8d8' %>; font-size:1.1rem;">★</span>
+                <% } %>
+                <p style="margin:2px 0 0 0; text-align:right; font-weight:700; color:var(--charcoal);"><%= avg %>/5</p>
+              </div>
             </div>
-
-            <div>
-              <label for="eventoccurrenceid" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--charcoal);">
-                Event Occurrence ID
-              </label>
-              <input 
-                type="text" 
-                id="eventoccurrenceid" 
-                name="eventoccurrenceid" 
-                placeholder="Enter event ID"
-                value="<%= filters.eventoccurrenceid || '' %>"
-              >
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+              <span style="background:#f7f7f7; padding:6px 10px; border-radius:10px; font-weight:600;">Sat: <%= s.satisfaction %></span>
+              <span style="background:#f7f7f7; padding:6px 10px; border-radius:10px; font-weight:600;">Useful: <%= s.usefulness %></span>
+              <span style="background:#f7f7f7; padding:6px 10px; border-radius:10px; font-weight:600;">Instructor: <%= s.instructor %></span>
+              <span style="background:#f7f7f7; padding:6px 10px; border-radius:10px; font-weight:600;">Recommend: <%= s.recommendation %></span>
             </div>
-
-            <div>
-              <label for="minScore" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--charcoal);">
-                Min Overall Score
-              </label>
-              <input 
-                type="number" 
-                id="minScore" 
-                name="minScore" 
-                placeholder="1.0 - 5.0"
-                min="1"
-                max="5"
-                step="0.1"
-                value="<%= filters.minScore || '' %>"
-              >
-            </div>
-
-            <div>
-              <label for="npsbucket" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--charcoal);">
-                NPS Bucket
-              </label>
-              <select id="npsbucket" name="npsbucket">
-                <option value="">All</option>
-                <option value="Promoter" <%= filters.npsbucket === 'Promoter' ? 'selected' : '' %>>Promoter</option>
-                <option value="Passive" <%= filters.npsbucket === 'Passive' ? 'selected' : '' %>>Passive</option>
-                <option value="Detractor" <%= filters.npsbucket === 'Detractor' ? 'selected' : '' %>>Detractor</option>
-              </select>
-            </div>
-
-          </div>
-
-          <div style="display: flex; gap: 1rem;">
-            <button type="submit" class="btn-sage" style="padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer;">
-              Apply Filters
-            </button>
-            <a href="/surveys/manage" class="btn-cream" style="display: inline-block; padding: 0.75rem 1.5rem; text-decoration: none;">
-              Clear All
-            </a>
-          </div>
-        </form>
-      </div>
-    </section>
-
-    <!-- SURVEYS TABLE -->
-    <section class="container" style="margin-top: 1.5rem; max-width: 1400px;">
-      <% if (surveys && surveys.length > 0) { %>
-        <div class="table-wrapper">
-          <table class="survey-table">
-            <thead>
-              <tr>
-                <th>Survey ID</th>
-                <th>Participant</th>
-                <th>Event</th>
-                <th>Satisfaction</th>
-                <th>Usefulness</th>
-                <th>Instructor</th>
-                <th>Recommend</th>
-                <th>Overall</th>
-                <th>NPS</th>
-                <th>Submitted</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% surveys.forEach(survey => { %>
-                <tr>
-                  <td><strong style="color: var(--pink-dark);">#<%= survey.surveyid %></strong></td>
-                  <td><%= survey.participantid %></td>
-                  <td><%= survey.eventoccurrenceid %></td>
-                  <td>
-                    <span class="score-badge <%= survey.surveysatisfactionscore >= 4 ? 'score-high' : survey.surveysatisfactionscore >= 3 ? 'score-medium' : 'score-low' %>">
-                      <%= survey.surveysatisfactionscore || '-' %>
-                    </span>
-                  </td>
-                  <td>
-                    <span class="score-badge <%= survey.surveyusefulnessscore >= 4 ? 'score-high' : survey.surveyusefulnessscore >= 3 ? 'score-medium' : 'score-low' %>">
-                      <%= survey.surveyusefulnessscore || '-' %>
-                    </span>
-                  </td>
-                  <td>
-                    <span class="score-badge <%= survey.surveyinstructorscore >= 4 ? 'score-high' : survey.surveyinstructorscore >= 3 ? 'score-medium' : 'score-low' %>">
-                      <%= survey.surveyinstructorscore || '-' %>
-                    </span>
-                  </td>
-                  <td>
-                    <span class="score-badge <%= survey.surveyrecommendationscore >= 4 ? 'score-high' : survey.surveyrecommendationscore >= 3 ? 'score-medium' : 'score-low' %>">
-                      <%= survey.surveyrecommendationscore || '-' %>
-                    </span>
-                  </td>
-                  <td>
-                    <% if (survey.surveyoverallscore) { %>
-                      <strong style="font-size: 1.1rem; color: var(--pink-dark);">
-                        <%= Number(survey.surveyoverallscore).toFixed(1) %>
-                      </strong>
-                    <% } else { %>
-                      -
-                    <% } %>
-                  </td>
-                  <td>
-                    <% if (survey.surveynpsbucket) { %>
-                      <span style="font-size: 0.8rem; font-weight: 700; color: <%= survey.surveynpsbucket === 'Promoter' ? 'var(--sage)' : survey.surveynpsbucket === 'Passive' ? 'var(--coral-soft)' : 'var(--pink-dark)' %>;">
-                        <%= survey.surveynpsbucket %>
-                      </span>
-                    <% } else { %>
-                      -
-                    <% } %>
-                  </td>
-                  <td style="white-space: nowrap;">
-                    <% if (survey.surveysubmissiondate) { %>
-                      <%= new Date(survey.surveysubmissiondate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
-                    <% } else { %>
-                      Not submitted
-                    <% } %>
-                  </td>
-                  <td style="white-space: nowrap;">
-                    <a href="/surveys/edit/<%= survey.surveyid %>" class="action-btn btn-edit">Edit</a>
-                    <a href="/surveys/delete/<%= survey.surveyid %>" class="action-btn btn-delete">Delete</a>
-                  </td>
-                </tr>
-              <% }) %>
-            </tbody>
-          </table>
-        </div>
-
-      <% } else { %>
-        <!-- No Surveys -->
-        <div class="card" style="padding: 4rem 2rem; text-align: center;">
-          <div style="font-size: 4rem; margin-bottom: 1.5rem;">📊</div>
-          <h3 style="font-family: var(--font-serif); color: var(--charcoal); margin-bottom: 1rem; font-size: 1.8rem;">
-            No Surveys Found
-          </h3>
-          <p style="color: var(--charcoal); opacity: 0.8; margin-bottom: 2rem; max-width: 500px; margin-left: auto; margin-right: auto;">
-            <% if (Object.keys(filters).some(key => filters[key])) { %>
-              No surveys match your current filters. Try adjusting your search criteria.
-            <% } else { %>
-              Get started by adding your first survey.
+            <% if (s.comments) { %>
+              <p style="margin:10px 0 0 0; color:var(--charcoal); opacity:0.8;"><%= s.comments %></p>
             <% } %>
-          </p>
-          <a href="/surveys/add" class="btn-login-home">
-            Add First Survey
-          </a>
-        </div>
-      <% } %>
-
-    </section>
-
-  </main>
-
-  <%- include('partials/footer') %>
-
-</body>
-</html>
+            <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+              <a class="btn-login-home" style="padding:8px 12px; border-radius:10px;" href="/admin/surveys/<%= s.id %>/edit">Edit</a>
+              <a class="btn-login-home" style="padding:8px 12px; border-radius:10px; background:#ffe1e1; color:#7a2e2e;" href="/admin/surveys/<%= s.id %>/delete">Delete</a>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <p style="margin:0; color:var(--charcoal); opacity:0.7;">No surveys submitted yet.</p>
+    <% } %>
+  </div>
+</section>

@@ -92,7 +92,7 @@ async function getSurveysForParticipant(participantId) {
   const { rows } = await pool.query(
     `SELECT s.surveyid AS id,
             s.participantid,
-            COALESCE(s.eventoccurrenceid, s.eventoccurenceid) AS eventoccurrenceid,
+            s.eventoccurrenceid AS eventoccurrenceid,
             s.surveysatisfactionscore AS satisfaction,
             s.surveyusefulnessscore AS usefulness,
             s.surveyinstructorscore AS instructor,
@@ -105,7 +105,7 @@ async function getSurveysForParticipant(participantId) {
             et.eventname AS eventName
      FROM survey s
      LEFT JOIN participant p ON s.participantid = p.participantid
-     LEFT JOIN eventoccurrence eo ON eo.eventoccurrenceid = COALESCE(s.eventoccurrenceid, s.eventoccurenceid)
+     LEFT JOIN eventoccurrence eo ON eo.eventoccurrenceid = s.eventoccurrenceid
      LEFT JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
      WHERE s.participantid = $1
      ORDER BY s.surveysubmissiondate DESC`,
@@ -118,7 +118,7 @@ async function getAllSurveys() {
   const { rows } = await pool.query(
     `SELECT s.surveyid AS id,
             s.participantid,
-            COALESCE(s.eventoccurrenceid, s.eventoccurenceid) AS eventoccurrenceid,
+            s.eventoccurrenceid AS eventoccurrenceid,
             s.surveysatisfactionscore AS satisfaction,
             s.surveyusefulnessscore AS usefulness,
             s.surveyinstructorscore AS instructor,
@@ -131,7 +131,7 @@ async function getAllSurveys() {
             et.eventname AS eventName
      FROM survey s
      LEFT JOIN participant p ON s.participantid = p.participantid
-     LEFT JOIN eventoccurrence eo ON eo.eventoccurrenceid = COALESCE(s.eventoccurrenceid, s.eventoccurenceid)
+     LEFT JOIN eventoccurrence eo ON eo.eventoccurrenceid = s.eventoccurrenceid
      LEFT JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
      ORDER BY s.surveysubmissiondate DESC`
   );
@@ -142,7 +142,83 @@ async function getSurveyById(id) {
   const { rows } = await pool.query(
     `SELECT s.surveyid AS id,
             s.participantid,
-            COALESCE(s.eventoccurrenceid, s.eventoccurenceid) AS eventoccurrenceid,
+            s.eventoccurrenceid AS eventoccurrenceid,
+            s.surveysatisfactionscore AS satisfaction,
+            s.surveyusefulnessscore AS usefulness,
+            s.surveyinstructorscore AS instructor,
+            s.surveyrecommendationscore AS recommendation,
+            s.surveyoverallscore AS overall,
+            s.surveynpsbucket AS npsBucket,
+            s.surveycomments AS comments,
+            s.surveysubmissiondate AS submittedAt,
+            TRIM(BOTH ' ' FROM COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,'')) AS participantName,
+            et.eventname AS eventName
+     FROM survey s
+     LEFT JOIN participant p ON s.participantid = p.participantid
+     LEFT JOIN eventoccurrence eo ON eo.eventoccurrenceid = s.eventoccurrenceid
+     LEFT JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
+     WHERE s.surveyid = $1
+     LIMIT 1`,
+    [id]
+  );
+  return rows[0] || null;
+}
+
+async function getSurveysForParticipant(participantId) {
+  const { rows } = await pool.query(
+    `SELECT s.surveyid AS id,
+            s.participantid,
+            s.eventoccurenceid AS eventoccurrenceid,
+            s.surveysatisfactionscore AS satisfaction,
+            s.surveyusefulnessscore AS usefulness,
+            s.surveyinstructorscore AS instructor,
+            s.surveyrecommendationscore AS recommendation,
+            s.surveyoverallscore AS overall,
+            s.surveynpsbucket AS npsBucket,
+            s.surveycomments AS comments,
+            s.surveysubmissiondate AS submittedAt,
+            TRIM(BOTH ' ' FROM COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,'')) AS participantName,
+            et.eventname AS eventName
+     FROM survey s
+     LEFT JOIN participant p ON s.participantid = p.participantid
+     LEFT JOIN eventoccurrence eo ON eo.eventoccurrenceid = s.eventoccurenceid
+     LEFT JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
+     WHERE s.participantid = $1
+     ORDER BY s.surveysubmissiondate DESC`,
+    [participantId]
+  );
+  return rows;
+}
+
+async function getAllSurveys() {
+  const { rows } = await pool.query(
+    `SELECT s.surveyid AS id,
+            s.participantid,
+            s.eventoccurenceid AS eventoccurrenceid,
+            s.surveysatisfactionscore AS satisfaction,
+            s.surveyusefulnessscore AS usefulness,
+            s.surveyinstructorscore AS instructor,
+            s.surveyrecommendationscore AS recommendation,
+            s.surveyoverallscore AS overall,
+            s.surveynpsbucket AS npsBucket,
+            s.surveycomments AS comments,
+            s.surveysubmissiondate AS submittedAt,
+            TRIM(BOTH ' ' FROM COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,'')) AS participantName,
+            et.eventname AS eventName
+     FROM survey s
+     LEFT JOIN participant p ON s.participantid = p.participantid
+     LEFT JOIN eventoccurrence eo ON eo.eventoccurrenceid = s.eventoccurenceid
+     LEFT JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
+     ORDER BY s.surveysubmissiondate DESC`
+  );
+  return rows;
+}
+
+async function getSurveyById(id) {
+  const { rows } = await pool.query(
+    `SELECT s.surveyid AS id,
+            s.participantid,
+            s.eventoccurenceid AS eventoccurrenceid,
             s.surveysatisfactionscore AS satisfaction,
             s.surveyusefulnessscore AS usefulness,
             s.surveyinstructorscore AS instructor,
@@ -177,60 +253,31 @@ async function insertSurvey({
   const npsBucket =
     recommendation >= 4 ? 'Promoter' : recommendation === 3 ? 'Passive' : 'Detractor';
 
-  // Try eventoccurrenceid first; fall back to eventoccurenceid if necessary
-  try {
-    await pool.query(
-      `INSERT INTO survey (
-          participantid,
-          eventoccurrenceid,
-          surveysatisfactionscore,
-          surveyusefulnessscore,
-          surveyinstructorscore,
-          surveyrecommendationscore,
-          surveyoverallscore,
-          surveynpsbucket,
-          surveycomments,
-          surveysubmissiondate
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())`,
-      [
-        participantId,
+  await pool.query(
+    `INSERT INTO survey (
+        participantid,
         eventoccurrenceid,
-        satisfaction,
-        usefulness,
-        instructor,
-        recommendation,
-        overall,
-        npsBucket,
-        comments || null,
-      ]
-    );
-  } catch (err) {
-    await pool.query(
-      `INSERT INTO survey (
-          participantid,
-          eventoccurenceid,
-          surveysatisfactionscore,
-          surveyusefulnessscore,
-          surveyinstructorscore,
-          surveyrecommendationscore,
-          surveyoverallscore,
-          surveynpsbucket,
-          surveycomments,
-          surveysubmissiondate
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())`,
-      [
-        participantId,
-        eventoccurrenceid,
-        satisfaction,
-        usefulness,
-        instructor,
-        recommendation,
-        overall,
-        npsBucket,
-        comments || null,
-      ]
-    );
-  }
+        surveysatisfactionscore,
+        surveyusefulnessscore,
+        surveyinstructorscore,
+        surveyrecommendationscore,
+        surveyoverallscore,
+        surveynpsbucket,
+        surveycomments,
+        surveysubmissiondate
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())`,
+    [
+      participantId,
+      eventoccurrenceid,
+      satisfaction,
+      usefulness,
+      instructor,
+      recommendation,
+      overall,
+      npsBucket,
+      comments || null,
+    ]
+  );
 }
 
 async function updateSurveyRecord(id, { satisfaction, usefulness, instructor, recommendation, comments }) {
@@ -412,7 +459,7 @@ app.get('/surveys', requireAuth, async (req, res) => {
   try {
     const participant = await findParticipantForUser(req.session.user);
     if (!participant) {
-      return res.status(400).render(path.join('milestones', 'userMilestones'), {
+      return res.status(400).render(path.join('Surveys', 'userSurveys'), {
         title: 'Surveys',
         surveys: [],
         events: [],
@@ -426,7 +473,7 @@ app.get('/surveys', requireAuth, async (req, res) => {
       getSurveysForParticipant(participant.participantid),
     ]);
 
-    return res.render(path.join('milestones', 'userMilestones'), {
+    return res.render(path.join('Surveys', 'userSurveys'), {
       title: 'Surveys',
       surveys,
       events,
@@ -449,7 +496,7 @@ app.post('/surveys', requireAuth, async (req, res) => {
   try {
     participant = await findParticipantForUser(req.session.user);
     if (!participant) {
-      return res.status(400).render(path.join('milestones', 'userMilestones'), {
+      return res.status(400).render(path.join('Surveys', 'userSurveys'), {
         title: 'Surveys',
         surveys: [],
         events: [],
@@ -476,7 +523,7 @@ app.post('/surveys', requireAuth, async (req, res) => {
 
     if (invalid || !eventIsValid) {
       const surveys = await getSurveysForParticipant(participant.participantid);
-      return res.status(400).render(path.join('milestones', 'userMilestones'), {
+      return res.status(400).render(path.join('Surveys', 'userSurveys'), {
         title: 'Surveys',
         surveys,
         events,
@@ -501,7 +548,7 @@ app.post('/surveys', requireAuth, async (req, res) => {
     const surveys = await getSurveysForParticipant(
       req.session.user?.participantid || participant?.participantid
     );
-    return res.status(500).render(path.join('milestones', 'userMilestones'), {
+    return res.status(500).render(path.join('Surveys', 'userSurveys'), {
       title: 'Surveys',
       surveys,
       events,
@@ -511,9 +558,9 @@ app.post('/surveys', requireAuth, async (req, res) => {
   }
 });
 
-// /milestones (public) -> views/milestones/userMilestones.ejs
-app.get('/milestones', (req, res) => {
-  res.render(path.join('milestones', 'userMilestones'), { title: 'Milestones' });
+// /milestones placeholder (no survey content)
+app.get('/milestones', (_req, res) => {
+  res.status(404).send('Milestones page is not configured.');
 });
 
 /* -----------------------------
@@ -1291,15 +1338,15 @@ app.get('/my-account', requireAuth, (req, res) => {
 /* -------- Optional manager routes based on your files -------- */
 
 // /admin/milestones -> views/milestones/manMilestones.ejs
-app.get('/admin/milestones', requireManager, (req, res) => {
-  res.render(path.join('milestones', 'manMilestones'), { title: 'Manage Milestones' });
+app.get('/admin/milestones', requireManager, (_req, res) => {
+  res.status(404).send('Milestones admin page is not configured.');
 });
 
 // Manager survey list
 app.get('/admin/surveys', requireManager, async (req, res) => {
   try {
     const surveys = await getAllSurveys();
-    res.render(path.join('milestones', 'manMilestones'), {
+    res.render(path.join('Surveys', 'manSurveys'), {
       title: 'Manage Surveys',
       surveys,
     });
@@ -1314,7 +1361,7 @@ app.get('/admin/surveys/:id/edit', requireManager, async (req, res) => {
   try {
     const survey = await getSurveyById(req.params.id);
     if (!survey) return res.status(404).send('Survey not found');
-    res.render(path.join('milestones', 'manMilestones_edit'), {
+    res.render(path.join('Surveys', 'manSurveys_edit'), {
       title: 'Edit Survey',
       survey,
     });
@@ -1356,7 +1403,7 @@ app.get('/admin/surveys/:id/delete', requireManager, async (req, res) => {
   try {
     const survey = await getSurveyById(req.params.id);
     if (!survey) return res.status(404).send('Survey not found');
-    res.render(path.join('milestones', 'manMilestones_delete'), {
+    res.render(path.join('Surveys', 'manSurveys_delete'), {
       title: 'Delete Survey',
       survey,
     });
