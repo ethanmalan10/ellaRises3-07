@@ -1,6 +1,6 @@
 <%
-  // Safe read of the logged-in user injected via res.locals.currentUser
-  const user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
+  // Correct & safe: Express stores all view variables in locals
+  const user = locals.currentUser || null;
 %>
 
 <main class="main-content">
