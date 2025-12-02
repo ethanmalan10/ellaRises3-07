@@ -1,0 +1,58 @@
+<main class="container main-content" style="max-width:760px; margin-top:2.5rem;">
+  <% function toInputDateTime(dt){ if(!dt) return ''; const d=new Date(dt); return d.toISOString().slice(0,16); } %>
+  <div class="card" style="padding:32px; border-radius:14px;">
+    <h2 style="margin:0 0 1rem 0; font-family:var(--font-serif); color:var(--charcoal);">Edit Event</h2>
+    <p style="margin:0 0 1rem 0; color:#4b5563;">Update the occurrence details. Template controls the base name/description.</p>
+
+    <% if (error) { %>
+      <div style="background:#ffe1e1; border:1px solid #dd9a9a; color:#7a2e2e; padding:12px 16px; border-radius:10px; margin-bottom:1rem;">
+        <%= error %>
+      </div>
+    <% } %>
+
+    <form method="POST" action="/events/<%= event.eventoccurrenceid %>/edit" novalidate>
+      <div style="margin-bottom:1rem;">
+        <label style="font-weight:600; display:block; margin-bottom:.35rem;">Event Template</label>
+        <select name="eventtemplateid" required style="width:100%; padding:12px; border-radius:10px;">
+          <% templates.forEach(tpl => { %>
+            <option value="<%= tpl.eventtemplateid %>" <%= tpl.eventtemplateid === event.eventtemplateid ? 'selected' : '' %>>
+              <%= tpl.eventname %> (default cap: <%= tpl.eventdefaultcapacity %>)
+            </option>
+          <% }) %>
+        </select>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px; margin-bottom:1rem;">
+        <div>
+          <label style="font-weight:600; display:block; margin-bottom:.35rem;">Start</label>
+          <input name="eventdatetimestart" type="datetime-local" value="<%= toInputDateTime(event.eventdatetimestart) %>" required style="width:100%; padding:12px; border-radius:10px;">
+        </div>
+        <div>
+          <label style="font-weight:600; display:block; margin-bottom:.35rem;">End</label>
+          <input name="eventdatetimeend" type="datetime-local" value="<%= toInputDateTime(event.eventdatetimeend) %>" required style="width:100%; padding:12px; border-radius:10px;">
+        </div>
+      </div>
+
+      <div style="margin-bottom:1rem;">
+        <label style="font-weight:600; display:block; margin-bottom:.35rem;">Location</label>
+        <input name="eventlocation" type="text" value="<%= event.eventlocation || '' %>" style="width:100%; padding:12px; border-radius:10px;">
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:1rem;">
+        <div>
+          <label style="font-weight:600; display:block; margin-bottom:.35rem;">Capacity (optional)</label>
+          <input name="eventcapacity" type="number" min="1" value="<%= event.eventcapacity || '' %>" style="width:100%; padding:12px; border-radius:10px;">
+        </div>
+        <div>
+          <label style="font-weight:600; display:block; margin-bottom:.35rem;">Registration Deadline (optional)</label>
+          <input name="eventregistrationdeadline" type="datetime-local" value="<%= toInputDateTime(event.eventregistrationdeadline) %>" style="width:100%; padding:12px; border-radius:10px;">
+        </div>
+      </div>
+
+      <div style="display:flex; gap:12px; align-items:center; margin-top:1.2rem;">
+        <button type="submit" class="btn-gradient" style="padding:12px 18px; border-radius:12px;">Save Changes</button>
+        <a href="/events" class="btn-cream" style="padding:10px 16px; border-radius:10px; text-decoration:none;">Cancel</a>
+      </div>
+    </form>
+  </div>
+</main>

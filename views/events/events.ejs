@@ -1,0 +1,127 @@
+<main class="container main-content" style="max-width:1100px; margin-top:2.5rem;">
+  <% const isAuthed = !!currentUser; function fmtDate(d){ return d ? new Date(d).toLocaleString('en-US', { dateStyle:'medium', timeStyle:'short' }) : ''; } %>
+
+  <header style="display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:1.5rem;">
+    <div>
+      <h1 style="margin:0; font-family:var(--font-serif); color:var(--charcoal);">Events</h1>
+      <p style="margin:.3rem 0 0 0; color:#4b5563;">Browse upcoming events. Login to RSVP; managers can create and manage events.</p>
+    </div>
+    <% if (typeof isManager !== 'undefined' && isManager) { %>
+      <a href="/events/new" class="btn-gradient" style="padding:12px 16px; border-radius:10px; text-decoration:none;">Create Event</a>
+    <% } %>
+  </header>
+
+  <!-- Messages -->
+  <% if (message) { %>
+    <% let msgText = message;
+       if (message === 'registered') msgText = 'RSVP confirmed.';
+       else if (message === 'already') msgText = 'You are already registered for this event.';
+       else if (message === 'created') msgText = 'Event created.';
+       else if (message === 'updated') msgText = 'Event updated.';
+       else if (message === 'deleted') msgText = 'Event deleted.';
+    %>
+    <div style="background:#e8faef; border:1px solid #9bd3b3; color:#205e37; padding:12px 16px; border-radius:10px; margin-bottom:1rem;">
+      <%= msgText %>
+    </div>
+  <% } %>
+  <% if (error) { %>
+    <% let errText = error;
+       if (error === 'bad-event') errText = 'Invalid event.';
+       else if (error === 'noparticipant') errText = 'No participant record found for your username/email.';
+       else if (error === 'rsvp') errText = 'Could not RSVP. Please try again.';
+       else if (error === 'delete') errText = 'Could not delete event.';
+       else if (error === 'notfound') errText = 'Event not found.';
+    %>
+    <div style="background:#ffe1e1; border:1px solid #dd9a9a; color:#7a2e2e; padding:12px 16px; border-radius:10px; margin-bottom:1rem;">
+      <%= errText %>
+    </div>
+  <% } %>
+
+  <!-- Upcoming events -->
+  <section style="margin-bottom:2rem;">
+    <h3 style="margin:0 0 .75rem 0;">Upcoming</h3>
+    <% if (!upcomingEvents || upcomingEvents.length === 0) { %>
+      <p style="color:#6b7280;">No upcoming events yet.</p>
+    <% } else { %>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px;">
+        <% upcomingEvents.forEach(ev => { %>
+          <div class="card" style="padding:16px; border-radius:14px; border:1px solid #e5e7eb; box-shadow:0 10px 30px rgba(0,0,0,0.04);">
+            <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
+              <div>
+                <h4 style="margin:0 0 .3rem 0; font-size:1.15rem; color:var(--charcoal);"><%= ev.eventname %></h4>
+                <p style="margin:0; color:#4b5563;"><%= ev.eventdescription %></p>
+              </div>
+              <% if (typeof isManager !== 'undefined' && isManager) { %>
+                <span style="background:#eef2ff; color:#3730a3; padding:4px 8px; border-radius:8px; font-size:.8rem;">Manager</span>
+              <% } %>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:8px; margin-top:12px; color:#374151; font-size:.95rem;">
+              <div><strong>Date</strong><br><%= fmtDate(ev.eventdatetimestart) %></div>
+              <div><strong>Ends</strong><br><%= fmtDate(ev.eventdatetimeend) %></div>
+              <div><strong>Location</strong><br><%= ev.eventlocation || 'TBD' %></div>
+              <div><strong>Capacity</strong><br><%= ev.eventcapacity || '—' %></div>
+              <div><strong>Registered</strong><br><%= ev.registrations_count %></div>
+            </div>
+
+            <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:14px;">
+              <% if (isAuthed) { %>
+                <form method="POST" action="/events/<%= ev.eventoccurrenceid %>/rsvp">
+                  <button type="submit" class="btn-login-home" style="padding:10px 14px; border-radius:10px;">RSVP</button>
+                </form>
+              <% } else { %>
+                <a href="/login" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Login to RSVP</a>
+              <% } %>
+
+              <% if (typeof isManager !== 'undefined' && isManager) { %>
+                <a href="/events/<%= ev.eventoccurrenceid %>/edit" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Edit</a>
+                <form method="POST" action="/events/<%= ev.eventoccurrenceid %>/delete" onsubmit="return confirm('Delete this event?');">
+                  <button type="submit" class="btn-outline" style="padding:10px 14px; border-radius:10px; border:1px solid #dc2626; color:#dc2626;">Delete</button>
+                </form>
+              <% } %>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+  </section>
+
+  <!-- Past events (manager only) -->
+  <% if (typeof isManager !== 'undefined' && isManager) { %>
+    <section>
+      <h3 style="margin:0 0 .75rem 0;">Past Events</h3>
+      <% if (!pastEvents || pastEvents.length === 0) { %>
+        <p style="color:#6b7280;">No past events to show.</p>
+      <% } else { %>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px;">
+          <% pastEvents.forEach(ev => { %>
+            <div class="card" style="padding:16px; border-radius:14px; border:1px solid #e5e7eb; box-shadow:0 10px 30px rgba(0,0,0,0.04); background:#f9fafb;">
+              <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
+                <div>
+                  <h4 style="margin:0 0 .3rem 0; font-size:1.1rem; color:var(--charcoal);"><%= ev.eventname %></h4>
+                  <p style="margin:0; color:#4b5563;"><%= ev.eventdescription %></p>
+                </div>
+                <span style="background:#fee2e2; color:#991b1b; padding:4px 8px; border-radius:8px; font-size:.8rem;">Past</span>
+              </div>
+
+              <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:8px; margin-top:12px; color:#374151; font-size:.95rem;">
+                <div><strong>Date</strong><br><%= fmtDate(ev.eventdatetimestart) %></div>
+                <div><strong>Ended</strong><br><%= fmtDate(ev.eventdatetimeend) %></div>
+                <div><strong>Location</strong><br><%= ev.eventlocation || 'TBD' %></div>
+                <div><strong>Capacity</strong><br><%= ev.eventcapacity || '—' %></div>
+                <div><strong>Registered</strong><br><%= ev.registrations_count %></div>
+              </div>
+
+              <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:14px;">
+                <a href="/events/<%= ev.eventoccurrenceid %>/edit" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Edit</a>
+                <form method="POST" action="/events/<%= ev.eventoccurrenceid %>/delete" onsubmit="return confirm('Delete this past event?');">
+                  <button type="submit" class="btn-outline" style="padding:10px 14px; border-radius:10px; border:1px solid #dc2626; color:#dc2626;">Delete</button>
+                </form>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+    </section>
+  <% } %>
+</main>

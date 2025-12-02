@@ -65,6 +65,12 @@ function mapRole(level) {
   return 'user';
 }
 
+function isManagerUser(user) {
+  if (!user) return false;
+  const r = mapRole(user.role);
+  return r === 'manager' || r === 'admin';
+}
+
 function requireAuth(req, res, next) {
   if (!req.session.user) return res.redirect('/login');
   next();
@@ -95,8 +101,75 @@ app.get('/donations', (req, res) => {
 });
 
 // /events -> views/events/events.ejs
-app.get('/events', (req, res) => {
-  res.render(path.join('events', 'events'), { title: 'Events' });
+app.get('/events', async (req, res) => {
+  try {
+    const upcomingQuery = `
+      SELECT
+        eo.eventoccurrenceid,
+        eo.eventtemplateid,
+        eo.eventdatetimestart,
+        eo.eventdatetimeend,
+        eo.eventlocation,
+        eo.eventcapacity,
+        eo.eventregistrationdeadline,
+        et.eventname,
+        et.eventdescription,
+        et.eventrecurrencepattern,
+        COALESCE(regs.count, 0) AS registrations_count
+      FROM eventoccurrence eo
+      JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
+      LEFT JOIN (
+        SELECT eventoccurrenceid, COUNT(*) AS count
+        FROM registration
+        GROUP BY eventoccurrenceid
+      ) regs ON regs.eventoccurrenceid = eo.eventoccurrenceid
+      WHERE eo.eventdatetimeend >= NOW()
+      ORDER BY eo.eventdatetimestart ASC;
+    `;
+
+    const pastQuery = `
+      SELECT
+        eo.eventoccurrenceid,
+        eo.eventtemplateid,
+        eo.eventdatetimestart,
+        eo.eventdatetimeend,
+        eo.eventlocation,
+        eo.eventcapacity,
+        eo.eventregistrationdeadline,
+        et.eventname,
+        et.eventdescription,
+        et.eventrecurrencepattern,
+        COALESCE(regs.count, 0) AS registrations_count
+      FROM eventoccurrence eo
+      JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
+      LEFT JOIN (
+        SELECT eventoccurrenceid, COUNT(*) AS count
+        FROM registration
+        GROUP BY eventoccurrenceid
+      ) regs ON regs.eventoccurrenceid = eo.eventoccurrenceid
+      WHERE eo.eventdatetimeend < NOW()
+      ORDER BY eo.eventdatetimestart DESC;
+    `;
+
+    const [upcomingResult, pastResult] = await Promise.all([
+      pool.query(upcomingQuery),
+      pool.query(pastQuery),
+    ]);
+
+    const isManager = isManagerUser(req.session.user);
+
+    return res.render(path.join('events', 'events'), {
+      title: 'Events',
+      upcomingEvents: upcomingResult.rows,
+      pastEvents: isManager ? pastResult.rows : [],
+      message: req.query.msg || null,
+      error: req.query.err || null,
+      isManager,
+    });
+  } catch (err) {
+    console.error('Events list error:', err);
+    return res.status(500).send('Could not load events');
+  }
 });
 
 // /surveys -> views/Surveys/userSurveys.ejs   (capital S in your folder)
@@ -302,8 +375,277 @@ app.post('/register', async (req, res) => {
 });
 
 // Allow GET /logout from navbar and POST /logout from forms
-app.get('/logout', (req, res) => req.session.destroy(() => res.redirect('/')));
-app.post('/logout', (req, res) => req.session.destroy(() => res.redirect('/')));
+app.get('/logout', (req, res, next) => {
+  req.session.destroy(err => {
+    if (err) return next(err);
+    return res.redirect('/');
+  });
+});
+
+app.post('/logout', (req, res, next) => {
+  req.session.destroy(err => {
+    if (err) return next(err);
+    return res.redirect('/');
+  });
+});
+
+/* -----------------------------
+   EVENTS (list + RSVP + manager CRUD)
+----------------------------- */
+
+// RSVP (auth required; username treated as email to find participant)
+app.post('/events/:id/rsvp', requireAuth, async (req, res) => {
+  const eventId = Number(req.params.id);
+  if (!eventId) return res.redirect('/events?err=bad-event');
+
+  try {
+    const email = req.session.user.username;
+    const participantRes = await pool.query(
+      'SELECT participantid FROM participant WHERE participantemail = $1 LIMIT 1',
+      [email]
+    );
+
+    if (participantRes.rows.length === 0) {
+      return res.redirect('/events?err=noparticipant');
+    }
+
+    const participantId = participantRes.rows[0].participantid;
+
+    const existing = await pool.query(
+      `SELECT registrationid
+       FROM registration
+       WHERE participantid = $1 AND eventoccurrenceid = $2
+       LIMIT 1`,
+      [participantId, eventId]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.redirect('/events?msg=already');
+    }
+
+    await pool.query(
+      `INSERT INTO registration (
+        participantid,
+        eventoccurrenceid,
+        registrationstatus,
+        registrationattendedflag,
+        registrationcheckintime,
+        registrationcreatedat
+      ) VALUES ($1, $2, 'registered', 0, NULL, NOW())`,
+      [participantId, eventId]
+    );
+
+    return res.redirect('/events?msg=registered');
+  } catch (err) {
+    console.error('RSVP error:', err);
+    return res.redirect('/events?err=rsvp');
+  }
+});
+
+// Manager: show create form
+app.get('/events/new', requireManager, async (req, res) => {
+  try {
+    const templates = await pool.query(
+      'SELECT eventtemplateid, eventname, eventdefaultcapacity FROM eventtemplate ORDER BY eventname'
+    );
+    return res.render(path.join('events', 'events_add'), {
+      title: 'Create Event',
+      templates: templates.rows,
+      error: null,
+    });
+  } catch (err) {
+    console.error('Events new error:', err);
+    return res.status(500).send('Could not load create form');
+  }
+});
+
+// Manager: create occurrence
+app.post('/events', requireManager, async (req, res) => {
+  const templateId = Number(req.body.eventtemplateid);
+  const location = req.body.eventlocation || null;
+  const start = req.body.eventdatetimestart ? new Date(req.body.eventdatetimestart) : null;
+  const end = req.body.eventdatetimeend ? new Date(req.body.eventdatetimeend) : null;
+  const deadline = req.body.eventregistrationdeadline
+    ? new Date(req.body.eventregistrationdeadline)
+    : null;
+  const capacityInput = req.body.eventcapacity ? Number(req.body.eventcapacity) : null;
+
+  const invalidDate = d => !d || Number.isNaN(d.getTime());
+
+  try {
+    if (!templateId) throw new Error('Template is required.');
+    if (invalidDate(start) || invalidDate(end)) throw new Error('Start and end date/time are required.');
+
+    const tpl = await pool.query(
+      'SELECT eventdefaultcapacity FROM eventtemplate WHERE eventtemplateid = $1',
+      [templateId]
+    );
+    if (tpl.rows.length === 0) throw new Error('Template not found.');
+    const defaultCap = tpl.rows[0].eventdefaultcapacity || null;
+    const capacity = capacityInput || defaultCap;
+
+    await pool.query(
+      `INSERT INTO eventoccurrence (
+        eventtemplateid,
+        eventdatetimestart,
+        eventdatetimeend,
+        eventlocation,
+        eventcapacity,
+        eventregistrationdeadline
+      ) VALUES ($1, $2, $3, $4, $5, $6)`,
+      [templateId, start, end, location, capacity, deadline]
+    );
+
+    return res.redirect('/events?msg=created');
+  } catch (err) {
+    console.error('Create event error:', err);
+    try {
+      const templates = await pool.query(
+        'SELECT eventtemplateid, eventname, eventdefaultcapacity FROM eventtemplate ORDER BY eventname'
+      );
+      return res.render(path.join('events', 'events_add'), {
+        title: 'Create Event',
+        templates: templates.rows,
+        error: err.message || 'Could not create event.',
+      });
+    } catch (innerErr) {
+      console.error('Create event fallback error:', innerErr);
+      return res.status(500).send('Could not create event');
+    }
+  }
+});
+
+// Manager: edit form
+app.get('/events/:id/edit', requireManager, async (req, res) => {
+  const eventId = Number(req.params.id);
+  if (!eventId) return res.redirect('/events?err=bad-event');
+
+  try {
+    const [eventRes, templatesRes] = await Promise.all([
+      pool.query(
+        `SELECT eo.*, et.eventname
+         FROM eventoccurrence eo
+         JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
+         WHERE eo.eventoccurrenceid = $1`,
+        [eventId]
+      ),
+      pool.query(
+        'SELECT eventtemplateid, eventname, eventdefaultcapacity FROM eventtemplate ORDER BY eventname'
+      ),
+    ]);
+
+    if (eventRes.rows.length === 0) return res.redirect('/events?err=notfound');
+
+    return res.render(path.join('events', 'events_edit'), {
+      title: 'Edit Event',
+      event: eventRes.rows[0],
+      templates: templatesRes.rows,
+      error: null,
+    });
+  } catch (err) {
+    console.error('Edit event load error:', err);
+    return res.status(500).send('Could not load event');
+  }
+});
+
+// Manager: update occurrence
+app.post('/events/:id/edit', requireManager, async (req, res) => {
+  const eventId = Number(req.params.id);
+  const templateId = Number(req.body.eventtemplateid);
+  const location = req.body.eventlocation || null;
+  const start = req.body.eventdatetimestart ? new Date(req.body.eventdatetimestart) : null;
+  const end = req.body.eventdatetimeend ? new Date(req.body.eventdatetimeend) : null;
+  const deadline = req.body.eventregistrationdeadline
+    ? new Date(req.body.eventregistrationdeadline)
+    : null;
+  const capacityInput = req.body.eventcapacity ? Number(req.body.eventcapacity) : null;
+
+  const invalidDate = d => !d || Number.isNaN(d.getTime());
+
+  try {
+    if (!eventId) throw new Error('Bad event id.');
+    if (!templateId) throw new Error('Template is required.');
+    if (invalidDate(start) || invalidDate(end)) throw new Error('Start and end date/time are required.');
+
+    const tpl = await pool.query(
+      'SELECT eventdefaultcapacity FROM eventtemplate WHERE eventtemplateid = $1',
+      [templateId]
+    );
+    if (tpl.rows.length === 0) throw new Error('Template not found.');
+    const defaultCap = tpl.rows[0].eventdefaultcapacity || null;
+    const capacity = capacityInput || defaultCap;
+
+    await pool.query(
+      `UPDATE eventoccurrence
+       SET eventtemplateid = $1,
+           eventdatetimestart = $2,
+           eventdatetimeend = $3,
+           eventlocation = $4,
+           eventcapacity = $5,
+           eventregistrationdeadline = $6
+       WHERE eventoccurrenceid = $7`,
+      [templateId, start, end, location, capacity, deadline, eventId]
+    );
+
+    return res.redirect('/events?msg=updated');
+  } catch (err) {
+    console.error('Update event error:', err);
+    try {
+      const [eventRes, templatesRes] = await Promise.all([
+        pool.query(
+          `SELECT eo.*, et.eventname
+           FROM eventoccurrence eo
+           JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
+           WHERE eo.eventoccurrenceid = $1`,
+          [eventId]
+        ),
+        pool.query(
+          'SELECT eventtemplateid, eventname, eventdefaultcapacity FROM eventtemplate ORDER BY eventname'
+        ),
+      ]);
+
+      if (eventRes.rows.length === 0) return res.redirect('/events?err=notfound');
+
+      return res.render(path.join('events', 'events_edit'), {
+        title: 'Edit Event',
+        event: eventRes.rows[0],
+        templates: templatesRes.rows,
+        error: err.message || 'Could not update event.',
+      });
+    } catch (innerErr) {
+      console.error('Update event fallback error:', innerErr);
+      return res.status(500).send('Could not update event');
+    }
+  }
+});
+
+// Manager: delete occurrence (and registrations)
+app.post('/events/:id/delete', requireManager, async (req, res) => {
+  const eventId = Number(req.params.id);
+  if (!eventId) return res.redirect('/events?err=bad-event');
+
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    await client.query('DELETE FROM registration WHERE eventoccurrenceid = $1', [eventId]);
+    await client.query('DELETE FROM eventoccurrence WHERE eventoccurrenceid = $1', [eventId]);
+    await client.query('COMMIT');
+    return res.redirect('/events?msg=deleted');
+  } catch (err) {
+    console.error('Delete event error:', err);
+    if (client) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackErr) {
+        console.error('Delete rollback error:', rollbackErr);
+      }
+    }
+    return res.redirect('/events?err=delete');
+  } finally {
+    if (client) client.release();
+  }
+});
 
 /* -----------------------------
    AUTHENTICATED PAGES
@@ -350,5 +692,3 @@ const PORT = Number(process.env.PORT || 3000);
 app.listen(PORT, () => {
   console.log(`Ella Rises running → http://localhost:${PORT}`);
 });
-
-// new
