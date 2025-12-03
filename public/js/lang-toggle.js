@@ -29,11 +29,11 @@
     if (!btn) return;
     btn.classList.add('notranslate');
     if (lang === 'es') {
-      btn.textContent = 'Switch to English';
+      btn.textContent = 'EN';
       btn.setAttribute('aria-label', 'Switch to English');
       btn.setAttribute('aria-pressed', 'true');
     } else {
-      btn.textContent = 'Cambiar a español';
+      btn.textContent = 'ES';
       btn.setAttribute('aria-label', 'Cambiar a español');
       btn.setAttribute('aria-pressed', 'false');
     }

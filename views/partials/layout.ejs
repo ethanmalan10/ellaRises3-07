@@ -29,7 +29,7 @@
 
     <!-- Center Section: Main Links -->
     <div class="navbar-nav" style="margin-left: .25rem;">
-      <a href="/donations" class="nav-link">Donations</a>
+      <a href="/donations" class="nav-link" style="background: var(--sage); color: #fff; padding:8px 14px; border-radius:12px;">🤍 Donations</a>
       <% if (user) { %>
         <a href="/surveys"   class="nav-link">Surveys</a>
       <% } %>
@@ -37,16 +37,7 @@
     </div>
 
     <!-- Right Side -->
-    <div class="navbar-nav" style="margin-left:auto;">
-      <button
-        id="lang-toggle"
-        type="button"
-        class="nav-link lang-toggle-btn notranslate"
-        aria-label="Cambiar a español"
-        aria-pressed="false">
-        Cambiar a español
-      </button>
-
+    <div class="navbar-nav" style="margin-left:auto; align-items:center; gap:10px;">
       <% if (!user) { %>
         <!-- Login / Register Dropdown -->
         <div class="dropdown">
@@ -85,6 +76,28 @@
           </div>
         </div>
       <% } %>
+
+      <button
+        id="lang-toggle"
+        type="button"
+        class="nav-link lang-toggle-btn notranslate"
+        aria-label="Cambiar a español"
+        aria-pressed="false"
+        style="
+          border:1px solid var(--sage);
+          color: #fff;
+          background: var(--charcoal);
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          font-weight:700;
+          font-size: 0.85rem;
+        ">
+        ES
+      </button>
 
     </div>
   </nav>

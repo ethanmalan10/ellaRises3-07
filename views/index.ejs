@@ -35,52 +35,57 @@
 
 <main class="main-content">
 
-  <!-- COMPANY TITLE ABOVE HERO -->
-  <section class="container" style="margin-top:1.25rem; text-align:center;">
-    <img
-      src="/images/logo.png"
-      alt="Ella Rises"
-      class="brand-mark"
-      style="margin:0 auto 0.75rem auto;"
-    />
-  </section>
+  <!-- HERO SLIDER -->
+  <section class="hero-slider-wrap" style="margin-top:0;">
+    <div class="hero-slider" id="hero-slider">
+      <div class="hero-slide active">
+        <a href="/events">
+          <img src="/images/coloring.jpg" alt="Coloring activity" />
+          <div class="overlay-text overlay-top-right">Join us Today!</div>
+          <img
+            src="/images/EllaRisesLogo.avif"
+            alt="Ella Rises logo"
+            style="
+              position:absolute;
+              top:100px;
+              right: 0px;
+              width:500px;
+              height:auto;
+              display:block;
+              filter:
+                grayscale(1)
+                sepia(0.65)
+                brightness(1.05)
+                saturate(1.1)
+                hue-rotate(330deg)
+                drop-shadow(0 8px 18px rgba(249,175,177,0.45));
+            "
+          >
+        </a>
+      </div>
 
-  <!-- HERO SECTION -->
-  <section class="container hero" style="margin-top:0; border-radius:18px; padding-bottom:20px;">
-    <div style="
-      position:relative;
-      height: 360px;
-      border-radius:18px;
-      overflow:hidden;
-    ">
-      <!-- Hero Image -->
-      <img
-        src="/images/woman.webp"
-        alt="Ella Rises Hero"
-        style="
-          width:100%;
-          height:100%;
-          object-fit:cover;
-          filter: brightness(0.75);
-          display:block;
-        "
-      />
+      <div class="hero-slide">
+        <a href="/donations">
+          <img src="/images/ER BYU Tour 2022-042.jpg" alt="BYU tour" />
+          <div class="overlay-text overlay-top-left" style="font-size:2.4rem;">Donate!</div>
+        </a>
+      </div>
 
-      <!-- Centered Text on Image -->
-      <h1 style="
-        position:absolute;
-        top:50%;
-        left:50%;
-        transform:translate(-50%, -50%);
-        color:#fff;
-        font-size:2.2rem;
-        text-align:center;
-        font-weight:600;
-        max-width:90%;
-        margin:0;
-      ">
-        Empowering the rising generation of women
-      </h1>
+      <div class="hero-slide">
+        <a href="/events">
+          <img src="/images/ER Summer Summit 2022-068.jpg" alt="Summer summit" />
+        </a>
+      </div>
+
+      <div class="hero-slide">
+        <a href="/register">
+          <img src="/images/ER STEM Workshop Aug 2022-09.jpg" alt="STEM workshop" />
+          <div class="overlay-text overlay-top">Learn and Connect</div>
+        </a>
+      </div>
+
+      <button class="slider-nav prev" id="hero-prev" aria-label="Previous slide">&#10094;</button>
+      <button class="slider-nav next" id="hero-next" aria-label="Next slide">&#10095;</button>
     </div>
   </section>
 
@@ -94,8 +99,17 @@
         Empowering young women through mentoring, creative workshops, and leadership opportunities.
         We believe in confidence, community, and growth—together.
       </p>
+      <div style="margin-top:16px; border-radius:16px; overflow:hidden; box-shadow: 0 6px 18px rgba(0,0,0,0.08);">
+        <img
+          src="/images/ER Summer Summit 2022-165.jpg"
+          alt="Ella Rises collage"
+          style="width:100%; height:320px; object-fit:cover; display:block;"
+        />
+      </div>
     </div>
   </section>
+
+  <hr style="width:90%; margin:24px auto; border:0; border-top:2px solid var(--charcoal); opacity:0.2;">
 
   <!-- CTA SECTION -->
   <section class="container" style="margin:1.25rem auto 2.25rem;">
@@ -107,6 +121,9 @@
         <p style="margin:0 0 16px 0;">
           Join Ella Rises as a participant. Build confidence, skills, and leadership.
         </p>
+        <div style="margin:0 0 12px 0; border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.08);">
+          <img src="/images/ER STEM Workshop.jpg" alt="STEM workshop" style="width:100%; height:220px; object-fit:cover; display:block;">
+        </div>
 
         <a
           href="<%= user ? '/my-account' : '/register' %>"
@@ -130,6 +147,9 @@
         <p style="margin:0 0 16px 0;">
           Your generosity fuels mentorships, workshops, and opportunities for our community.
         </p>
+        <div style="margin:0 0 12px 0; border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.08);">
+          <img src="/images/ER UMFA Mural_072.jpg" alt="UMFA mural" style="width:100%; height:220px; object-fit:cover; display:block;">
+        </div>
 
         <a
           href="/donations"
@@ -151,3 +171,35 @@
   </section>
 
 </main>
+
+<script>
+  (function(){
+    const slider = document.getElementById('hero-slider');
+    if (!slider) return;
+    const slides = Array.from(slider.querySelectorAll('.hero-slide'));
+    const prevBtn = document.getElementById('hero-prev');
+    const nextBtn = document.getElementById('hero-next');
+    if (!slides.length) return;
+    let current = 0;
+    let timer;
+
+    const showSlide = (index) => {
+      slides[current].classList.remove('active');
+      current = (index + slides.length) % slides.length;
+      slides[current].classList.add('active');
+    };
+
+    const next = () => showSlide(current + 1);
+    const prev = () => showSlide(current - 1);
+
+    const resetTimer = () => {
+      if (timer) clearInterval(timer);
+      timer = setInterval(next, 5000);
+    };
+
+    nextBtn?.addEventListener('click', () => { next(); resetTimer(); });
+    prevBtn?.addEventListener('click', () => { prev(); resetTimer(); });
+
+    resetTimer();
+  })();
+</script>
