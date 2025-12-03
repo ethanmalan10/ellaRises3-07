@@ -1,5 +1,5 @@
 <main class="container main-content" style="max-width:1100px; margin-top:2.5rem;">
-  <% const isAuthed = !!currentUser; function fmtDate(d){ return d ? new Date(d).toLocaleString('en-US', { dateStyle:'medium', timeStyle:'short' }) : ''; } %>
+  <% const isAuthed = !!currentUser; const regSet = new Set((registeredEventIds || []).map(Number)); function fmtDate(d){ return d ? new Date(d).toLocaleString('en-US', { dateStyle:'medium', timeStyle:'short' }) : ''; } %>
 
   <header style="display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:1.5rem;">
     <div>
@@ -70,9 +70,15 @@
 
             <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:14px;">
               <% if (isAuthed) { %>
-                <form method="POST" action="/events/<%= ev.eventoccurrenceid %>/rsvp">
-                  <button type="submit" class="btn-login-home" style="padding:10px 14px; border-radius:10px;">RSVP</button>
-                </form>
+                <% if (regSet.has(Number(ev.eventoccurrenceid))) { %>
+                  <form method="POST" action="/events/<%= ev.eventoccurrenceid %>/unrsvp">
+                    <button type="submit" class="btn-outline" style="padding:10px 14px; border-radius:10px; border:1px solid #dc2626; color:#dc2626;">Cancel RSVP</button>
+                  </form>
+                <% } else { %>
+                  <form method="POST" action="/events/<%= ev.eventoccurrenceid %>/rsvp">
+                    <button type="submit" class="btn-login-home" style="padding:10px 14px; border-radius:10px;">RSVP</button>
+                  </form>
+                <% } %>
               <% } else { %>
                 <a href="/login" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Login to RSVP</a>
               <% } %>

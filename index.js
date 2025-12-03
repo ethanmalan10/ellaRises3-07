@@ -306,6 +306,19 @@ function isManagerUser(user) {
   return r === 'manager' || r === 'admin';
 }
 
+function normalizeCapitalize(str) {
+  if (!str) return null;
+  const s = str.toString().trim();
+  if (!s) return null;
+  return s[0].toUpperCase() + s.slice(1).toLowerCase();
+}
+
+function normalizeDigits(str, maxLen) {
+  if (!str) return null;
+  const digits = str.replace(/\D/g, '');
+  return maxLen ? digits.slice(0, maxLen) : digits;
+}
+
 function requireAuth(req, res, next) {
   if (!req.session.user) return res.redirect('/login');
   next();
@@ -365,6 +378,19 @@ app.post('/donations', (req, res) => {
 // /events -> views/events/events.ejs
 app.get('/events', async (req, res) => {
   try {
+    let participantId = req.session.user?.participantid || null;
+    if (!participantId && req.session.user?.username) {
+      try {
+        const p = await findParticipantByEmail(req.session.user.username);
+        if (p) {
+          participantId = p.participantid;
+          req.session.user.participantid = participantId;
+        }
+      } catch (e) {
+        console.warn('Could not resolve participant for session user:', e);
+      }
+    }
+
     const upcomingQuery = `
       SELECT
         eo.eventoccurrenceid,
@@ -420,6 +446,19 @@ app.get('/events', async (req, res) => {
 
     const isManager = isManagerUser(req.session.user);
 
+    let registeredEventIds = [];
+    if (participantId) {
+      try {
+        const r = await pool.query(
+          'SELECT eventoccurrenceid FROM registration WHERE participantid = $1',
+          [participantId]
+        );
+        registeredEventIds = r.rows.map(row => Number(row.eventoccurrenceid));
+      } catch (e) {
+        console.warn('Could not load registrations for participant:', e);
+      }
+    }
+
     return res.render(path.join('events', 'events'), {
       title: 'Events',
       upcomingEvents: upcomingResult.rows,
@@ -427,6 +466,7 @@ app.get('/events', async (req, res) => {
       message: req.query.msg || null,
       error: req.query.err || null,
       isManager,
+      registeredEventIds,
     });
   } catch (err) {
     console.error('Events list error:', err);
@@ -558,15 +598,15 @@ app.get('/login', (req, res) => {
 
 // POST /login
 app.post('/login', async (req, res) => {
-  const { username, password } = req.body;
+  const { email, password } = req.body;
   try {
     const q = `
       SELECT participantid, username, password, level
       FROM users
-      WHERE username = $1
+      WHERE LOWER(username) = LOWER($1)
       LIMIT 1
     `;
-    const { rows } = await pool.query(q, [username]);
+    const { rows } = await pool.query(q, [email]);
 
     if (rows.length === 0) {
       return res.render(path.join('login', 'login'), {
@@ -576,16 +616,16 @@ app.post('/login', async (req, res) => {
       });
     }
 
-    const user = rows[0];
-    // TODO: replace with bcrypt.compare(...)
-    const ok = user.password === password;
-    if (!ok) {
-      return res.render(path.join('login', 'login'), {
-        title: 'Login',
-        error: 'Invalid username or password',
-        created: undefined,
-      });
-    }
+      const user = rows[0];
+      // TODO: replace with bcrypt.compare(...)
+      const ok = user.password === password;
+      if (!ok) {
+        return res.render(path.join('login', 'login'), {
+          title: 'Login',
+          error: 'Invalid email or password',
+          created: undefined,
+        });
+      }
 
     let participantId = null;
     try {
@@ -599,7 +639,7 @@ app.post('/login', async (req, res) => {
     }
 
     req.session.user = {
-      id: user.userid,
+      id: user.participantid,
       username: user.username,
       role: mapRole(user.level),
       participantid: participantId,
@@ -620,13 +660,12 @@ app.get('/login/register', (_req, res) => res.redirect('/register'));
 
 // GET /register -> views/login/register.ejs
 app.get('/register', (req, res) => {
-  res.render(path.join('login', 'register'), { title: 'Create Account', error: null });
+  res.render(path.join('login', 'register'), { title: 'Create Account', error: null, formData: {} });
 });
 
 // POST /register
 app.post('/register', async (req, res) => {
   const {
-    username,
     password,
     confirmPassword,
     firstName,
@@ -640,25 +679,31 @@ app.post('/register', async (req, res) => {
     zipcode,
     interest_arts,
     interest_stem,
-    interest_both,
   } = req.body;
 
-  const fieldOfInterest = interest_both
-    ? 'both'
-    : interest_arts
-    ? 'arts'
-    : interest_stem
-    ? 'stem'
-    : null;
+  const normFirst = normalizeCapitalize(firstName);
+  const normLast = normalizeCapitalize(lastName);
+  const normCity = normalizeCapitalize(city);
+  const normSchoolJob = (schoolOrJob && schoolOrJob.trim()) ? schoolOrJob.trim() : 'None';
+  const affiliationType = 'school_or_job';
+  const normPhone = normalizeDigits(phone, 10);
+  const normZip = normalizeDigits(zipcode, 10);
 
-  const affiliationType = schoolOrJob ? 'school_or_job' : null;
+  const fieldOfInterest =
+    (interest_arts && interest_stem) ? 'both'
+    : interest_arts ? 'arts'
+    : interest_stem ? 'stem'
+    : null;
 
   let client;
   try {
+    const username = email && email.trim();
+
     if (!username) {
       return res.render(path.join('login', 'register'), {
         title: 'Create Account',
-        error: 'Username is required.',
+        error: 'Email is required.',
+        formData: req.body,
       });
     }
 
@@ -666,24 +711,18 @@ app.post('/register', async (req, res) => {
       return res.render(path.join('login', 'register'), {
         title: 'Create Account',
         error: 'Passwords do not match.',
+        formData: req.body,
       });
     }
 
     client = await pool.connect();
     await client.query('BEGIN');
 
-    const authInsert = await client.query(
-      `INSERT INTO users (username, password, level)
-       VALUES ($1, $2, $3)
-       RETURNING userid, username, level`,
-      [username, password, 'u'] // TODO: bcrypt hash
-    );
-
-    await client.query(
-      `INSERT INTO participant (
-        participantemail,
-        participantfirstname,
-        participantlastname,
+      const participantInsert = await client.query(
+        `INSERT INTO participant (
+          participantemail,
+          participantfirstname,
+          participantlastname,
         participantdob,
         participantrole,
         participantphone,
@@ -691,27 +730,27 @@ app.post('/register', async (req, res) => {
         participantstate,
         participantzip,
         participantaffiliationtype,
-        participantaffiliationname,
-        participantfieldofinterest,
-        totaldonations
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-      RETURNING participantid`,
-      [
-        email || null,
-        firstName || null,
-        lastName || null,
-        dob || null,
-        'participant',
-        phone || null,
-        city || null,
-        state || null,
-        zipcode || null,
-        affiliationType,
-        schoolOrJob || null,
-        fieldOfInterest,
-        0,
-      ]
-    );
+          participantaffiliationname,
+          participantfieldofinterest,
+          totaldonations
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+        RETURNING participantid`,
+        [
+          email || null,
+          normFirst || null,
+          normLast || null,
+          dob || null,
+          'participant',
+          normPhone || null,
+          normCity || null,
+          state || null,
+          normZip || null,
+          affiliationType,
+          normSchoolJob,
+          fieldOfInterest,
+          0,
+        ]
+      );
 
     const participantId = participantInsert.rows[0]?.participantid;
     if (!participantId) throw new Error('Could not create participant record');
@@ -741,10 +780,15 @@ app.post('/register', async (req, res) => {
     }
 
     let msg = 'Could not create account.';
-    if (err.code === '23505') msg = 'Username already exists.';
+    if (err.code === '23505') {
+      msg = err.constraint && err.constraint.includes('participant')
+        ? 'Account could not be created (duplicate participant id). Please contact support to reseed IDs.'
+        : 'Email already exists.';
+    }
     return res.render(path.join('login', 'register'), {
       title: 'Create Account',
       error: msg,
+      formData: req.body,
     });
   } finally {
     if (client) {
@@ -823,6 +867,38 @@ app.post('/events/:id/rsvp', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('RSVP error:', err);
     return res.redirect('/events?err=rsvp');
+  }
+});
+
+// Cancel RSVP
+app.post('/events/:id/unrsvp', requireAuth, async (req, res) => {
+  const eventId = Number(req.params.id);
+  if (!eventId) return res.redirect('/events?err=bad-event');
+
+  try {
+    let participantId = req.session.user.participantid || null;
+    if (!participantId) {
+      const email = req.session.user.username;
+      const participantRes = await pool.query(
+        'SELECT participantid FROM participant WHERE LOWER(participantemail) = LOWER($1) LIMIT 1',
+        [email]
+      );
+      if (participantRes.rows.length === 0) {
+        return res.redirect('/events?err=noparticipant');
+      }
+      participantId = participantRes.rows[0].participantid;
+      req.session.user.participantid = participantId;
+    }
+
+    await pool.query(
+      'DELETE FROM registration WHERE participantid = $1 AND eventoccurrenceid = $2',
+      [participantId, eventId]
+    );
+
+    return res.redirect('/events?msg=unrsvped');
+  } catch (err) {
+    console.error('Un-RSVP error:', err);
+    return res.redirect('/events?err=unrsvp');
   }
 });
 
@@ -1273,13 +1349,138 @@ app.post('/event-templates/:id/delete', requireManager, async (req, res) => {
 });
 
 /* -----------------------------
+   ACCOUNT
+----------------------------- */
+
+// Helper: load participant by email (username treated as email)
+async function findParticipantByEmail(email) {
+  if (!email) return null;
+  const res = await pool.query(
+    `SELECT *
+     FROM participant
+     WHERE participantemail = $1
+     LIMIT 1`,
+    [email]
+  );
+  return res.rows[0] || null;
+}
+
+// GET /my-account
+app.get('/my-account', requireAuth, async (req, res) => {
+  try {
+    const email = req.session.user?.username;
+    const participant = await findParticipantByEmail(email);
+    return res.render(path.join('account', 'account'), {
+      title: 'My Account',
+      participant,
+      user: req.session.user,
+    });
+  } catch (err) {
+    console.error('My account load error:', err);
+    return res.status(500).send('Could not load account');
+  }
+});
+
+// GET /my-account/edit
+app.get('/my-account/edit', requireAuth, async (req, res) => {
+  try {
+    const email = req.session.user?.username;
+    const participant = await findParticipantByEmail(email);
+    return res.render(path.join('account', 'account_edit'), {
+      title: 'Edit Account',
+      participant,
+      user: req.session.user,
+      error: null,
+    });
+  } catch (err) {
+    console.error('My account edit load error:', err);
+    return res.status(500).send('Could not load account');
+  }
+});
+
+// POST /my-account/edit
+app.post('/my-account/edit', requireAuth, async (req, res) => {
+  const email = req.session.user?.username;
+  if (!email) return res.redirect('/login');
+
+  const {
+    participantfirstname,
+    participantlastname,
+    participantphone,
+    participantcity,
+    participantstate,
+    participantzip,
+    participantaffiliationtype,
+    participantaffiliationname,
+    participantfieldofinterest,
+    participantdob,
+  } = req.body;
+
+  try {
+    const participant = await findParticipantByEmail(email);
+    if (!participant) {
+      return res.render(path.join('account', 'account_edit'), {
+        title: 'Edit Account',
+        participant: null,
+        user: req.session.user,
+        error: 'No participant record found.',
+      });
+    }
+
+    const normFirst = normalizeCapitalize(participantfirstname);
+    const normLast = normalizeCapitalize(participantlastname);
+    const normCity = normalizeCapitalize(participantcity);
+    const normPhone = normalizeDigits(participantphone, 10);
+    const normZip = normalizeDigits(participantzip, 10);
+    const normAffName = participantaffiliationname ? participantaffiliationname.trim() : null;
+    const normAffType = participantaffiliationtype ? participantaffiliationtype.trim() : null;
+    const normField = participantfieldofinterest ? participantfieldofinterest.trim() : null;
+
+    await pool.query(
+      `UPDATE participant
+       SET participantfirstname = $1,
+           participantlastname = $2,
+           participantphone = $3,
+           participantcity = $4,
+           participantstate = $5,
+           participantzip = $6,
+           participantaffiliationtype = $7,
+           participantaffiliationname = $8,
+           participantfieldofinterest = $9,
+           participantdob = $10
+       WHERE participantid = $11`,
+      [
+        normFirst || null,
+        normLast || null,
+        normPhone || null,
+        normCity || null,
+        participantstate || null,
+        normZip || null,
+        normAffType,
+        normAffName,
+        normField,
+        participantdob || null,
+        participant.participantid,
+      ]
+    );
+
+    return res.redirect('/my-account');
+  } catch (err) {
+    console.error('My account edit save error:', err);
+    return res.render(path.join('account', 'account_edit'), {
+      title: 'Edit Account',
+      participant: await findParticipantByEmail(email),
+      user: req.session.user,
+      error: 'Could not save changes.',
+    });
+  }
+});
+
+/* -----------------------------
    AUTHENTICATED PAGES
 ----------------------------- */
 
-// /my-account -> views/account/account.ejs
-app.get('/my-account', requireAuth, (req, res) => {
-  res.render(path.join('account', 'account'), { title: 'My Account' });
-});
+// /my-account -> views/account/account.ejs (populated below with participant data)
 
 /* -------- Optional manager routes based on your files -------- */
 
