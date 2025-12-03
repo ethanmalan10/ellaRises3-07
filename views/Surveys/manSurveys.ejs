@@ -13,9 +13,11 @@
               <div>
                 <p style="margin:0; font-weight:700; color:var(--charcoal);"><%= s.participantName || 'Unknown participant' %></p>
                 <p style="margin:0; color:var(--charcoal); opacity:0.7;">
-                  Event: <%= s.eventName || (s.eventoccurrenceid ? `Event #${s.eventoccurrenceid}` : 'Unknown event') %>
+                  <% const evLabel = s.eventName || s.eventname || (s.eventoccurrenceid ? `Event #${s.eventoccurrenceid}` : 'Unknown event'); %>
+                  Event: <%= evLabel %>
                 </p>
-                <% const submitted = s.submittedAt ? new Date(s.submittedAt) : null; %>
+                <% const submittedAt = s.submittedAt || s.surveysubmissiondate; %>
+                <% const submitted = submittedAt ? new Date(submittedAt) : null; %>
                 <p style="margin:0; color:var(--charcoal); opacity:0.6;">
                   Submitted: <%= submitted && !Number.isNaN(submitted.valueOf()) ? submitted.toLocaleDateString() : 'N/A' %>
                 </p>
