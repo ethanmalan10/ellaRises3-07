@@ -16,6 +16,26 @@
   <button id="user-search-btn" class="btn-cream" style="padding:10px 14px; border-radius:10px;">Search</button>
   <button id="user-clear-btn" class="btn-outline" style="padding:10px 14px; border-radius:10px;">Clear</button>
 </div>
+<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+  <div style="color:#4b5563;">Showing <%= Math.min((pag.page - 1) * pag.pageSize + 1, pag.total || 0) %>–<%= Math.min(pag.page * pag.pageSize, pag.total || 0) %> of <%= pag.total || 0 %></div>
+  <form method="GET" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+    <input type="hidden" name="page" value="<%= pag.page %>">
+    <label style="display:flex; align-items:center; gap:6px;">
+      <span style="color:#4b5563;">Per page</span>
+      <select name="pageSize" onchange="this.form.page.value=1; this.form.submit();" style="padding:8px 10px; border-radius:10px; border:1px solid #d1d5db;">
+        <% (pageSizeOptions || [25,50,75,100]).forEach(size => { %>
+          <option value="<%= size %>" <%= size === pag.pageSize ? 'selected' : '' %>><%= size %></option>
+        <% }) %>
+      </select>
+    </label>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.page > 1 ? '' : 'disabled' %> onclick="this.form.page.value=1;"><< Start</button>
+      <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasPrev ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.max(1, pag.page - 1) %>;">&lt; Back</button>
+      <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasNext ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.min(pag.totalPages, pag.page + 1) %>;">Next &gt;</button>
+      <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.page < pag.totalPages ? '' : 'disabled' %> onclick="this.form.page.value=<%= pag.totalPages %>;">End >></button>
+    </div>
+  </form>
+</div>
 
   <% if (!users || users.length === 0) { %>
     <p style="color:#6b7280;">No users found.</p>
@@ -73,8 +93,10 @@
           </select>
         </label>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasPrev ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.max(1, pag.page - 1) %>;">Back</button>
-          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasNext ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.min(pag.totalPages, pag.page + 1) %>;">Next</button>
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.page > 1 ? '' : 'disabled' %> onclick="this.form.page.value=1;"><< Start</button>
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasPrev ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.max(1, pag.page - 1) %>;">&lt; Back</button>
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasNext ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.min(pag.totalPages, pag.page + 1) %>;">Next &gt;</button>
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.page < pag.totalPages ? '' : 'disabled' %> onclick="this.form.page.value=<%= pag.totalPages %>;">End >></button>
         </div>
       </form>
     </div>
@@ -111,5 +133,18 @@
     });
 
     if (saved) runFilter();
+  })();
+
+  (function(){
+    const btn = document.createElement('button');
+    btn.id = 'jump-to-top-users';
+    btn.type = 'button';
+    btn.textContent = 'Jump to Top';
+    btn.style.cssText = 'position:fixed; right:20px; bottom:20px; padding:10px 14px; border-radius:10px; border:none; background:#2e2f2e; color:#fff; cursor:pointer; display:none; box-shadow:0 6px 18px rgba(0,0,0,0.18); z-index:999;';
+    btn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: "smooth" }));
+    document.body.appendChild(btn);
+    window.addEventListener('scroll', () => {
+      btn.style.display = window.scrollY > 240 ? 'block' : 'none';
+    });
   })();
 </script>
