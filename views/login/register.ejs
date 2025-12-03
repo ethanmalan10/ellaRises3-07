@@ -86,18 +86,33 @@
           style="width:100%; padding:12px; border-radius:10px;">
       </div>
 
-      <!-- SCHOOL OR JOB NAME -->
+      <!-- AFFILIATION -->
       <div style="margin-bottom:1rem;">
+        <label style="font-weight:600; display:block; margin-bottom:.35rem;">Affiliation Type <span style="color:#6b7280; font-size:.9em;">(required)</span></label>
+        <div style="display:flex; gap:18px; align-items:center; flex-wrap:wrap;">
+          <label style="display:flex; align-items:center; gap:6px;">
+            <input type="radio" name="affiliationType" value="School" <%= formData && formData.affiliationType === 'School' ? 'checked' : '' %> onchange="toggleAffiliationName(true)">
+            School
+          </label>
+          <label style="display:flex; align-items:center; gap:6px;">
+            <input type="radio" name="affiliationType" value="Employer" <%= formData && formData.affiliationType === 'Employer' ? 'checked' : '' %> onchange="toggleAffiliationName(true)">
+            Employer
+          </label>
+        </div>
+      </div>
+
+      <div id="affiliationNameGroup" style="margin-bottom:1rem; display:<%= formData && formData.affiliationType ? 'block' : 'none' %>;">
         <label style="font-weight:600; display:block; margin-bottom:.35rem;">
-          School Name / Job Name <span style="color:#6b7280; font-size:.9em;">(required)</span>
+          Affiliation Name <span style="color:#6b7280; font-size:.9em;">(required)</span>
         </label>
         <input
-          name="schoolOrJob"
+          id="affiliationName"
+          name="affiliationName"
           type="text"
-          required
-          value="<%= (formData && formData.schoolOrJob) || '' %>"
+          value="<%= (formData && formData.affiliationName) || '' %>"
           style="width:100%; padding:12px; border-radius:10px;"
-          onblur="this.value = this.value.trim() || 'None'">
+          onblur="this.value = this.value.trim()"
+        >
       </div>
 
       <!-- PHONE NUMBER -->
@@ -138,24 +153,22 @@
         </div>
       </div>
 
-      <!-- INTERESTS CHECKBOXES -->
+      <!-- INTERESTS RADIO -->
       <div style="margin-bottom:1.25rem;">
         <label style="font-weight:600; display:block; margin-bottom:.45rem;">
           What are your interests in this program?
         </label>
 
         <div style="display:flex; gap:18px;">
-
           <label style="display:flex; align-items:center; gap:6px;">
-            <input type="checkbox" name="interest_arts" value="true" <%= formData && formData.interest_arts ? 'checked' : '' %>>
-            Arts
+            <input type="radio" name="interest" value="arts" <%= formData && formData.interest === 'arts' ? 'checked' : '' %>> Arts
           </label>
-
           <label style="display:flex; align-items:center; gap:6px;">
-            <input type="checkbox" name="interest_stem" value="true" <%= formData && formData.interest_stem ? 'checked' : '' %>>
-            STEM
+            <input type="radio" name="interest" value="stem" <%= formData && formData.interest === 'stem' ? 'checked' : '' %>> STEM
           </label>
-
+          <label style="display:flex; align-items:center; gap:6px;">
+            <input type="radio" name="interest" value="both" <%= formData && formData.interest === 'both' ? 'checked' : '' %>> Both
+          </label>
         </div>
       </div>
 
@@ -197,4 +210,17 @@
     e.preventDefault();
     return false;
   }
+  function toggleAffiliationName(show) {
+    const grp = document.getElementById('affiliationNameGroup');
+    const inp = document.getElementById('affiliationName');
+    if (grp && inp) {
+      grp.style.display = show ? 'block' : 'none';
+      inp.required = !!show;
+    }
+  }
+  // initialize based on existing selection
+  document.addEventListener('DOMContentLoaded', () => {
+    const checked = document.querySelector('input[name="affiliationType"]:checked');
+    toggleAffiliationName(!!checked);
+  });
 </script>

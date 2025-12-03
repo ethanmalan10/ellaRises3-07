@@ -1,0 +1,37 @@
+<main class="container main-content" style="max-width:900px; margin-top:2.5rem;">
+  <% function fmtDate(d){ return d ? new Date(d).toLocaleString('en-US', { dateStyle:'medium', timeStyle:'short' }) : ''; } %>
+  <% function calcAge(d){ if(!d) return '—'; const dob=new Date(d); if(Number.isNaN(dob)) return '—'; const now=new Date(); let age=now.getFullYear()-dob.getFullYear(); const m=now.getMonth()-dob.getMonth(); if(m<0 || (m===0 && now.getDate()<dob.getDate())) age--; return age; } %>
+
+  <header style="display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:1.25rem; flex-wrap:wrap;">
+    <div>
+      <h1 style="margin:0; font-family:var(--font-serif); color:var(--charcoal);">Attendees</h1>
+      <p style="margin:.3rem 0 0 0; color:#4b5563;"><%= event.eventname %> — <%= fmtDate(event.eventdatetimestart) %></p>
+    </div>
+    <a href="/events" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Back to Events</a>
+  </header>
+
+  <% if (!attendees || attendees.length === 0) { %>
+    <p style="color:#6b7280;">No attendees yet.</p>
+  <% } else { %>
+    <div class="card" style="padding:16px; border-radius:12px; border:1px solid #e5e7eb;">
+      <table style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr style="text-align:left; border-bottom:1px solid #e5e7eb;">
+            <th style="padding:8px;">Name</th>
+            <th style="padding:8px;">Age</th>
+            <th style="padding:8px;">City</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% attendees.forEach(a => { %>
+            <tr style="border-bottom:1px solid #f3f4f6;">
+              <td style="padding:8px;"><%= [a.participantfirstname, a.participantlastname].filter(Boolean).join(' ') || '—' %></td>
+              <td style="padding:8px;"><%= calcAge(a.participantdob) %></td>
+              <td style="padding:8px;"><%= a.participantcity || '—' %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</main>

@@ -288,11 +288,21 @@ button[type="submit"]:active{ transform:translateY(0); }
 }
 .dropdown:hover .dropdown-content{ display:block; }
 .dropdown:hover > .nav-link{
-  background-color:var(--pink-soft);
-  color:var(--charcoal) !important;
-  border-color:var(--pink-soft);
+    background-color:var(--pink-soft);
+    color:var(--charcoal) !important;
+    border-color:var(--pink-soft);
+  }
+  
+/* Nested dropdown (management) */
+.dropdown-submenu{ position:relative; }
+.dropdown-submenu > .dropdown-content{
+    top:0;
+    left:100%;
+    right:auto;
 }
-
+.dropdown-submenu:hover > .dropdown-content{
+    display:block;
+}
 /* -------------------------------------------
    CONTAINER
 ------------------------------------------- */

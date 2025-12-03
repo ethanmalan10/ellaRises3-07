@@ -459,6 +459,68 @@ async function deleteMilestoneAssignment(id) {
   await pool.query('DELETE FROM milestone WHERE milestoneid = $1', [id]);
 }
 
+async function listParticipantsWithUsers() {
+  const { rows } = await pool.query(
+    `SELECT p.participantid,
+            p.participantfirstname,
+            p.participantlastname,
+            p.participantdob,
+            p.participantcity,
+            u.username,
+            u.password
+     FROM participant p
+     LEFT JOIN users u ON u.participantid = p.participantid
+     ORDER BY p.participantlastname, p.participantfirstname`
+  );
+  return rows;
+}
+
+async function listUsersWithParticipants() {
+  const { rows } = await pool.query(
+    `SELECT
+        u.userid,
+        u.username,
+        u.level,
+        u.participantid,
+        p.participantfirstname,
+        p.participantlastname,
+        p.participantemail,
+        p.participantcity,
+        p.participantstate
+     FROM users u
+     LEFT JOIN participant p ON p.participantid = u.participantid
+     ORDER BY LOWER(u.username)`
+  );
+  return rows;
+}
+
+async function getParticipantDetail(id) {
+  const participantRes = await pool.query(
+    `SELECT p.*,
+            u.username,
+            u.password
+     FROM participant p
+     LEFT JOIN users u ON u.participantid = p.participantid
+     WHERE p.participantid = $1
+     LIMIT 1`,
+    [id]
+  );
+  if (!participantRes.rows.length) return null;
+  const milestonesRes = await pool.query(
+    `SELECT m.milestoneid,
+            m.milestonecatalogid,
+            m.milestonedate,
+            m.milestoneno,
+            mc.milestonetitle
+     FROM milestone m
+     JOIN milestonecatalog mc ON mc.milestonecatalogid = m.milestonecatalogid
+     WHERE m.participantid = $1
+     ORDER BY m.milestonedate DESC NULLS LAST, m.milestoneid DESC`,
+    [id]
+  );
+  return { participant: participantRes.rows[0], milestones: milestonesRes.rows };
+}
+
 /* -----------------------------
    EJS + Layouts + Static
 ----------------------------- */
@@ -844,7 +906,7 @@ app.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
     const q = `
-      SELECT participantid, username, password, level
+      SELECT userid, participantid, username, password, level
       FROM users
       WHERE LOWER(username) = LOWER($1)
       LIMIT 1
@@ -882,7 +944,7 @@ app.post('/login', async (req, res) => {
     }
 
     req.session.user = {
-      id: user.participantid,
+      id: user.userid,
       username: user.username,
       role: mapRole(user.level),
       level: user.level,
@@ -916,28 +978,24 @@ app.post('/register', async (req, res) => {
     lastName,
     email,
     dob,
-    schoolOrJob,
+    affiliationType,
+    affiliationName,
     phone,
     city,
     state,
     zipcode,
-    interest_arts,
-    interest_stem,
+    interest,
   } = req.body;
 
   const normFirst = normalizeCapitalize(firstName);
   const normLast = normalizeCapitalize(lastName);
   const normCity = normalizeCapitalize(city);
-  const normSchoolJob = (schoolOrJob && schoolOrJob.trim()) ? schoolOrJob.trim() : 'None';
-  const affiliationType = 'school_or_job';
+  const normAffType = (affiliationType && affiliationType.trim()) ? affiliationType.trim() : null;
+  const normAffName = (affiliationName && affiliationName.trim()) ? affiliationName.trim() : null;
   const normPhone = normalizeDigits(phone, 10);
   const normZip = normalizeDigits(zipcode, 10);
 
-  const fieldOfInterest =
-    (interest_arts && interest_stem) ? 'both'
-    : interest_arts ? 'arts'
-    : interest_stem ? 'stem'
-    : null;
+  const fieldOfInterest = interest || null;
 
   let client;
   try {
@@ -971,11 +1029,13 @@ app.post('/register', async (req, res) => {
       { value: normFirst, msg: 'First name is required.' },
       { value: normLast, msg: 'Last name is required.' },
       { value: dob, msg: 'Date of birth is required.' },
-      { value: normSchoolJob, msg: 'School/Job is required.' },
+      { value: normAffType, msg: 'Affiliation type is required.' },
+      { value: normAffName, msg: 'Affiliation name is required.' },
       { value: normPhone, msg: 'Phone number is required.' },
       { value: normCity, msg: 'City is required.' },
       { value: state, msg: 'State is required.' },
       { value: normZip, msg: 'Zipcode is required.' },
+      { value: fieldOfInterest, msg: 'Interest selection is required.' },
     ];
     const missing = requiredFields.find(f => !f.value);
     if (missing) {
@@ -989,14 +1049,7 @@ app.post('/register', async (req, res) => {
     client = await pool.connect();
     await client.query('BEGIN');
 
-    const authInsert = await client.query(
-      `INSERT INTO users (username, password, level)
-       VALUES ($1, $2, $3)
-       RETURNING userid, username, level`,
-      [username, password, 'u'] // TODO: bcrypt hash
-    );
-
-    await client.query(
+    const participantInsert = await client.query(
       `INSERT INTO participant (
         participantemail,
         participantfirstname,
@@ -1008,27 +1061,27 @@ app.post('/register', async (req, res) => {
         participantstate,
         participantzip,
         participantaffiliationtype,
-          participantaffiliationname,
-          participantfieldofinterest,
-          totaldonations
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-        RETURNING participantid`,
-        [
-          email || null,
-          normFirst || null,
-          normLast || null,
-          dob || null,
-          'participant',
-          normPhone || null,
-          normCity || null,
-          state || null,
-          normZip || null,
-          affiliationType,
-          normSchoolJob,
-          fieldOfInterest,
-          0,
-        ]
-      );
+        participantaffiliationname,
+        participantfieldofinterest,
+        totaldonations
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      RETURNING participantid`,
+      [
+        email || null,
+        normFirst || null,
+        normLast || null,
+        dob || null,
+        'participant',
+        normPhone || null,
+        normCity || null,
+        state || null,
+        normZip || null,
+        normAffType,
+        normAffName,
+        fieldOfInterest,
+        0,
+      ]
+    );
 
     const participantId = participantInsert.rows[0]?.participantid;
     if (!participantId) throw new Error('Could not create participant record');
@@ -1757,6 +1810,50 @@ app.post('/my-account/edit', requireAuth, async (req, res) => {
   }
 });
 
+// Manager: view attendees for an event occurrence
+app.get('/events/:id/attendees', requireManager, async (req, res) => {
+  const eventId = Number(req.params.id);
+  if (!eventId) return res.redirect('/events?err=bad-event');
+
+  try {
+    const eventRes = await pool.query(
+      `SELECT eo.eventoccurrenceid,
+              eo.eventdatetimestart,
+              eo.eventdatetimeend,
+              et.eventname
+       FROM eventoccurrence eo
+       JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
+       WHERE eo.eventoccurrenceid = $1
+       LIMIT 1`,
+      [eventId]
+    );
+    if (eventRes.rows.length === 0) return res.redirect('/events?err=notfound');
+
+    const attendeesRes = await pool.query(
+      `SELECT
+         p.participantid,
+         p.participantfirstname,
+         p.participantlastname,
+         p.participantcity,
+         p.participantdob
+       FROM registration r
+       JOIN participant p ON p.participantid = r.participantid
+       WHERE r.eventoccurrenceid = $1
+       ORDER BY p.participantlastname, p.participantfirstname`,
+      [eventId]
+    );
+
+    return res.render(path.join('events', 'events_attendees'), {
+      title: 'Event Attendees',
+      event: eventRes.rows[0],
+      attendees: attendeesRes.rows,
+    });
+  } catch (err) {
+    console.error('Attendees load error:', err);
+    return res.status(500).send('Could not load attendees');
+  }
+});
+
 /* -----------------------------
    AUTHENTICATED PAGES
 ----------------------------- */
@@ -1764,6 +1861,350 @@ app.post('/my-account/edit', requireAuth, async (req, res) => {
 // /my-account -> views/account/account.ejs (populated below with participant data)
 
 /* -------- Optional manager routes based on your files -------- */
+
+/* -----------------------------
+   PARTICIPANTS (manager)
+----------------------------- */
+
+// List participants
+app.get('/participants', requireManager, async (_req, res) => {
+  try {
+    const participants = await listParticipantsWithUsers();
+    return res.render(path.join('allParticipants', 'index'), {
+      title: 'All Participants',
+      participants,
+    });
+  } catch (err) {
+    console.error('Participants list error:', err);
+    return res.status(500).send('Could not load participants');
+  }
+});
+
+// New participant form
+app.get('/participants/new', requireManager, async (_req, res) => {
+  try {
+    const catalog = await listMilestoneCatalog();
+    res.render(path.join('allParticipants', 'add'), {
+      title: 'Add Participant',
+      participant: {},
+      catalog,
+      error: null,
+    });
+  } catch (err) {
+    console.error('Participant add form error:', err);
+    res.status(500).send('Could not load form');
+  }
+});
+
+// Create participant (with optional user, milestones)
+app.post('/participants/new', requireManager, async (req, res) => {
+  const {
+    participantfirstname,
+    participantlastname,
+    participantemail,
+    participantdob,
+    participantphone,
+    participantcity,
+    participantstate,
+    participantzip,
+    participantaffiliationtype,
+    participantaffiliationname,
+    participantfieldofinterest,
+    createUser,
+    username,
+    password,
+  } = req.body;
+  const milestoneIds = Array.isArray(req.body.milestones)
+    ? req.body.milestones
+    : req.body.milestones ? [req.body.milestones] : [];
+
+  const normFirst = normalizeCapitalize(participantfirstname);
+  const normLast = normalizeCapitalize(participantlastname);
+  const normCity = normalizeCapitalize(participantcity);
+  const normPhone = normalizeDigits(participantphone, 10);
+  const normZip = normalizeDigits(participantzip, 10);
+  const normAffType = participantaffiliationtype ? participantaffiliationtype.trim() : null;
+  const normAffName = participantaffiliationname ? participantaffiliationname.trim() : null;
+  const normField = participantfieldofinterest ? participantfieldofinterest.trim() : null;
+
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+
+    const pRes = await client.query(
+      `INSERT INTO participant (
+        participantemail,
+        participantfirstname,
+        participantlastname,
+        participantdob,
+        participantrole,
+        participantphone,
+        participantcity,
+        participantstate,
+        participantzip,
+        participantaffiliationtype,
+        participantaffiliationname,
+        participantfieldofinterest,
+        totaldonations
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      RETURNING participantid`,
+      [
+        participantemail || null,
+        normFirst || null,
+        normLast || null,
+        participantdob || null,
+        'participant',
+        normPhone || null,
+        normCity || null,
+        participantstate || null,
+        normZip || null,
+        normAffType,
+        normAffName,
+        normField,
+        0,
+      ]
+    );
+
+    const participantId = pRes.rows[0]?.participantid;
+    if (!participantId) throw new Error('Could not create participant');
+
+    if (milestoneIds.length > 0) {
+      for (const mid of milestoneIds) {
+        await client.query(
+          `INSERT INTO milestone (participantid, milestonecatalogid, milestonedate, milestoneno)
+           VALUES ($1, $2, NULL, NULL)`,
+          [participantId, Number(mid)]
+        );
+      }
+    }
+
+    if (createUser && username && password) {
+      await client.query(
+        `INSERT INTO users (username, password, level, participantid)
+         VALUES ($1, $2, $3, $4)`,
+        [username.trim(), password, 'u', participantId]
+      );
+    }
+
+    await client.query('COMMIT');
+    return res.redirect('/participants');
+  } catch (err) {
+    console.error('Create participant error:', err);
+    if (client) {
+      try { await client.query('ROLLBACK'); } catch {}
+    }
+    const catalog = await listMilestoneCatalog();
+    return res.render(path.join('allParticipants', 'add'), {
+      title: 'Add Participant',
+      participant: req.body,
+      catalog,
+      error: err.message || 'Could not create participant.',
+    });
+  } finally {
+    if (client) client.release();
+  }
+});
+
+// View participant
+app.get('/participants/:id', requireManager, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.redirect('/participants');
+  try {
+    const detail = await getParticipantDetail(id);
+    if (!detail) return res.redirect('/participants');
+    return res.render(path.join('allParticipants', 'view'), {
+      title: 'Participant Detail',
+      participant: detail.participant,
+      milestones: detail.milestones,
+    });
+  } catch (err) {
+    console.error('View participant error:', err);
+    return res.status(500).send('Could not load participant');
+  }
+});
+
+// Edit participant form
+app.get('/participants/:id/edit', requireManager, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.redirect('/participants');
+  try {
+    const detail = await getParticipantDetail(id);
+    if (!detail) return res.redirect('/participants');
+    const catalog = await listMilestoneCatalog();
+    const milestoneIds = detail.milestones.map(m => m.milestonecatalogid);
+    return res.render(path.join('allParticipants', 'edit'), {
+      title: 'Edit Participant',
+      participant: detail.participant,
+      milestones: detail.milestones,
+      catalog,
+      milestoneIds,
+      error: null,
+    });
+  } catch (err) {
+    console.error('Edit participant load error:', err);
+    return res.status(500).send('Could not load participant');
+  }
+});
+
+// Edit participant submit
+app.post('/participants/:id/edit', requireManager, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.redirect('/participants');
+
+  const {
+    participantfirstname,
+    participantlastname,
+    participantemail,
+    participantdob,
+    participantphone,
+    participantcity,
+    participantstate,
+    participantzip,
+    participantaffiliationtype,
+    participantaffiliationname,
+    participantfieldofinterest,
+    username,
+    password,
+  } = req.body;
+  const milestoneIds = Array.isArray(req.body.milestones)
+    ? req.body.milestones
+    : req.body.milestones ? [req.body.milestones] : [];
+
+  const normFirst = normalizeCapitalize(participantfirstname);
+  const normLast = normalizeCapitalize(participantlastname);
+  const normCity = normalizeCapitalize(participantcity);
+  const normPhone = normalizeDigits(participantphone, 10);
+  const normZip = normalizeDigits(participantzip, 10);
+  const normAffType = participantaffiliationtype ? participantaffiliationtype.trim() : null;
+  const normAffName = participantaffiliationname ? participantaffiliationname.trim() : null;
+  const normField = participantfieldofinterest ? participantfieldofinterest.trim() : null;
+
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+
+    await client.query(
+      `UPDATE participant
+       SET participantfirstname = $1,
+           participantlastname = $2,
+           participantemail = $3,
+           participantdob = $4,
+           participantphone = $5,
+           participantcity = $6,
+           participantstate = $7,
+           participantzip = $8,
+           participantaffiliationtype = $9,
+           participantaffiliationname = $10,
+           participantfieldofinterest = $11
+       WHERE participantid = $12`,
+      [
+        normFirst || null,
+        normLast || null,
+        participantemail || null,
+        participantdob || null,
+        normPhone || null,
+        normCity || null,
+        participantstate || null,
+        normZip || null,
+        normAffType,
+        normAffName,
+        normField,
+        id,
+      ]
+    );
+
+    await client.query('DELETE FROM milestone WHERE participantid = $1', [id]);
+    if (milestoneIds.length > 0) {
+      for (const mid of milestoneIds) {
+        await client.query(
+          `INSERT INTO milestone (participantid, milestonecatalogid, milestonedate, milestoneno)
+           VALUES ($1, $2, NULL, NULL)`,
+          [id, Number(mid)]
+        );
+      }
+    }
+
+    if (username) {
+      const userRes = await client.query(
+        'SELECT userid FROM users WHERE participantid = $1',
+        [id]
+      );
+      if (userRes.rows.length > 0) {
+        await client.query(
+          'UPDATE users SET username = $1, password = COALESCE($2,password) WHERE participantid = $3',
+          [username.trim(), password || null, id]
+        );
+      } else if (password) {
+        await client.query(
+          'INSERT INTO users (username, password, level, participantid) VALUES ($1,$2,$3,$4)',
+          [username.trim(), password, 'u', id]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+    return res.redirect('/participants');
+  } catch (err) {
+    console.error('Edit participant save error:', err);
+    if (client) {
+      try { await client.query('ROLLBACK'); } catch {}
+    }
+    const catalog = await listMilestoneCatalog();
+    return res.render(path.join('allParticipants', 'edit'), {
+      title: 'Edit Participant',
+      participant: { participantid: id, participantfirstname, participantlastname, participantemail, participantdob, participantphone, participantcity, participantstate, participantzip, participantaffiliationtype, participantaffiliationname, participantfieldofinterest },
+      milestones: [],
+      catalog,
+      milestoneIds,
+      error: err.message || 'Could not update participant.',
+    });
+  } finally {
+    if (client) client.release();
+  }
+});
+
+// Delete participant
+app.post('/participants/:id/delete', requireManager, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.redirect('/participants');
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    await client.query('DELETE FROM users WHERE participantid = $1', [id]);
+    await client.query('DELETE FROM registration WHERE participantid = $1', [id]);
+    await client.query('DELETE FROM survey WHERE participantid = $1', [id]);
+    await client.query('DELETE FROM donation WHERE participantid = $1', [id]);
+    await client.query('DELETE FROM milestone WHERE participantid = $1', [id]);
+    await client.query('DELETE FROM participant WHERE participantid = $1', [id]);
+    await client.query('COMMIT');
+    return res.redirect('/participants');
+  } catch (err) {
+    console.error('Delete participant error:', err);
+    if (client) {
+      try { await client.query('ROLLBACK'); } catch {}
+    }
+    return res.redirect('/participants');
+  } finally {
+    if (client) client.release();
+  }
+});
+
+// All Users (manager)
+app.get('/admin/users', requireManager, async (_req, res) => {
+  try {
+    const users = await listUsersWithParticipants();
+    return res.render(path.join('allUsers', 'allUsers'), {
+      title: 'All Users',
+      users,
+    });
+  } catch (err) {
+    console.error('All users load error:', err);
+    return res.status(500).send('Could not load users');
+  }
+});
 
 // /admin/milestones -> catalog + assignment management
 app.get('/admin/milestones', requireManager, async (req, res) => {
@@ -2050,5 +2491,5 @@ app.use((_req, res) => {
 ----------------------------- */
 const PORT = Number(process.env.PORT || 3000);
 app.listen(PORT, () => {
-  console.log(`Ella Rises running → http://localhost:${PORT}`);
+  console.log(`✅ Ella Rises running → http://localhost:${PORT}`);
 });
