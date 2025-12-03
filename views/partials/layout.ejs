@@ -30,7 +30,9 @@
     <!-- Center Section: Main Links -->
     <div class="navbar-nav" style="margin-left: .25rem;">
       <a href="/donations" class="nav-link">Donations</a>
-      <a href="/surveys"   class="nav-link">Surveys</a>
+      <% if (user) { %>
+        <a href="/surveys"   class="nav-link">Surveys</a>
+      <% } %>
       <a href="/events"    class="nav-link">Events</a>
     </div>
 

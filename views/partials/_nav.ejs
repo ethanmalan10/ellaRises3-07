@@ -19,7 +19,9 @@
   <!-- Left nav links -->
   <div class="navbar-nav" style="margin-left:.25rem;">
     <a href="/donations" class="nav-link">Donations</a>
-    <a href="/surveys"   class="nav-link">Surveys</a>
+    <% if (u) { %>
+      <a href="/surveys"   class="nav-link">Surveys</a>
+    <% } %>
     <a href="/events"    class="nav-link">Events</a>
     <% if (u) { %>
       <a href="/milestones" class="nav-link">Milestones</a>
