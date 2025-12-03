@@ -38,6 +38,14 @@
 
     <!-- Right Side -->
     <div class="navbar-nav" style="margin-left:auto;">
+      <button
+        id="lang-toggle"
+        type="button"
+        class="nav-link lang-toggle-btn notranslate"
+        aria-label="Cambiar a español"
+        aria-pressed="false">
+        Cambiar a español
+      </button>
 
       <% if (!user) { %>
         <!-- Login / Register Dropdown -->
@@ -90,5 +98,7 @@
     <p>&copy; 2025 Ella Rises. Empowering the rising generation of women.</p>
   </footer>
 
+  <div id="google_translate_element" aria-hidden="true" style="display:none;"></div>
+  <script src="/js/lang-toggle.js"></script>
 </body>
 </html>

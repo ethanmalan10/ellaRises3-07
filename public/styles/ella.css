@@ -114,6 +114,19 @@ it stays on your screen */
   align-items:center;
 }
 
+.lang-toggle-btn{
+  cursor:pointer;
+  border:2px solid transparent;
+  background:transparent;
+  font:inherit;
+  padding:10px 18px;
+}
+.lang-toggle-btn:hover{
+  background-color:var(--pink-soft);
+  color:var(--charcoal);
+  border-color:var(--pink-soft);
+}
+
 .navbar-nav .nav-link{
   color:var(--cream) !important;
   font-weight:500;
