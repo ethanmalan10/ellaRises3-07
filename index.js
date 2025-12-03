@@ -240,6 +240,11 @@ async function surveyExists(participantId, eventoccurrenceid) {
   return rows.length > 0;
 }
 
+async function getNextDonationId() {
+  const { rows } = await pool.query(`SELECT COALESCE(MAX(donationid), 0) + 1 AS nextid FROM donation`);
+  return rows[0]?.nextid ? Number(rows[0].nextid) : 1;
+}
+
 async function insertSurvey({
   participantId,
   eventoccurrenceid,
@@ -692,19 +697,246 @@ app.get('/donations', (req, res) => {
 });
 
 // Handle donation submit -> redirect home with a thank-you toast
-app.post('/donations', (req, res) => {
+app.post('/donations', async (req, res) => {
   const { fullName, donationAmount } = req.body || {};
-
-  // Normalize values to avoid undefined in the query string
   const donor = (fullName || '').trim();
-  const amount = (donationAmount || '').trim();
+  const amount = Number(donationAmount);
+
+  if (!donor || !donationAmount || Number.isNaN(amount)) {
+    return res.redirect('/donations?err=invalid');
+  }
+
+  try {
+    let nextId = await getNextDonationId();
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await pool.query(
+          `INSERT INTO donation (donationid, participantid, donationamount, donationdate, donorname, donationno)
+           VALUES ($1, $2, $3, CURRENT_DATE, $4, $5)`,
+          [nextId, null, amount, donor, 1]
+        );
+        break;
+      } catch (err) {
+        if (err.code === '23505') {
+          nextId += 1;
+          continue;
+        }
+        throw err;
+      }
+    }
+  } catch (err) {
+    console.error('Public donation insert error:', err);
+    return res.redirect('/donations?err=db');
+  }
 
   const params = new URLSearchParams();
   params.set('donated', '1');
-  if (donor) params.set('donor', donor);
-  if (amount) params.set('amount', amount);
+  params.set('donor', donor);
+  params.set('amount', amount.toString());
 
   return res.redirect(`/?${params.toString()}`);
+});
+
+/* -----------------------------
+   Donations (Manager)
+----------------------------- */
+async function listDonations() {
+  const { rows } = await pool.query(
+    `SELECT d.donationid AS id,
+            d.participantid,
+            d.donationamount AS amount,
+            d.donationdate AS date,
+            CASE
+              WHEN d.participantid IS NOT NULL THEN TRIM(BOTH ' ' FROM COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,''))
+              WHEN d.donorname IS NOT NULL THEN d.donorname
+              ELSE 'Anonymous'
+            END AS displayname,
+            d.donorname,
+            TRIM(BOTH ' ' FROM COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,'')) AS participantname
+     FROM donation d
+     LEFT JOIN participant p ON d.participantid = p.participantid
+     ORDER BY d.donationdate DESC NULLS LAST, d.donationid DESC
+     LIMIT 200`
+  );
+  return rows;
+}
+
+async function getDonation(id) {
+  const { rows } = await pool.query(
+    `SELECT d.donationid AS id,
+            d.participantid,
+            d.donationamount AS amount,
+            d.donationdate AS date,
+            CASE
+              WHEN d.participantid IS NOT NULL THEN TRIM(BOTH ' ' FROM COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,''))
+              WHEN d.donorname IS NOT NULL THEN d.donorname
+              ELSE 'Anonymous'
+            END AS displayname,
+            d.donorname,
+            TRIM(BOTH ' ' FROM COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,'')) AS participantname
+     FROM donation d
+     LEFT JOIN participant p ON d.participantid = p.participantid
+     WHERE d.donationid = $1
+     LIMIT 1`,
+    [id]
+  );
+  return rows[0] || null;
+}
+
+app.get('/admin/donations', requireManager, async (_req, res) => {
+  try {
+    const donations = await listDonations();
+    res.render(path.join('donations', 'adminList'), {
+      title: 'Manage Donations',
+      donations,
+    });
+  } catch (err) {
+    console.error('Admin donations list error:', err);
+    res.status(500).send('Could not load donations');
+  }
+});
+
+app.get('/admin/donations/new', requireManager, (req, res) => {
+  res.render(path.join('donations', 'adminAdd'), {
+    title: 'Add Donation',
+    error: null,
+    formValues: {},
+  });
+});
+
+app.post('/admin/donations/new', requireManager, async (req, res) => {
+  const { donorname, participantid, amount, donationdate } = req.body;
+  const pid = Number(participantid);
+  const amt = Number(amount);
+  const date = donationdate ? new Date(donationdate) : null;
+  const donor = (donorname || '').trim();
+
+  try {
+    if (!donor && (!pid || Number.isNaN(pid))) {
+      return res.status(400).render(path.join('donations', 'adminAdd'), {
+        title: 'Add Donation',
+        error: 'Provide a donor name or participant ID.',
+        formValues: { donorname, participantid, amount, donationdate },
+      });
+    }
+
+    if (!amt || Number.isNaN(amt)) {
+      return res.status(400).render(path.join('donations', 'adminAdd'), {
+        title: 'Add Donation',
+        error: 'Amount is required.',
+        formValues: { donorname, participantid, amount, donationdate },
+      });
+    }
+
+    let nextId = await getNextDonationId();
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await pool.query(
+          `INSERT INTO donation (donationid, participantid, donationamount, donationdate, donorname, donationno)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            nextId,
+            pid && !Number.isNaN(pid) ? pid : null,
+            amt,
+            date && !Number.isNaN(date.valueOf()) ? date : CURRENT_DATE,
+            donor || null,
+            1,
+          ]
+        );
+        break;
+      } catch (err) {
+        if (err.code === '23505') {
+          nextId += 1;
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    res.redirect('/admin/donations');
+  } catch (err) {
+    console.error('Admin donation add error:', err);
+    res.status(500).render(path.join('donations', 'adminAdd'), {
+      title: 'Add Donation',
+      error: 'Could not add donation.',
+      formValues: { participantid, amount, donationdate },
+    });
+  }
+});
+
+app.get('/admin/donations/:id/edit', requireManager, async (req, res) => {
+  try {
+    const donation = await getDonation(req.params.id);
+    if (!donation) return res.status(404).send('Donation not found');
+    // normalize date to Date for template
+    donation.date = donation.date ? new Date(donation.date) : null;
+    res.render(path.join('donations', 'adminEdit'), {
+      title: 'Edit Donation',
+      donation,
+      error: null,
+    });
+  } catch (err) {
+    console.error('Admin donation edit load error:', err);
+    res.status(500).send('Could not load donation');
+  }
+});
+
+app.post('/admin/donations/:id/edit', requireManager, async (req, res) => {
+  const { amount, donationdate, donorname } = req.body;
+  const amt = Number(amount);
+  const date = donationdate ? new Date(donationdate) : null;
+  const donor = (donorname || '').trim();
+
+  try {
+    if (!amount || Number.isNaN(amt)) {
+      const donation = await getDonation(req.params.id);
+      if (!donation) return res.status(404).send('Donation not found');
+      donation.date = donation.date ? new Date(donation.date) : null;
+      return res.status(400).render(path.join('donations', 'adminEdit'), {
+        title: 'Edit Donation',
+        donation,
+        error: 'Amount is required.',
+      });
+    }
+
+    await pool.query(
+      `UPDATE donation
+       SET donationamount = $1,
+           donationdate = $2,
+           donorname = $3
+       WHERE donationid = $4`,
+      [amt, date && !Number.isNaN(date.valueOf()) ? date : null, donor || null, req.params.id]
+    );
+
+    res.redirect('/admin/donations');
+  } catch (err) {
+    console.error('Admin donation edit submit error:', err);
+    res.status(500).send('Could not update donation');
+  }
+});
+
+app.get('/admin/donations/:id/delete', requireManager, async (req, res) => {
+  try {
+    const donation = await getDonation(req.params.id);
+    if (!donation) return res.status(404).send('Donation not found');
+    res.render(path.join('donations', 'adminDelete'), {
+      title: 'Delete Donation',
+      donation,
+    });
+  } catch (err) {
+    console.error('Admin donation delete load error:', err);
+    res.status(500).send('Could not load donation');
+  }
+});
+
+app.post('/admin/donations/:id/delete', requireManager, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM donation WHERE donationid = $1', [req.params.id]);
+    res.redirect('/admin/donations');
+  } catch (err) {
+    console.error('Admin donation delete error:', err);
+    res.status(500).send('Could not delete donation');
+  }
 });
 
 // /events -> views/events/events.ejs

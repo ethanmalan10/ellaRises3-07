@@ -1,0 +1,168 @@
+<section class="main-content">
+  <div class="card" style="padding: 20px; border-radius: 14px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+      <div>
+        <h2 style="margin:0 0 6px 0; font-family: var(--font-serif);">Recent Donations</h2>
+        <p style="margin:0; color:var(--charcoal); opacity:0.8;">Manage and review donations</p>
+      </div>
+      <a href="/admin/donations/new" class="btn-login-home" style="white-space:nowrap;">+ Add Donation</a>
+    </div>
+
+    <div style="margin-top:14px; display:flex; gap:12px; flex-wrap:wrap;">
+      <input id="donation-search" type="search" placeholder="Search by donor or participant..." style="flex:1 1 240px; padding:10px 12px; border-radius:10px; border:1px solid #ddd;">
+    </div>
+
+    <div id="donation-pager-top" style="margin-top:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; font-size:0.9rem; color:var(--charcoal); opacity:0.8;">
+      <div>Showing <span id="page-start-top">1</span>-<span id="page-end-top">50</span> of <span id="page-total-top"><%= donations ? donations.length : 0 %></span></div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span>Per page</span>
+        <select id="donation-page-size" style="padding:8px 10px; border-radius:8px; border:1px solid #ddd;">
+          <option value="25">25</option>
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+      <div style="display:flex; gap:6px; align-items:center;">
+        <button type="button" id="pager-start-top" class="btn-cream" style="padding:8px 12px; border-radius:10px;">&laquo; Start</button>
+        <button type="button" id="pager-back-top" class="btn-cream" style="padding:8px 12px; border-radius:10px;">&lsaquo; Back</button>
+        <button type="button" id="pager-next-top" class="btn-cream" style="padding:8px 12px; border-radius:10px;">Next &rsaquo;</button>
+        <button type="button" id="pager-end-top" class="btn-cream" style="padding:8px 12px; border-radius:10px;">End &raquo;</button>
+      </div>
+    </div>
+
+    <% if (donations && donations.length) { %>
+      <div id="donation-list" style="margin-top:16px; display:grid; gap:12px;">
+        <% donations.forEach(d => { %>
+          <div class="donation-card" data-search="<%= ((d.donorname || '') + ' ' + (d.participantname || '')).toLowerCase() %>" style="border:1px solid #eee; border-radius:10px; padding:12px 14px; background:#fff;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+              <div>
+                <p style="margin:0; font-weight:700; color:var(--charcoal);">
+                  <%= d.displayname || 'Anonymous' %>
+                </p>
+                <p style="margin:0; color:var(--charcoal); opacity:0.7;">
+                  Amount: $<%= Number(d.amount || 0).toFixed(2) %> · Date: <%= d.date ? new Date(d.date).toLocaleDateString() : 'N/A' %>
+                </p>
+              </div>
+              <div style="display:flex; gap:8px;">
+                <a class="btn-login-home" style="padding:8px 10px; border-radius:8px;" href="/admin/donations/<%= d.id %>/edit">Edit</a>
+                <a class="btn-login-home" style="padding:8px 10px; border-radius:8px; background:#ffe1e1; color:#7a2e2e;" href="/admin/donations/<%= d.id %>/delete">Delete</a>
+              </div>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <p style="margin-top:16px; color:var(--charcoal); opacity:0.7;">No donations yet.</p>
+    <% } %>
+
+    <div id="donation-pager-bottom" style="margin-top:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; font-size:0.9rem; color:var(--charcoal); opacity:0.8;">
+      <div>Showing <span id="page-start-bot">1</span>-<span id="page-end-bot">50</span> of <span id="page-total-bot"><%= donations ? donations.length : 0 %></span></div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span>Per page</span>
+        <select id="donation-page-size-bottom" style="padding:8px 10px; border-radius:8px; border:1px solid #ddd;">
+          <option value="25">25</option>
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+      <div style="display:flex; gap:6px; align-items:center;">
+        <button type="button" id="pager-start-bot" class="btn-cream" style="padding:8px 12px; border-radius:10px;">&laquo; Start</button>
+        <button type="button" id="pager-back-bot" class="btn-cream" style="padding:8px 12px; border-radius:10px;">&lsaquo; Back</button>
+        <button type="button" id="pager-next-bot" class="btn-cream" style="padding:8px 12px; border-radius:10px;">Next &rsaquo;</button>
+        <button type="button" id="pager-end-bot" class="btn-cream" style="padding:8px 12px; border-radius:10px;">End &raquo;</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  (() => {
+    const input = document.getElementById('donation-search');
+    const cards = Array.from(document.querySelectorAll('.donation-card'));
+    const perPageTop = document.getElementById('donation-page-size');
+    const perPageBot = document.getElementById('donation-page-size-bottom');
+    const startTop = document.getElementById('page-start-top');
+    const endTop = document.getElementById('page-end-top');
+    const totalTop = document.getElementById('page-total-top');
+    const startBot = document.getElementById('page-start-bot');
+    const endBot = document.getElementById('page-end-bot');
+    const totalBot = document.getElementById('page-total-bot');
+    const btns = {
+      start: [document.getElementById('pager-start-top'), document.getElementById('pager-start-bot')],
+      back: [document.getElementById('pager-back-top'), document.getElementById('pager-back-bot')],
+      next: [document.getElementById('pager-next-top'), document.getElementById('pager-next-bot')],
+      end: [document.getElementById('pager-end-top'), document.getElementById('pager-end-bot')],
+    };
+
+    let page = 1;
+    let pageSize = Number(perPageTop?.value || 50);
+    let filtered = cards.slice();
+
+    function syncTotals(total, start, end) {
+      totalTop.textContent = total;
+      totalBot.textContent = total;
+      startTop.textContent = total === 0 ? 0 : start;
+      startBot.textContent = total === 0 ? 0 : start;
+      endTop.textContent = total === 0 ? 0 : end;
+      endBot.textContent = total === 0 ? 0 : end;
+    }
+
+    function applyFilters() {
+      const term = (input?.value || '').toLowerCase();
+      filtered = cards.filter(c => {
+        const hay = c.dataset.search || '';
+        return hay.includes(term);
+      });
+      page = 1;
+      render();
+    }
+
+    function render() {
+      const total = filtered.length;
+      const totalPages = Math.max(1, Math.ceil(total / pageSize));
+      if (page > totalPages) page = totalPages;
+      const startIdx = (page - 1) * pageSize;
+      const endIdx = Math.min(startIdx + pageSize, total);
+
+      cards.forEach(c => (c.style.display = 'none'));
+      filtered.slice(startIdx, endIdx).forEach(c => (c.style.display = 'block'));
+
+      syncTotals(total, total === 0 ? 0 : startIdx + 1, endIdx);
+
+      btns.start.concat(btns.back).forEach(b => {
+        if (!b) return;
+        b.disabled = page === 1 || total === 0;
+        b.style.opacity = b.disabled ? 0.6 : 1;
+        b.style.cursor = b.disabled ? 'not-allowed' : 'pointer';
+      });
+      btns.next.concat(btns.end).forEach(b => {
+        if (!b) return;
+        b.disabled = page === totalPages || total === 0;
+        b.style.opacity = b.disabled ? 0.6 : 1;
+        b.style.cursor = b.disabled ? 'not-allowed' : 'pointer';
+      });
+    }
+
+    function setPageSize(val) {
+      pageSize = Number(val) || 50;
+      perPageTop.value = pageSize.toString();
+      perPageBot.value = pageSize.toString();
+      page = 1;
+      render();
+    }
+
+    perPageTop?.addEventListener('change', e => setPageSize(e.target.value));
+    perPageBot?.addEventListener('change', e => setPageSize(e.target.value));
+    btns.start.forEach(b => b?.addEventListener('click', () => { page = 1; render(); }));
+    btns.back.forEach(b => b?.addEventListener('click', () => { page = Math.max(1, page - 1); render(); }));
+    btns.next.forEach(b => b?.addEventListener('click', () => { page += 1; render(); }));
+    btns.end.forEach(b => b?.addEventListener('click', () => {
+      const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+      page = totalPages;
+      render();
+    }));
+    input?.addEventListener('input', applyFilters);
+
+    applyFilters();
+  })();
+</script>
