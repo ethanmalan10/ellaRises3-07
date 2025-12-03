@@ -210,7 +210,7 @@ async function getSurveyById(id) {
   const { rows } = await pool.query(
     `SELECT s.surveyid AS id,
             s.participantid,
-            s.eventoccurenceid AS eventoccurrenceid,
+            s.eventoccurrenceid AS eventoccurrenceid,
             s.surveysatisfactionscore AS satisfaction,
             s.surveyusefulnessscore AS usefulness,
             s.surveyinstructorscore AS instructor,
@@ -223,7 +223,7 @@ async function getSurveyById(id) {
             et.eventname AS eventName
      FROM survey s
      LEFT JOIN participant p ON s.participantid = p.participantid
-     LEFT JOIN eventoccurrence eo ON eo.eventoccurrenceid = COALESCE(s.eventoccurrenceid, s.eventoccurenceid)
+     LEFT JOIN eventoccurrence eo ON eo.eventoccurrenceid = s.eventoccurrenceid
      LEFT JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
      WHERE s.surveyid = $1
      LIMIT 1`,
