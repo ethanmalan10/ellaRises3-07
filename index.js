@@ -916,28 +916,24 @@ app.post('/register', async (req, res) => {
     lastName,
     email,
     dob,
-    schoolOrJob,
+    affiliationType,
+    affiliationName,
     phone,
     city,
     state,
     zipcode,
-    interest_arts,
-    interest_stem,
+    interest,
   } = req.body;
 
   const normFirst = normalizeCapitalize(firstName);
   const normLast = normalizeCapitalize(lastName);
   const normCity = normalizeCapitalize(city);
-  const normSchoolJob = (schoolOrJob && schoolOrJob.trim()) ? schoolOrJob.trim() : 'None';
-  const affiliationType = 'school_or_job';
+  const normAffType = (affiliationType && affiliationType.trim()) ? affiliationType.trim() : null;
+  const normAffName = (affiliationName && affiliationName.trim()) ? affiliationName.trim() : null;
   const normPhone = normalizeDigits(phone, 10);
   const normZip = normalizeDigits(zipcode, 10);
 
-  const fieldOfInterest =
-    (interest_arts && interest_stem) ? 'both'
-    : interest_arts ? 'arts'
-    : interest_stem ? 'stem'
-    : null;
+  const fieldOfInterest = interest || null;
 
   let client;
   try {
@@ -971,11 +967,13 @@ app.post('/register', async (req, res) => {
       { value: normFirst, msg: 'First name is required.' },
       { value: normLast, msg: 'Last name is required.' },
       { value: dob, msg: 'Date of birth is required.' },
-      { value: normSchoolJob, msg: 'School/Job is required.' },
+      { value: normAffType, msg: 'Affiliation type is required.' },
+      { value: normAffName, msg: 'Affiliation name is required.' },
       { value: normPhone, msg: 'Phone number is required.' },
       { value: normCity, msg: 'City is required.' },
       { value: state, msg: 'State is required.' },
       { value: normZip, msg: 'Zipcode is required.' },
+      { value: fieldOfInterest, msg: 'Interest selection is required.' },
     ];
     const missing = requiredFields.find(f => !f.value);
     if (missing) {
@@ -989,14 +987,7 @@ app.post('/register', async (req, res) => {
     client = await pool.connect();
     await client.query('BEGIN');
 
-    const authInsert = await client.query(
-      `INSERT INTO users (username, password, level)
-       VALUES ($1, $2, $3)
-       RETURNING userid, username, level`,
-      [username, password, 'u'] // TODO: bcrypt hash
-    );
-
-    await client.query(
+    const participantInsert = await client.query(
       `INSERT INTO participant (
         participantemail,
         participantfirstname,
@@ -1008,27 +999,27 @@ app.post('/register', async (req, res) => {
         participantstate,
         participantzip,
         participantaffiliationtype,
-          participantaffiliationname,
-          participantfieldofinterest,
-          totaldonations
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-        RETURNING participantid`,
-        [
-          email || null,
-          normFirst || null,
-          normLast || null,
-          dob || null,
-          'participant',
-          normPhone || null,
-          normCity || null,
-          state || null,
-          normZip || null,
-          affiliationType,
-          normSchoolJob,
-          fieldOfInterest,
-          0,
-        ]
-      );
+        participantaffiliationname,
+        participantfieldofinterest,
+        totaldonations
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      RETURNING participantid`,
+      [
+        email || null,
+        normFirst || null,
+        normLast || null,
+        dob || null,
+        'participant',
+        normPhone || null,
+        normCity || null,
+        state || null,
+        normZip || null,
+        normAffType,
+        normAffName,
+        fieldOfInterest,
+        0,
+      ]
+    );
 
     const participantId = participantInsert.rows[0]?.participantid;
     if (!participantId) throw new Error('Could not create participant record');
@@ -1754,6 +1745,50 @@ app.post('/my-account/edit', requireAuth, async (req, res) => {
       user: req.session.user,
       error: 'Could not save changes.',
     });
+  }
+});
+
+// Manager: view attendees for an event occurrence
+app.get('/events/:id/attendees', requireManager, async (req, res) => {
+  const eventId = Number(req.params.id);
+  if (!eventId) return res.redirect('/events?err=bad-event');
+
+  try {
+    const eventRes = await pool.query(
+      `SELECT eo.eventoccurrenceid,
+              eo.eventdatetimestart,
+              eo.eventdatetimeend,
+              et.eventname
+       FROM eventoccurrence eo
+       JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
+       WHERE eo.eventoccurrenceid = $1
+       LIMIT 1`,
+      [eventId]
+    );
+    if (eventRes.rows.length === 0) return res.redirect('/events?err=notfound');
+
+    const attendeesRes = await pool.query(
+      `SELECT
+         p.participantid,
+         p.participantfirstname,
+         p.participantlastname,
+         p.participantcity,
+         p.participantdob
+       FROM registration r
+       JOIN participant p ON p.participantid = r.participantid
+       WHERE r.eventoccurrenceid = $1
+       ORDER BY p.participantlastname, p.participantfirstname`,
+      [eventId]
+    );
+
+    return res.render(path.join('events', 'events_attendees'), {
+      title: 'Event Attendees',
+      event: eventRes.rows[0],
+      attendees: attendeesRes.rows,
+    });
+  } catch (err) {
+    console.error('Attendees load error:', err);
+    return res.status(500).send('Could not load attendees');
   }
 });
 
