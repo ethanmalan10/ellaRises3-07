@@ -699,22 +699,37 @@ app.get('/donations', (req, res) => {
 
 // Handle donation submit -> redirect home with a thank-you toast
 app.post('/donations', async (req, res) => {
-  const { fullName, donationAmount } = req.body || {};
+  const { fullName, donationAmount, email } = req.body || {};
   const donor = (fullName || '').trim();
+  const donorEmail = (email || '').trim().toLowerCase();
   const amount = Number(donationAmount);
 
-  if (!donor || !donationAmount || Number.isNaN(amount)) {
+  if (!donor || !donorEmail || !donationAmount || Number.isNaN(amount)) {
     return res.redirect('/donations?err=invalid');
   }
 
   try {
+    // Ensure we have (or create) a participant to satisfy the FK on donation.participantid
+    const [firstName, ...restName] = donor.split(' ');
+    const lastName = restName.join(' ').trim() || null;
+    const { rows: participantRows } = await pool.query(
+      `INSERT INTO participant (participantemail, participantfirstname, participantlastname, participantrole)
+       VALUES ($1, $2, $3, 'Donor')
+       ON CONFLICT (participantemail)
+       DO UPDATE SET participantfirstname = EXCLUDED.participantfirstname,
+                     participantlastname = EXCLUDED.participantlastname
+       RETURNING participantid`,
+      [donorEmail, firstName || donor, lastName]
+    );
+    const participantId = participantRows[0]?.participantid;
+
     let nextId = await getNextDonationId();
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         await pool.query(
           `INSERT INTO donation (donationid, participantid, donationamount, donationdate, donorname, donationno)
            VALUES ($1, $2, $3, CURRENT_DATE, $4, $5)`,
-          [nextId, null, amount, donor, 1]
+          [nextId, participantId, amount, donor, 1]
         );
         break;
       } catch (err) {
@@ -1766,7 +1781,13 @@ app.get('/events/past', requireManager, async (req, res) => {
         et.eventrecurrencepattern,
         et.eventdefaultcapacity,
         COALESCE(regs.count, 0) AS registrations_count,
-        etype.eventtypename
+        etype.eventtypename,
+        stats.survey_count,
+        stats.avg_satisfaction,
+        stats.avg_overall,
+        tpl_stats.template_survey_count,
+        tpl_stats.template_avg_satisfaction,
+        tpl_stats.template_avg_overall
        FROM eventoccurrence eo
        JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
        LEFT JOIN eventtype etype ON et.eventtypeid = etype.eventtypeid
@@ -1775,6 +1796,26 @@ app.get('/events/past', requireManager, async (req, res) => {
          FROM registration
          GROUP BY eventoccurrenceid
        ) regs ON regs.eventoccurrenceid = eo.eventoccurrenceid
+       LEFT JOIN (
+         SELECT
+           eventoccurrenceid,
+           COUNT(*) AS survey_count,
+           ROUND(AVG(surveysatisfactionscore)::numeric, 2) AS avg_satisfaction,
+           ROUND(AVG(surveyoverallscore)::numeric, 2) AS avg_overall
+         FROM survey
+         GROUP BY eventoccurrenceid
+       ) stats ON stats.eventoccurrenceid = eo.eventoccurrenceid
+       LEFT JOIN (
+         SELECT
+           et.eventtemplateid,
+           COUNT(s.*) AS template_survey_count,
+           ROUND(AVG(s.surveysatisfactionscore)::numeric, 2) AS template_avg_satisfaction,
+           ROUND(AVG(s.surveyoverallscore)::numeric, 2) AS template_avg_overall
+         FROM eventtemplate et
+         LEFT JOIN eventoccurrence eo2 ON eo2.eventtemplateid = et.eventtemplateid
+         LEFT JOIN survey s ON s.eventoccurrenceid = eo2.eventoccurrenceid
+         GROUP BY et.eventtemplateid
+       ) tpl_stats ON tpl_stats.eventtemplateid = eo.eventtemplateid
        WHERE eo.eventdatetimeend < NOW()
        ORDER BY eo.eventdatetimestart DESC
        LIMIT $1 OFFSET $2`,
@@ -1790,6 +1831,100 @@ app.get('/events/past', requireManager, async (req, res) => {
   } catch (err) {
     console.error('Past events error:', err);
     return res.status(500).send('Could not load past events');
+  }
+});
+
+// Manager: event stats (occurrence + template rollups)
+app.get('/events/stats', requireManager, async (_req, res) => {
+  try {
+    const occurrenceStats = await pool.query(
+      `SELECT
+         eo.eventoccurrenceid,
+         eo.eventtemplateid,
+         eo.eventdatetimestart,
+         eo.eventdatetimeend,
+         et.eventname,
+         et.eventtypeid,
+         etype.eventtypename,
+         COUNT(s.*) AS survey_count,
+         ROUND(AVG(s.surveysatisfactionscore)::numeric, 2) AS avg_satisfaction,
+         ROUND(AVG(s.surveyoverallscore)::numeric, 2) AS avg_overall
+       FROM eventoccurrence eo
+       JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
+       LEFT JOIN eventtype etype ON etype.eventtypeid = et.eventtypeid
+       LEFT JOIN survey s ON s.eventoccurrenceid = eo.eventoccurrenceid
+       WHERE eo.eventdatetimeend < NOW()
+       GROUP BY eo.eventoccurrenceid, eo.eventtemplateid, eo.eventdatetimestart, eo.eventdatetimeend, et.eventname, et.eventtypeid, etype.eventtypename
+       ORDER BY eo.eventdatetimestart DESC
+       LIMIT 300`
+    );
+
+    const templateStats = await pool.query(
+      `SELECT
+         et.eventtemplateid,
+         et.eventname,
+         et.eventtypeid,
+         etype.eventtypename,
+         COUNT(s.*) AS survey_count,
+         ROUND(AVG(s.surveysatisfactionscore)::numeric, 2) AS avg_satisfaction,
+         ROUND(AVG(s.surveyoverallscore)::numeric, 2) AS avg_overall,
+         COUNT(DISTINCT eo.eventoccurrenceid) AS occurrences
+       FROM eventtemplate et
+       LEFT JOIN eventtype etype ON etype.eventtypeid = et.eventtypeid
+       LEFT JOIN eventoccurrence eo ON eo.eventtemplateid = et.eventtemplateid
+       LEFT JOIN survey s ON s.eventoccurrenceid = eo.eventoccurrenceid
+       GROUP BY et.eventtemplateid, et.eventname, et.eventtypeid, etype.eventtypename
+       ORDER BY avg_satisfaction DESC NULLS LAST, et.eventname ASC
+       LIMIT 300`
+    );
+
+    res.render(path.join('events', 'events_stats'), {
+      title: 'Event Statistics',
+      occurrenceStats: occurrenceStats.rows,
+      templateStats: templateStats.rows,
+    });
+  } catch (err) {
+    console.error('Event stats error:', err);
+    res.status(500).send('Could not load event stats');
+  }
+});
+
+// Dashboard with basic KPIs
+app.get('/dashboard', requireManager, async (_req, res) => {
+  const embedUrl =
+    'https://public.tableau.com/views/RegionalSampleWorkbook/College?:language=en-US&publish=yes&:showVizHome=no';
+
+  try {
+    const [
+      participantCount,
+      eventCount,
+      milestoneCount,
+      satisfactionAvg,
+    ] = await Promise.all([
+      pool.query('SELECT COUNT(*)::int AS count FROM participant'),
+      pool.query('SELECT COUNT(*)::int AS count FROM eventoccurrence'),
+      pool.query('SELECT COUNT(*)::int AS count FROM milestone'),
+      pool.query('SELECT ROUND(AVG(surveyoverallscore)::numeric, 2) AS avg FROM survey'),
+    ]);
+
+    const stats = {
+      participants: participantCount.rows[0]?.count ?? 0,
+      events: eventCount.rows[0]?.count ?? 0,
+      milestones: milestoneCount.rows[0]?.count ?? 0,
+      avgSatisfaction:
+        satisfactionAvg.rows[0]?.avg !== null && satisfactionAvg.rows[0]?.avg !== undefined
+          ? Number(satisfactionAvg.rows[0].avg).toFixed(2)
+          : null,
+    };
+
+    res.render(path.join('dashboard', 'dashboard'), {
+      title: 'Dashboard',
+      embedUrl,
+      stats,
+    });
+  } catch (err) {
+    console.error('Dashboard load error:', err);
+    res.status(500).send('Could not load dashboard');
   }
 });
 
@@ -2183,27 +2318,113 @@ app.get('/participants', requireManager, async (req, res) => {
     const total = Number(countRes.rows[0]?.count || 0);
     const pagination = buildPagination(total, page, pageSize);
 
-    const participantsRes = await pool.query(
-      `SELECT p.participantid,
-              p.participantfirstname,
-              p.participantlastname,
-              p.participantdob,
-              p.participantcity,
-              u.username,
-              u.password,
-              u.level
-       FROM participant p
-       LEFT JOIN users u ON u.participantid = p.participantid
-       ORDER BY p.participantlastname, p.participantfirstname
-       LIMIT $1 OFFSET $2`,
-      [pagination.pageSize, pagination.offset]
-    );
+    const sortByParam = (req.query.sortBy || '').toString().trim().toLowerCase();
+    const sortBy = ['events', 'surveys', 'milestones', 'name'].includes(sortByParam)
+      ? sortByParam
+      : 'name';
+    const sortDirParamRaw = (req.query.sortDir || '').toString().trim().toLowerCase();
+    const sortDirParam = sortDirParamRaw === 'asc' ? 'asc' : sortDirParamRaw === 'desc' ? 'desc' : 'desc';
+    const sortDir = sortDirParam === 'asc' ? 'ASC' : 'DESC';
+    const eventTemplateId = req.query.eventTemplateId ? Number(req.query.eventTemplateId) : null;
+    const eventTypeId = req.query.eventTypeId ? Number(req.query.eventTypeId) : null;
+    const milestoneCatalogId = req.query.milestoneCatalogId ? Number(req.query.milestoneCatalogId) : null;
+
+    const params = [];
+    const addParam = (v) => { params.push(v); return `$${params.length}`; };
+
+    const eventFilters = [];
+    if (eventTemplateId) eventFilters.push(`eo.eventtemplateid = ${addParam(eventTemplateId)}`);
+    if (eventTypeId) eventFilters.push(`et.eventtypeid = ${addParam(eventTypeId)}`);
+    const eventWhere = eventFilters.length ? `WHERE ${eventFilters.join(' AND ')}` : '';
+
+    const surveyFilters = [];
+    if (eventTemplateId) surveyFilters.push(`eo2.eventtemplateid = ${addParam(eventTemplateId)}`);
+    if (eventTypeId) surveyFilters.push(`et2.eventtypeid = ${addParam(eventTypeId)}`);
+    const surveyWhere = surveyFilters.length ? `WHERE ${surveyFilters.join(' AND ')}` : '';
+
+    const milestoneFilters = [];
+    if (milestoneCatalogId) milestoneFilters.push(`m.milestonecatalogid = ${addParam(milestoneCatalogId)}`);
+    const milestoneWhere = milestoneFilters.length ? `WHERE ${milestoneFilters.join(' AND ')}` : '';
+    const q = (req.query.q || '').toString();
+    const participantFilters = [];
+    if (q.trim()) {
+      const likeParam = addParam(`%${q.trim().toLowerCase()}%`);
+      participantFilters.push(`(LOWER(p.participantfirstname) LIKE ${likeParam}
+        OR LOWER(p.participantlastname) LIKE ${likeParam}
+        OR LOWER(p.participantemail) LIKE ${likeParam}
+        OR LOWER(p.participantcity) LIKE ${likeParam}
+        OR LOWER(p.participantstate) LIKE ${likeParam})`);
+    }
+    const participantWhere = participantFilters.length ? `WHERE ${participantFilters.join(' AND ')}` : '';
+
+    let sortClause = `p.participantlastname ${sortDir}, p.participantfirstname ${sortDir}`;
+    if (sortBy === 'events') sortClause = `events_attended ${sortDir}, p.participantlastname ASC`;
+    else if (sortBy === 'surveys') sortClause = `surveys_completed ${sortDir}, p.participantlastname ASC`;
+    else if (sortBy === 'milestones') sortClause = `milestones_completed ${sortDir}, p.participantlastname ASC`;
+
+    const [eventTemplatesRes, eventTypesRes, milestoneCatalogRes, participantsRes] = await Promise.all([
+      pool.query('SELECT eventtemplateid, eventname FROM eventtemplate ORDER BY eventname'),
+      pool.query('SELECT eventtypeid, eventtypename FROM eventtype ORDER BY eventtypename'),
+      pool.query('SELECT milestonecatalogid, milestonetitle FROM milestonecatalog ORDER BY milestonetitle'),
+      pool.query(
+        `SELECT p.participantid,
+                p.participantfirstname,
+                p.participantlastname,
+                p.participantdob,
+                p.participantcity,
+                u.username,
+                u.password,
+                u.level,
+                COALESCE(reg_counts.events_attended, 0) AS events_attended,
+                COALESCE(surv_counts.surveys_completed, 0) AS surveys_completed,
+                COALESCE(ms_counts.milestones_completed, 0) AS milestones_completed
+         FROM participant p
+         LEFT JOIN users u ON u.participantid = p.participantid
+         LEFT JOIN (
+           SELECT r.participantid, COUNT(DISTINCT r.eventoccurrenceid) AS events_attended
+           FROM registration r
+           JOIN eventoccurrence eo ON eo.eventoccurrenceid = r.eventoccurrenceid
+           JOIN eventtemplate et ON et.eventtemplateid = eo.eventtemplateid
+           ${eventWhere}
+           GROUP BY r.participantid
+         ) reg_counts ON reg_counts.participantid = p.participantid
+         LEFT JOIN (
+           SELECT s.participantid, COUNT(*) AS surveys_completed
+           FROM survey s
+           JOIN eventoccurrence eo2 ON eo2.eventoccurrenceid = s.eventoccurrenceid
+           JOIN eventtemplate et2 ON et2.eventtemplateid = eo2.eventtemplateid
+           ${surveyWhere}
+           GROUP BY s.participantid
+         ) surv_counts ON surv_counts.participantid = p.participantid
+         LEFT JOIN (
+           SELECT m.participantid, COUNT(*) AS milestones_completed
+           FROM milestone m
+           ${milestoneWhere}
+           GROUP BY m.participantid
+         ) ms_counts ON ms_counts.participantid = p.participantid
+         ${participantWhere}
+         ORDER BY ${sortClause}
+         LIMIT ${addParam(pagination.pageSize)} OFFSET ${addParam(pagination.offset)}`,
+        params
+      )
+    ]);
 
     return res.render(path.join('allParticipants', 'index'), {
       title: 'All Participants',
       participants: participantsRes.rows,
       pagination,
       pageSizeOptions: PAGE_SIZE_OPTIONS,
+      filters: {
+        sortBy,
+        sortDir: sortDirParam,
+        eventTemplateId,
+        eventTypeId,
+        milestoneCatalogId,
+        q,
+      },
+      eventTemplates: eventTemplatesRes.rows,
+      eventTypes: eventTypesRes.rows,
+      milestoneCatalog: milestoneCatalogRes.rows,
     });
   } catch (err) {
     console.error('Participants list error:', err);

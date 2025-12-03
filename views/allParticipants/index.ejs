@@ -5,7 +5,7 @@
   <header style="display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:1.25rem; flex-wrap:wrap;">
     <div>
       <h1 style="margin:0; font-family:var(--font-serif); color:var(--charcoal);">All Participants</h1>
-      <p style="margin:.3rem 0 0 0; color:#4b5563;">Manage participants and linked users.</p>
+      <p style="margin:.3rem 0 0 0; color:#4b5563;">Manage participants and linked users with attendance, survey, and milestone stats.</p>
     </div>
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
       <a href="/participants/new" class="btn-gradient" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Add Participant</a>
@@ -16,16 +16,80 @@
   <% if (!participants || participants.length === 0) { %>
     <p style="color:#6b7280;">No participants found.</p>
   <% } else { %>
-    <div style="margin:6px 0 12px 0; display:flex; gap:8px; flex-wrap:wrap;">
-      <input id="participant-search" type="text" placeholder="Quick search participants..." style="width:100%; max-width:320px; padding:10px 12px; border:1px solid #d1d5db; border-radius:10px;">
-      <button id="participant-search-btn" class="btn-cream" style="padding:10px 14px; border-radius:10px;">Search</button>
-      <button id="participant-clear-btn" class="btn-outline" style="padding:10px 14px; border-radius:10px;">Clear</button>
-    </div>
+    <form id="participant-filters" action="/participants" method="GET" style="margin:6px 0 12px 0; display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px; align-items:end; background:#fbeee8; padding:12px; border-radius:12px; border:1px solid #eadfd5;">
+      <input type="hidden" name="page" value="1">
+      <input type="hidden" name="pageSize" value="<%= pag.pageSize %>">
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <input id="participant-search" name="q" type="text" placeholder="Quick search participants..." value="<%= (typeof filters !== 'undefined' && filters.q) ? filters.q : '' %>" style="flex:1; min-width:240px; padding:10px 12px; border:1px solid #d1d5db; border-radius:10px;">
+        <button id="participant-search-btn" type="submit" class="btn-cream" style="padding:10px 14px; border-radius:10px;">Search</button>
+        <a href="/participants" class="btn-outline" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Clear</a>
+      </div>
+
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <label style="display:flex; flex-direction:column; gap:4px; min-width:170px;">
+          <span style="color:#4b5563; font-size:.9rem;">Sort by</span>
+          <select name="sortBy" style="padding:12px 12px; border-radius:10px; border:1px solid #d1d5db; width:100%;">
+            <option value="name" <%= filters && filters.sortBy === 'name' ? 'selected' : '' %>>Name</option>
+            <option value="events" <%= filters && filters.sortBy === 'events' ? 'selected' : '' %>>Events attended</option>
+            <option value="surveys" <%= filters && filters.sortBy === 'surveys' ? 'selected' : '' %>>Surveys completed</option>
+            <option value="milestones" <%= filters && filters.sortBy === 'milestones' ? 'selected' : '' %>>Milestones achieved</option>
+          </select>
+        </label>
+        <label style="display:flex; flex-direction:column; gap:4px; min-width:120px;">
+          <span style="color:#4b5563; font-size:.9rem;">Direction</span>
+          <select name="sortDir" style="padding:12px 12px; border-radius:10px; border:1px solid #d1d5db; width:100%;">
+            <option value="desc" <%= (!filters || filters.sortDir !== 'asc') ? 'selected' : '' %>>High to low</option>
+            <option value="asc" <%= filters && filters.sortDir === 'asc' ? 'selected' : '' %>>Low to high</option>
+          </select>
+        </label>
+      </div>
+
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <label style="display:flex; flex-direction:column; gap:4px; min-width:180px;">
+          <span style="color:#4b5563; font-size:.9rem;">Filter by event template</span>
+          <select name="eventTemplateId" style="padding:12px 12px; border-radius:10px; border:1px solid #d1d5db; width:100%;">
+            <option value="">All</option>
+            <% (eventTemplates || []).forEach(t => { %>
+              <option value="<%= t.eventtemplateid %>" <%= filters && Number(filters.eventTemplateId) === Number(t.eventtemplateid) ? 'selected' : '' %>><%= t.eventname %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label style="display:flex; flex-direction:column; gap:4px; min-width:180px;">
+          <span style="color:#4b5563; font-size:.9rem;">Filter by event type</span>
+          <select name="eventTypeId" style="padding:12px 12px; border-radius:10px; border:1px solid #d1d5db; width:100%;">
+            <option value="">All</option>
+            <% (eventTypes || []).forEach(t => { %>
+              <option value="<%= t.eventtypeid %>" <%= filters && Number(filters.eventTypeId) === Number(t.eventtypeid) ? 'selected' : '' %>><%= t.eventtypename %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label style="display:flex; flex-direction:column; gap:4px; min-width:180px;">
+          <span style="color:#4b5563; font-size:.9rem;">Filter by milestone type</span>
+          <select name="milestoneCatalogId" style="padding:12px 12px; border-radius:10px; border:1px solid #d1d5db; width:100%;">
+            <option value="">All</option>
+            <% (milestoneCatalog || []).forEach(m => { %>
+              <option value="<%= m.milestonecatalogid %>" <%= filters && Number(filters.milestoneCatalogId) === Number(m.milestonecatalogid) ? 'selected' : '' %>><%= m.milestonetitle %></option>
+            <% }) %>
+          </select>
+        </label>
+      </div>
+
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="submit" class="btn-gradient" style="padding:10px 14px; border-radius:10px; font-weight:700;">Apply Filters</button>
+        <a href="/participants" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Reset</a>
+      </div>
+    </form>
 
     <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
       <div style="color:#4b5563;">Showing <%= Math.min((pag.page - 1) * pag.pageSize + 1, pag.total || 0) %>-<%= Math.min(pag.page * pag.pageSize, pag.total || 0) %> of <%= pag.total || 0 %></div>
       <form id="participants-page-form-top" method="GET" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <input type="hidden" name="page" value="<%= pag.page %>">
+        <input type="hidden" name="sortBy" value="<%= filters && filters.sortBy ? filters.sortBy : 'name' %>">
+        <input type="hidden" name="sortDir" value="<%= filters && filters.sortDir ? filters.sortDir : 'desc' %>">
+        <input type="hidden" name="eventTemplateId" value="<%= filters && filters.eventTemplateId ? filters.eventTemplateId : '' %>">
+        <input type="hidden" name="eventTypeId" value="<%= filters && filters.eventTypeId ? filters.eventTypeId : '' %>">
+        <input type="hidden" name="milestoneCatalogId" value="<%= filters && filters.milestoneCatalogId ? filters.milestoneCatalogId : '' %>">
+        <input type="hidden" name="q" value="<%= filters && filters.q ? filters.q : '' %>">
         <label style="display:flex; align-items:center; gap:6px;">
           <span style="color:#4b5563;">Per page</span>
           <select name="pageSize" onchange="this.form.page.value=1; this.form.submit();" style="padding:8px 10px; border-radius:10px; border:1px solid #d1d5db;">
@@ -44,12 +108,15 @@
     </div>
 
     <div class="card" style="padding:16px; border-radius:12px; border:1px solid #e5e7eb;">
-      <table id="participants-table" style="width:100%; border-collapse:collapse;">
+      <table id="participants-table" style="width:100%; border-collapse:collapse; font-size:0.98rem;">
         <thead>
           <tr style="text-align:left; border-bottom:1px solid #e5e7eb;">
             <th style="padding:8px;">Name</th>
             <th style="padding:8px;">Age</th>
             <th style="padding:8px;">City</th>
+            <th style="padding:8px; text-align:center;">Events</th>
+            <th style="padding:8px; text-align:center;">Surveys</th>
+            <th style="padding:8px; text-align:center;">Milestones</th>
             <th style="padding:8px;">User?</th>
             <th style="padding:8px;">Actions</th>
           </tr>
@@ -68,6 +135,9 @@
               <td style="padding:8px;"><%= [p.participantfirstname, p.participantlastname].filter(Boolean).join(' ') || '?' %></td>
               <td style="padding:8px;"><%= calcAge(p.participantdob) %></td>
               <td style="padding:8px;"><%= p.participantcity || '?' %></td>
+              <td style="padding:8px; text-align:center; font-weight:600;"><%= p.events_attended || 0 %></td>
+              <td style="padding:8px; text-align:center; font-weight:600;"><%= p.surveys_completed || 0 %></td>
+              <td style="padding:8px; text-align:center; font-weight:600;"><%= p.milestones_completed || 0 %></td>
               <td style="padding:8px;"><%= p.username ? 'Yes' : 'No' %></td>
               <td style="padding:8px; display:flex; gap:6px; flex-wrap:wrap;">
                 <a href="/participants/<%= p.participantid %>" class="btn-cream" style="padding:8px 12px; border-radius:8px; text-decoration:none;">View</a>
@@ -86,6 +156,12 @@
       <div style="color:#4b5563;">Showing <%= Math.min((pag.page - 1) * pag.pageSize + 1, pag.total || 0) %>-<%= Math.min(pag.page * pag.pageSize, pag.total || 0) %> of <%= pag.total || 0 %></div>
       <form id="participants-page-form" method="GET" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <input type="hidden" name="page" value="<%= pag.page %>">
+        <input type="hidden" name="sortBy" value="<%= filters && filters.sortBy ? filters.sortBy : 'name' %>">
+        <input type="hidden" name="sortDir" value="<%= filters && filters.sortDir ? filters.sortDir : 'desc' %>">
+        <input type="hidden" name="eventTemplateId" value="<%= filters && filters.eventTemplateId ? filters.eventTemplateId : '' %>">
+        <input type="hidden" name="eventTypeId" value="<%= filters && filters.eventTypeId ? filters.eventTypeId : '' %>">
+        <input type="hidden" name="milestoneCatalogId" value="<%= filters && filters.milestoneCatalogId ? filters.milestoneCatalogId : '' %>">
+        <input type="hidden" name="q" value="<%= filters && filters.q ? filters.q : '' %>">
         <label style="display:flex; align-items:center; gap:6px;">
           <span style="color:#4b5563;">Per page</span>
           <select name="pageSize" onchange="this.form.page.value=1; this.form.submit();" style="padding:8px 10px; border-radius:10px; border:1px solid #d1d5db;">
@@ -106,37 +182,6 @@
 </main>
 
 <script>
-  (function(){
-    const input = document.getElementById('participant-search');
-    const btn = document.getElementById('participant-search-btn');
-    const clearBtn = document.getElementById('participant-clear-btn');
-    const rows = Array.from(document.querySelectorAll('#participants-table .participant-row'));
-    if (!input || !btn || !clearBtn || rows.length === 0) return;
-
-    const storageKey = 'participantSearch';
-    const saved = sessionStorage.getItem(storageKey) || '';
-    if (saved) input.value = saved;
-
-    const runFilter = () => {
-      const q = input.value.trim().toLowerCase();
-      sessionStorage.setItem(storageKey, input.value.trim());
-      rows.forEach(r => {
-        const text = (r.dataset.search || '').toLowerCase();
-        r.style.display = q ? (text.includes(q) ? '' : 'none') : '';
-      });
-    };
-    btn.addEventListener('click', (e) => { e.preventDefault(); runFilter(); });
-
-    clearBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      input.value = '';
-      sessionStorage.removeItem(storageKey);
-      rows.forEach(r => r.style.display = '');
-    });
-
-    if (saved) runFilter();
-  })();
-
   (function(){
     const btn = document.createElement('button');
     btn.id = 'jump-to-top';

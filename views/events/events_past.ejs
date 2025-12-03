@@ -69,6 +69,19 @@
            const desc = (ev.eventdescription || '').toLowerCase();
            const name = ev.eventname.toLowerCase();
            const endIso = ev.eventdatetimeend ? new Date(ev.eventdatetimeend).toISOString() : '';
+           const hasSurveys = Number(ev.survey_count || 0) > 0;
+           const hasTemplateSurveys = Number(ev.template_survey_count || 0) > 0;
+           const avgSat = hasSurveys && Number.isFinite(Number(ev.avg_satisfaction))
+              ? Number(ev.avg_satisfaction).toFixed(2)
+              : hasTemplateSurveys && Number.isFinite(Number(ev.template_avg_satisfaction))
+                ? Number(ev.template_avg_satisfaction).toFixed(2)
+                : '—';
+           const avgOverall = hasSurveys && Number.isFinite(Number(ev.avg_overall))
+              ? Number(ev.avg_overall).toFixed(2)
+              : hasTemplateSurveys && Number.isFinite(Number(ev.template_avg_overall))
+                ? Number(ev.template_avg_overall).toFixed(2)
+                : '—';
+           const surveyN = hasSurveys ? (ev.survey_count || 0) : (hasTemplateSurveys ? ev.template_survey_count || 0 : 0);
          %>
         <div
           class="card past-card"
@@ -99,6 +112,8 @@
             <div><strong>Location</strong><br><%= ev.eventlocation || 'TBD' %></div>
             <div><strong>Capacity</strong><br><%= ev.eventcapacity || '—' %></div>
             <div><strong>Registered</strong><br><%= ev.registrations_count %></div>
+            <div><strong>Avg Satisfaction</strong><br><%= avgSat %> <span style="color:#6b7280;">(n=<%= surveyN %>)</span></div>
+            <div><strong>Avg Overall</strong><br><%= avgOverall %></div>
           </div>
 
           <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:14px;">
