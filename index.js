@@ -210,7 +210,7 @@ async function getSurveyById(id) {
   const { rows } = await pool.query(
     `SELECT s.surveyid AS id,
             s.participantid,
-            s.eventoccurenceid AS eventoccurrenceid,
+            s.eventoccurrenceid AS eventoccurrenceid,
             s.surveysatisfactionscore AS satisfaction,
             s.surveyusefulnessscore AS usefulness,
             s.surveyinstructorscore AS instructor,
@@ -223,7 +223,7 @@ async function getSurveyById(id) {
             et.eventname AS eventName
      FROM survey s
      LEFT JOIN participant p ON s.participantid = p.participantid
-     LEFT JOIN eventoccurrence eo ON eo.eventoccurrenceid = COALESCE(s.eventoccurrenceid, s.eventoccurenceid)
+     LEFT JOIN eventoccurrence eo ON eo.eventoccurrenceid = s.eventoccurrenceid
      LEFT JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
      WHERE s.surveyid = $1
      LIMIT 1`,
@@ -2575,6 +2575,132 @@ app.get('/admin/users', requireManager, async (req, res) => {
   } catch (err) {
     console.error('All users load error:', err);
     return res.status(500).send('Could not load users');
+  }
+});
+
+// Render: add user
+app.get('/admin/users/add', requireManager, (_req, res) => {
+  res.render(path.join('allUsers', 'allUsers_add'), {
+    title: 'Add User',
+    error: null,
+    formData: {},
+  });
+});
+
+// Create user
+app.post('/admin/users/add', requireManager, async (req, res) => {
+  const { username, password, level, participantid } = req.body || {};
+  const cleanUsername = (username || '').trim();
+  const cleanPassword = (password || '').trim();
+  const participantIdNumber = participantid ? Number(participantid) : null;
+  const normalizedLevel = normalizeUserLevel(level);
+
+  if (!cleanUsername || !cleanPassword) {
+    return res.render(path.join('allUsers', 'allUsers_add'), {
+      title: 'Add User',
+      error: 'Username and password are required.',
+      formData: { username: cleanUsername, level: normalizedLevel, participantid },
+    });
+  }
+
+  try {
+    await pool.query(
+      `INSERT INTO users (username, password, level, participantid)
+       VALUES ($1, $2, $3, $4)`,
+      [cleanUsername, cleanPassword, normalizedLevel, participantIdNumber || null]
+    );
+    return res.redirect('/admin/users');
+  } catch (err) {
+    console.error('Add user error:', err);
+    let error = 'Could not create user.';
+    if (err.code === '23505') {
+      error = 'Username already exists.';
+    }
+    return res.render(path.join('allUsers', 'allUsers_add'), {
+      title: 'Add User',
+      error,
+      formData: { username: cleanUsername, level: normalizedLevel, participantid },
+    });
+  }
+});
+
+// Render: edit user
+app.get('/admin/users/:id/edit', requireManager, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.redirect('/admin/users');
+  try {
+    const { rows } = await pool.query(
+      `SELECT userid, username, level, participantid
+       FROM users
+       WHERE userid = $1
+       LIMIT 1`,
+      [id]
+    );
+    const user = rows[0];
+    if (!user) return res.redirect('/admin/users');
+    res.render(path.join('allUsers', 'allUsers_edit'), {
+      title: 'Edit User',
+      user,
+      error: null,
+    });
+  } catch (err) {
+    console.error('Load edit user error:', err);
+    return res.redirect('/admin/users');
+  }
+});
+
+// Save: edit user
+app.post('/admin/users/:id/edit', requireManager, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.redirect('/admin/users');
+
+  const { username, password, level, participantid } = req.body || {};
+  const cleanUsername = (username || '').trim();
+  const cleanPassword = (password || '').trim();
+  const participantIdNumber = participantid ? Number(participantid) : null;
+  const normalizedLevel = normalizeUserLevel(level);
+
+  if (!cleanUsername) {
+    return res.render(path.join('allUsers', 'allUsers_edit'), {
+      title: 'Edit User',
+      user: { userid: id, username: cleanUsername, level: normalizedLevel, participantid },
+      error: 'Username is required.',
+    });
+  }
+
+  try {
+    if (cleanPassword) {
+      await pool.query(
+        `UPDATE users
+         SET username = $1,
+             password = $2,
+             level = $3,
+             participantid = $4
+         WHERE userid = $5`,
+        [cleanUsername, cleanPassword, normalizedLevel, participantIdNumber || null, id]
+      );
+    } else {
+      await pool.query(
+        `UPDATE users
+         SET username = $1,
+             level = $2,
+             participantid = $3
+         WHERE userid = $4`,
+        [cleanUsername, normalizedLevel, participantIdNumber || null, id]
+      );
+    }
+    return res.redirect('/admin/users');
+  } catch (err) {
+    console.error('Edit user save error:', err);
+    let error = 'Could not update user.';
+    if (err.code === '23505') {
+      error = 'Username already exists.';
+    }
+    return res.render(path.join('allUsers', 'allUsers_edit'), {
+      title: 'Edit User',
+      user: { userid: id, username: cleanUsername, level: normalizedLevel, participantid },
+      error,
+    });
   }
 });
 
