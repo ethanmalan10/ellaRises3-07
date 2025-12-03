@@ -1,7 +1,14 @@
 <%
   // Read from res.locals safely (set in index.js)
   const u = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
-  const manager = u && (u.role === 'manager' || u.role === 'admin');
+  const manager = u && (
+    u.role === 'manager' ||
+    u.role === 'admin' ||
+    u.level === 'm' ||
+    u.level === 'a' ||
+    u.level === 'manager' ||
+    u.level === 'admin'
+  );
 %>
 <nav class="navbar">
   <!-- Logo -->
@@ -14,6 +21,9 @@
     <a href="/donations" class="nav-link">Donations</a>
     <a href="/surveys"   class="nav-link">Surveys</a>
     <a href="/events"    class="nav-link">Events</a>
+    <% if (u) { %>
+      <a href="/milestones" class="nav-link">Milestones</a>
+    <% } %>
   </div>
 
   <!-- Right side -->
@@ -34,8 +44,9 @@
         <div class="dropdown-content">
           <a href="/my-account">Profile</a>
           <a href="/participants">All Participants</a>
+          <a href="/milestones">Milestones</a>
           <% if (manager) { %>
-            <a href="/milestones">Milestones</a>
+            <a href="/admin/milestones">Manage Milestones</a>
             <a href="/dashboard">Dashboard</a>
           <% } %>
           <a href="/logout">Logout</a>
