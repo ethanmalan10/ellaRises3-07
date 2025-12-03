@@ -1,5 +1,6 @@
-<main class="container main-content" style="max-width:1100px; margin-top:2.5rem;">
+﻿<main class="container main-content" style="max-width:1100px; margin-top:2.5rem;">
   <% const pag = pagination || { page:1, pageSize:(assignments || []).length || 50, total:(assignments || []).length || 0, totalPages:1, hasPrev:false, hasNext:false }; %>
+  <% function calcAge(d){ if(!d) return null; const dob=new Date(d); if(Number.isNaN(dob)) return null; const now=new Date(); let age=now.getFullYear()-dob.getFullYear(); const m=now.getMonth()-dob.getMonth(); if(m<0||(m===0&&now.getDate()<dob.getDate())) age--; return age; } %>
 
   <header style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:1rem;">
     <div>
@@ -9,29 +10,84 @@
     <a href="/admin/milestones" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Back to Manage Milestones</a>
   </header>
 
-  <div style="margin:0 0 10px 0; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-    <input id="assignment-search" type="search" placeholder="Quick search participant/milestone..." style="width:100%; max-width:360px; padding:10px 12px; border-radius:10px; border:1px solid #d1d5db;">
+  <!-- Quick assign moved here -->
+  <section style="margin-bottom:1rem;">
+    <div class="card" style="padding:20px; border-radius:18px;">
+      <h2 style="margin:0 0 12px 0;">Quick Assign Milestone to User</h2>
+      <% if (!participants || participants.length === 0) { %>
+        <p style="margin:0;">No participants found. Add participants first.</p>
+      <% } else if (!catalog || catalog.length === 0) { %>
+        <p style="margin:0;">Add at least one milestone to the catalog to start assigning.</p>
+      <% } else { %>
+        <div style="margin:0 0 8px 0;">
+          <input id="participant-filter" type="search" placeholder="Type to quickly find a participant..." style="width:100%; max-width:360px; padding:10px 12px; border-radius:10px; border:1px solid #d1d5db;">
+        </div>
+        <form method="POST" action="/admin/milestones/assign" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; align-items:end;">
+          <div>
+            <label for="participantid" style="display:block; margin-bottom:6px; font-weight:600;">Participant</label>
+            <select id="participantid" name="participantid" required style="width:100%; padding:10px; border-radius:10px;">
+              <option value="">Select participant</option>
+              <% participants.forEach(p => { const age = calcAge(p.participantdob); %>
+                <option value="<%= p.participantid %>">
+                  <%= 'ID ' + p.participantid %> - <%= (p.name && p.name.trim()) ? p.name : (p.participantemail || 'Unknown') %><%= age !== null ? (' (' + age + ')') : '' %>
+                </option>
+              <% }) %>
+            </select>
+          </div>
+
+          <div>
+            <label for="milestonecatalogid" style="display:block; margin-bottom:6px; font-weight:600;">Milestone</label>
+            <select id="milestonecatalogid" name="milestonecatalogid" required style="width:100%; padding:10px; border-radius:10px;">
+              <option value="">Select milestone</option>
+              <% catalog.forEach(c => { %>
+                <option value="<%= c.id %>"><%= c.title %></option>
+              <% }) %>
+            </select>
+          </div>
+
+          <div>
+            <label for="achieveddate" style="display:block; margin-bottom:6px; font-weight:600;">Achieved Date (optional)</label>
+            <input type="date" id="achieveddate" name="achieveddate" style="width:90%; padding:10px; border-radius:10px;" />
+          </div>
+
+          <div>
+            <label for="milestoneno" style="display:block; margin-bottom:6px; font-weight:600;">Milestone # (optional)</label>
+            <input type="number" id="milestoneno" name="milestoneno" placeholder="e.g., 1" style="width:90%; padding:10px; border-radius:10px;" />
+          </div>
+
+          <div style="display:flex; justify-content:flex-end;">
+            <button type="submit" class="btn-login-home" style="padding:12px 18px; border-radius:10px;">Assign</button>
+          </div>
+        </form>
+      <% } %>
+    </div>
+  </section>
+
+  <form method="GET" style="margin:0 0 10px 0; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      <input type="search" name="q" value="<%= searchTerm || '' %>" placeholder="Search participants..." style="width:100%; max-width:320px; padding:10px 12px; border-radius:10px; border:1px solid #d1d5db;">
+      <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;">Search</button>
+      <a href="/admin/milestones/assignments" class="btn-outline" style="padding:8px 12px; border-radius:10px; text-decoration:none;">Clear</a>
+    </div>
     <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
       <div style="color:#4b5563;">Showing <%= Math.min((pag.page - 1) * pag.pageSize + 1, pag.total || 0) %>-<%= Math.min(pag.page * pag.pageSize, pag.total || 0) %> of <%= pag.total || 0 %></div>
-      <form method="GET" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-        <input type="hidden" name="page" value="<%= pag.page %>">
-        <label style="display:flex; align-items:center; gap:6px;">
-          <span style="color:#4b5563;">Per page</span>
-          <select name="pageSize" onchange="this.form.page.value=1; this.form.submit();" style="padding:8px 10px; border-radius:10px; border:1px solid #d1d5db;">
-            <% (pageSizeOptions || [25,50,75,100]).forEach(size => { %>
-              <option value="<%= size %>" <%= size === pag.pageSize ? 'selected' : '' %>><%= size %></option>
-            <% }) %>
-          </select>
-        </label>
-        <div style="display:flex; gap:6px; flex-wrap:wrap;">
-          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.page > 1 ? '' : 'disabled' %> onclick="this.form.page.value=1;"><< Start</button>
-          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasPrev ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.max(1, pag.page - 1) %>;">&lt; Back</button>
-          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasNext ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.min(pag.totalPages, pag.page + 1) %>;">Next &gt;</button>
-          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.page < pag.totalPages ? '' : 'disabled' %> onclick="this.form.page.value=<%= pag.totalPages %>;">End >></button>
-        </div>
-      </form>
+      <input type="hidden" name="page" value="<%= pag.page %>">
+      <label style="display:flex; align-items:center; gap:6px;">
+        <span style="color:#4b5563;">Per page</span>
+        <select name="pageSize" onchange="this.form.page.value=1; this.form.submit();" style="padding:8px 10px; border-radius:10px; border:1px solid #d1d5db;">
+          <% (pageSizeOptions || [25,50,75,100]).forEach(size => { %>
+            <option value="<%= size %>" <%= size === pag.pageSize ? 'selected' : '' %>><%= size %></option>
+          <% }) %>
+        </select>
+      </label>
+      <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" onclick="this.form.page.value=1;" <%= pag.page > 1 ? '' : 'disabled' %>>&laquo; Start</button>
+        <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" onclick="this.form.page.value=<%= Math.max(1, pag.page - 1) %>;" <%= pag.hasPrev ? '' : 'disabled' %>>&lsaquo; Back</button>
+        <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" onclick="this.form.page.value=<%= Math.min(pag.totalPages, pag.page + 1) %>;" <%= pag.hasNext ? '' : 'disabled' %>>Next &rsaquo;</button>
+        <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" onclick="this.form.page.value=<%= pag.totalPages %>;" <%= pag.page < pag.totalPages ? '' : 'disabled' %>>End &raquo;</button>
+      </div>
     </div>
-  </div>
+  </form>
 
   <% if (!assignments || assignments.length === 0) { %>
     <p style="color:#6b7280;">No participant milestones found.</p>
@@ -41,28 +97,34 @@
         <table id="assignments-table" style="width:100%; border-collapse:collapse;">
           <thead>
             <tr style="text-align:left; border-bottom:1px solid #e5e7eb;">
+              <th style="padding:8px; width:90px;">ID</th>
               <th style="padding:8px;">Participant</th>
               <th style="padding:8px;">Milestone</th>
               <th style="padding:8px;">Milestone #</th>
               <th style="padding:8px;">Achieved</th>
               <th style="padding:8px;">Location</th>
               <th style="padding:8px;">Email</th>
-              <th style="padding:8px; width:90px;">Actions</th>
+              <th style="padding:8px; width:150px;">Actions</th>
             </tr>
           </thead>
           <tbody>
             <% assignments.forEach(a => { %>
               <% const achieved = a.milestonedate ? new Date(a.milestonedate).toLocaleDateString() : ''; %>
-              <% const searchBlob = [(a.participantname||''),(a.participantemail||''),(a.participantcity||''),(a.participantstate||''),(a.milestonetitle||''),(achieved||''),(a.milestoneno||'')].join(' ').toLowerCase(); %>
+              <% const searchBlob = [(a.participantname||''),(a.participantfirstname||''),(a.participantlastname||''),(a.participantid||'')].join(' ').toLowerCase(); %>
               <tr class="assign-row" data-search="<%= searchBlob %>" style="border-bottom:1px solid #f3f4f6;">
-                <td style="padding:8px; font-weight:600;"><%= a.participantname || ('ID ' + a.participantid) %></td>
+                <td style="padding:8px; font-weight:600;"><%= a.participantid %></td>
+                <% const age = calcAge(a.participantdob); %>
+                <td style="padding:8px; font-weight:600;"><%= a.participantname || ('ID ' + a.participantid) %><%= age !== null ? (' (' + age + ')') : '' %></td>
                 <td style="padding:8px;"><%= a.milestonetitle %></td>
                 <td style="padding:8px;"><%= a.milestoneno || '' %></td>
-                <td style="padding:8px;"><%= achieved || '—' %></td>
+                <td style="padding:8px;"><%= achieved || '-' %></td>
                 <td style="padding:8px;"><%= [a.participantcity, a.participantstate].filter(Boolean).join(', ') %></td>
                 <td style="padding:8px;"><%= a.participantemail || '' %></td>
                 <td style="padding:8px;">
-                  <a href="/admin/milestones/assignments/<%= a.milestoneid %>/edit" class="btn-cream" style="padding:6px 10px; border-radius:8px; text-decoration:none;">Edit</a>
+                  <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    <a href="/participants/<%= a.participantid %>?from=assignments&page=<%= pag.page %>&pageSize=<%= pag.pageSize %>&q=<%= encodeURIComponent(searchTerm || '') %>" class="btn-cream" style="padding:6px 10px; border-radius:8px; text-decoration:none;">View</a>
+                    <a href="/admin/milestones/assignments/<%= a.milestoneid %>/edit" class="btn-cream" style="padding:6px 10px; border-radius:8px; text-decoration:none;">Edit</a>
+                  </div>
                 </td>
               </tr>
             <% }) %>
@@ -75,6 +137,7 @@
       <div style="color:#4b5563;">Showing <%= Math.min((pag.page - 1) * pag.pageSize + 1, pag.total || 0) %>-<%= Math.min(pag.page * pag.pageSize, pag.total || 0) %> of <%= pag.total || 0 %></div>
       <form method="GET" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
         <input type="hidden" name="page" value="<%= pag.page %>">
+        <input type="hidden" name="q" value="<%= searchTerm || '' %>">
         <label style="display:flex; align-items:center; gap:6px;">
           <span style="color:#4b5563;">Per page</span>
           <select name="pageSize" onchange="this.form.page.value=1; this.form.submit();" style="padding:8px 10px; border-radius:10px; border:1px solid #d1d5db;">
@@ -84,10 +147,10 @@
           </select>
         </label>
         <div style="display:flex; gap:6px; flex-wrap:wrap;">
-          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.page > 1 ? '' : 'disabled' %> onclick="this.form.page.value=1;"><< Start</button>
-          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasPrev ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.max(1, pag.page - 1) %>;">&lt; Back</button>
-          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasNext ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.min(pag.totalPages, pag.page + 1) %>;">Next &gt;</button>
-          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.page < pag.totalPages ? '' : 'disabled' %> onclick="this.form.page.value=<%= pag.totalPages %>;">End >></button>
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.page > 1 ? '' : 'disabled' %> onclick="this.form.page.value=1;">&laquo; Start</button>
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasPrev ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.max(1, pag.page - 1) %>;">&lsaquo; Back</button>
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasNext ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.min(pag.totalPages, pag.page + 1) %>;">Next &rsaquo;</button>
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.page < pag.totalPages ? '' : 'disabled' %> onclick="this.form.page.value=<%= pag.totalPages %>;">End &raquo;</button>
         </div>
       </form>
     </div>
@@ -96,16 +159,16 @@
 
 <script>
   (() => {
-    const input = document.getElementById('assignment-search');
-    const rows = Array.from(document.querySelectorAll('.assign-row'));
-    if (!input || rows.length === 0) return;
-    const run = () => {
-      const q = (input.value || '').trim().toLowerCase();
-      rows.forEach(r => {
-        const match = !q || (r.dataset.search || '').includes(q);
-        r.style.display = match ? '' : 'none';
+    const participantSelect = document.getElementById('participantid');
+    const participantFilter = document.getElementById('participant-filter');
+    if (participantSelect && participantFilter) {
+      participantFilter.addEventListener('input', () => {
+        const term = participantFilter.value.trim().toLowerCase();
+        if (!term) return;
+        const opts = Array.from(participantSelect.options).slice(1);
+        const found = opts.find(o => (o.textContent || '').toLowerCase().includes(term));
+        if (found) participantSelect.value = found.value;
       });
-    };
-    input.addEventListener('input', run);
+    }
   })();
 </script>

@@ -603,12 +603,13 @@ function normalizeUserLevel(input) {
 }
 
 const PAGE_SIZE_OPTIONS = [25, 50, 75, 100];
+const CATALOG_PAGE_SIZES = [10, 25, 50];
 
-function resolvePagination(req, key) {
+function resolvePagination(req, key, allowedSizes = PAGE_SIZE_OPTIONS, defaultSize = 50) {
   const sessionSizes = req.session.pageSizes || {};
-  let pageSize = Number(sessionSizes[key]) || 50;
+  let pageSize = Number(sessionSizes[key]) || defaultSize;
   const requestedSize = Number(req.query.pageSize);
-  if (PAGE_SIZE_OPTIONS.includes(requestedSize)) {
+  if (allowedSizes.includes(requestedSize)) {
     pageSize = requestedSize;
     req.session.pageSizes = { ...sessionSizes, [key]: pageSize };
   } else {
@@ -2346,10 +2347,21 @@ app.get('/participants/:id', requireManager, async (req, res) => {
   try {
     const detail = await getParticipantDetail(id);
     if (!detail) return res.redirect('/participants');
+
+    const fromAssignments = req.query.from === 'assignments';
+    let backUrl = '/participants';
+    if (fromAssignments) {
+      const page = req.query.page || 1;
+      const pageSize = req.query.pageSize || 50;
+      const q = req.query.q ? `&q=${encodeURIComponent(req.query.q)}` : '';
+      backUrl = `/admin/milestones/assignments?page=${page}&pageSize=${pageSize}${q}`;
+    }
+
     return res.render(path.join('allParticipants', 'view'), {
       title: 'Participant Detail',
       participant: detail.participant,
       milestones: detail.milestones,
+      backUrl,
     });
   } catch (err) {
     console.error('View participant error:', err);
@@ -2569,9 +2581,22 @@ app.get('/admin/users', requireManager, async (req, res) => {
 // /admin/milestones -> catalog + assignment management
 app.get('/admin/milestones', requireManager, async (req, res) => {
   try {
-    const [catalog, participants, countsRes] = await Promise.all([
-      listMilestoneCatalog(),
-      listParticipantsBasic(),
+    const { page, pageSize } = resolvePagination(req, 'milestoneCatalog', CATALOG_PAGE_SIZES, 10);
+    const catalogSearch = (req.query.catalogSearch || '').toString().trim();
+    const hasSearch = catalogSearch.length > 0;
+    const where = hasSearch ? 'WHERE LOWER(milestonetitle) LIKE $1' : '';
+    const params = hasSearch ? [`%${catalogSearch.toLowerCase()}%`] : [];
+
+    const [catalogCountRes, catalogRes, countsRes] = await Promise.all([
+      pool.query(`SELECT COUNT(*)::int AS count FROM milestonecatalog ${where}`, params),
+      pool.query(
+        `SELECT milestonecatalogid AS id, milestonetitle AS title
+         FROM milestonecatalog
+         ${where}
+         ORDER BY milestonetitle ASC
+         LIMIT $${hasSearch ? 2 : 1} OFFSET $${hasSearch ? 3 : 2}`,
+        hasSearch ? [...params, pageSize, (page - 1) * pageSize] : [pageSize, (page - 1) * pageSize]
+      ),
       pool.query('SELECT milestonecatalogid, COUNT(*)::int AS count FROM milestone GROUP BY milestonecatalogid'),
     ]);
 
@@ -2594,11 +2619,13 @@ app.get('/admin/milestones', requireManager, async (req, res) => {
 
     res.render(path.join('milestones', 'manMilestones'), {
       title: 'Manage Milestones',
-      catalog,
-      participants,
+      catalog: catalogRes.rows,
+      catalogPagination: buildPagination(Number(catalogCountRes.rows[0]?.count || 0), page, pageSize),
+      catalogPageSizeOptions: CATALOG_PAGE_SIZES,
       milestoneCounts: countMap,
       message,
       error: null,
+      catalogSearch: (req.query.catalogSearch || '').toString(),
     });
   } catch (err) {
     console.error('Admin milestones load error:', err);
@@ -2610,9 +2637,31 @@ app.get('/admin/milestones', requireManager, async (req, res) => {
 app.get('/admin/milestones/assignments', requireManager, async (req, res) => {
   try {
     const { page, pageSize } = resolvePagination(req, 'milestoneAssignments');
-    const countRes = await pool.query('SELECT COUNT(*)::int AS count FROM milestone');
+    const q = (req.query.q || '').toString().trim().toLowerCase();
+    const hasSearch = q.length > 0;
+    const searchClause = hasSearch
+      ? `WHERE
+           (LOWER(COALESCE(p.participantfirstname,'')) || ' ' || LOWER(COALESCE(p.participantlastname,''))) LIKE $1
+           OR LOWER(COALESCE(p.participantemail,'')) LIKE $1
+           OR CAST(p.participantid AS TEXT) LIKE $1`
+      : '';
+
+    const countParams = hasSearch ? [`%${q}%`] : [];
+    const countRes = await pool.query(
+      `SELECT COUNT(*)::int AS count
+       FROM milestone m
+       JOIN milestonecatalog mc ON mc.milestonecatalogid = m.milestonecatalogid
+       LEFT JOIN participant p ON p.participantid = m.participantid
+       ${searchClause}`,
+      countParams
+    );
+
     const total = Number(countRes.rows[0]?.count || 0);
     const pagination = buildPagination(total, page, pageSize);
+
+    const dataParams = hasSearch
+      ? [`%${q}%`, pagination.pageSize, pagination.offset]
+      : [pagination.pageSize, pagination.offset];
 
     const assignmentsRes = await pool.query(
       `SELECT m.milestoneid,
@@ -2621,6 +2670,9 @@ app.get('/admin/milestones/assignments', requireManager, async (req, res) => {
               m.milestonedate,
               m.milestoneno,
               mc.milestonetitle,
+              p.participantfirstname,
+              p.participantlastname,
+              p.participantdob,
               TRIM(COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,'')) AS participantname,
               p.participantemail,
               p.participantcity,
@@ -2628,16 +2680,26 @@ app.get('/admin/milestones/assignments', requireManager, async (req, res) => {
        FROM milestone m
        JOIN milestonecatalog mc ON mc.milestonecatalogid = m.milestonecatalogid
        LEFT JOIN participant p ON p.participantid = m.participantid
-       ORDER BY m.milestonedate DESC NULLS LAST, m.milestoneid DESC
-       LIMIT $1 OFFSET $2`,
-      [pagination.pageSize, pagination.offset]
+       ${searchClause}
+       ORDER BY LOWER(COALESCE(p.participantfirstname,'')), LOWER(COALESCE(p.participantlastname,'')), m.milestoneid DESC
+       LIMIT $${hasSearch ? 2 : 1} OFFSET $${hasSearch ? 3 : 2}`,
+      dataParams
     );
+
+    const [participants, catalog] = await Promise.all([
+      listParticipantsBasic(),
+      listMilestoneCatalog(),
+    ]);
 
     res.render(path.join('milestones', 'manMilestones_assignments'), {
       title: 'Participant Milestones',
       assignments: assignmentsRes.rows,
+      participants,
+      catalog,
       pagination,
       pageSizeOptions: PAGE_SIZE_OPTIONS,
+      searchTerm: q,
+      fromPage: 'assignments',
     });
   } catch (err) {
     console.error('Admin milestones assignments error:', err);
@@ -2664,6 +2726,7 @@ app.get('/admin/milestones/assignments/:id/edit', requireManager, async (req, re
       participants,
       catalog,
       error: null,
+      fromPage: 'assignments',
     });
   } catch (err) {
     console.error('Load assignment edit error:', err);
@@ -2773,10 +2836,10 @@ app.post('/admin/milestones/assign', requireManager, async (req, res) => {
       milestoneNo,
     });
 
-    res.redirect('/admin/milestones?msg=assignment-added');
+    res.redirect('/admin/milestones/assignments?msg=assignment-added');
   } catch (err) {
     console.error('Add milestone assignment error:', err);
-    res.redirect('/admin/milestones?msg=assignment-error');
+    res.redirect('/admin/milestones/assignments?msg=assignment-error');
   }
 });
 
@@ -2795,10 +2858,10 @@ app.post('/admin/milestones/assign/:id/edit', requireManager, async (req, res) =
       milestoneNo,
     });
 
-    res.redirect('/admin/milestones?msg=assignment-updated');
+    res.redirect('/admin/milestones/assignments?msg=assignment-updated');
   } catch (err) {
     console.error('Edit milestone assignment error:', err);
-    res.redirect('/admin/milestones?msg=assignment-error');
+    res.redirect('/admin/milestones/assignments?msg=assignment-error');
   }
 });
 
@@ -2806,10 +2869,10 @@ app.post('/admin/milestones/assign/:id/edit', requireManager, async (req, res) =
 app.post('/admin/milestones/assign/:id/delete', requireManager, async (req, res) => {
   try {
     await deleteMilestoneAssignment(req.params.id);
-    res.redirect('/admin/milestones?msg=assignment-deleted');
+    res.redirect('/admin/milestones/assignments?msg=assignment-deleted');
   } catch (err) {
     console.error('Delete milestone assignment error:', err);
-    res.redirect('/admin/milestones?msg=assignment-error');
+    res.redirect('/admin/milestones/assignments?msg=assignment-error');
   }
 });
 

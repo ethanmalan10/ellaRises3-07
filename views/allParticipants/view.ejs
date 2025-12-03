@@ -1,4 +1,4 @@
-<main class="container main-content" style="max-width:900px; margin-top:2.5rem;">
+<main class="container main-content" style="max-width:1100px; margin-top:2.5rem;">
   <% function calcAge(d){ if(!d) return '—'; const dob=new Date(d); if(Number.isNaN(dob)) return '—'; const now=new Date(); let age=now.getFullYear()-dob.getFullYear(); const m=now.getMonth()-dob.getMonth(); if(m<0||(m===0&&now.getDate()<dob.getDate())) age--; return age; } %>
 
   <header style="display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:1.25rem; flex-wrap:wrap;">
@@ -8,7 +8,7 @@
     </div>
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
       <a href="/participants/<%= participant.participantid %>/edit" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Edit</a>
-      <a href="/participants" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Back</a>
+      <a href="<%= backUrl || '/participants' %>" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Back</a>
     </div>
   </header>
 

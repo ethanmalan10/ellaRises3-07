@@ -31,60 +31,6 @@
     </div>
   </section>
 
-<!-- Add assignment -->
-  <section class="container" style="margin-top:1rem;">
-    <div class="card" style="padding:20px; border-radius:18px;">
-      <h2 style="margin:0 0 12px 0;">Quick Assign Milestone to User</h2>
-      <% if (!participants || participants.length === 0) { %>
-        <p style="margin:0;">No participants found. Add participants first.</p>
-      <% } else if (!catalog || catalog.length === 0) { %>
-        <p style="margin:0;">Add at least one milestone to the catalog to start assigning.</p>
-      <% } else { %>
-        <% function calcAge(d){ if(!d) return null; const dob=new Date(d); if(Number.isNaN(dob)) return null; const now=new Date(); let age=now.getFullYear()-dob.getFullYear(); const m=now.getMonth()-dob.getMonth(); if(m<0||(m===0&&now.getDate()<dob.getDate())) age--; return age; } %>
-        <form method="POST" action="/admin/milestones/assign" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; align-items:end;">
-          <div>
-            <label for="participantid" style="display:block; margin-bottom:6px; font-weight:600;">Participant</label>
-            <select id="participantid" name="participantid" required style="width:90%; padding:10px; border-radius:10px;">
-              <option value="">Select participant</option>
-              <% participants.forEach(p => { %>
-                <option value="<%= p.participantid %>">
-                  <%= 'ID ' + p.participantid %> - 
-                  <%= (p.name && p.name.trim()) ? p.name : (p.participantemail || 'Unknown') %>
-                  <% const age = calcAge(p.participantdob); %>
-                  <%= age !== null ? (' (' + age + ')') : '' %>
-                </option>
-              <% }) %>
-            </select>
-          </div>
-
-          <div>
-            <label for="milestonecatalogid" style="display:block; margin-bottom:6px; font-weight:600;">Milestone</label>
-            <select id="milestonecatalogid" name="milestonecatalogid" required style="width:90%; padding:10px; border-radius:10px;">
-              <option value="">Select milestone</option>
-              <% catalog.forEach(c => { %>
-                <option value="<%= c.id %>"><%= c.title %></option>
-              <% }) %>
-            </select>
-          </div>
-
-          <div>
-            <label for="achieveddate" style="display:block; margin-bottom:6px; font-weight:600;">Achieved Date (optional)</label>
-            <input type="date" id="achieveddate" name="achieveddate" style="width:90%; padding:10px; border-radius:10px;" />
-          </div>
-
-          <div>
-            <label for="milestoneno" style="display:block; margin-bottom:6px; font-weight:600;">Milestone # (optional)</label>
-            <input type="number" id="milestoneno" name="milestoneno" placeholder="e.g., 1" style="width:90%; padding:10px; border-radius:10px;" />
-          </div>
-
-          <div style="display:flex; justify-content:flex-end;">
-            <button type="submit" class="btn-login-home" style="padding:12px 18px; border-radius:10px;">Assign</button>
-          </div>
-        </form>
-      <% } %>
-    </div>
-  </section>
-
   <!-- Catalog -->
   <section class="container" style="margin-top:1rem;">
     <div class="card" style="padding:20px; border-radius:18px;">
@@ -93,11 +39,35 @@
         <a href="/admin/milestones/add" style="text-decoration:none; font-weight:600; color:var(--charcoal);">Add</a>
       </div>
 
+      <% const cPag = catalogPagination || { page:1, pageSize:(catalog||[]).length, total:(catalog||[]).length, totalPages:1, hasPrev:false, hasNext:false }; %>
       <% if (!catalog || catalog.length === 0) { %>
         <p style="margin:0;">No milestones in the catalog yet.</p>
       <% } else { %>
-        <div style="margin:0 0 10px 0;">
-          <input id="catalog-search" type="search" placeholder="Quick search milestones..." style="width:100%; max-width:320px; padding:10px 12px; border-radius:10px; border:1px solid #d1d5db;">
+        <div style="margin:0 0 10px 0; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+          <form method="GET" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0;">
+            <input id="catalog-search" name="catalogSearch" value="<%= catalogSearch || '' %>" type="search" placeholder="Quick search milestones..." style="width:100%; max-width:320px; padding:10px 12px; border-radius:10px; border:1px solid #d1d5db;">
+            <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;">Search</button>
+            <a href="/admin/milestones" class="btn-outline" style="padding:8px 12px; border-radius:10px; text-decoration:none;">Clear</a>
+          </form>
+          <form method="GET" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0;">
+            <input type="hidden" name="catalogSearch" value="<%= catalogSearch || '' %>">
+            <div style="color:#4b5563;">Showing <%= Math.min((cPag.page - 1) * cPag.pageSize + 1, cPag.total || 0) %>-<%= Math.min(cPag.page * cPag.pageSize, cPag.total || 0) %> of <%= cPag.total || 0 %></div>
+            <input type="hidden" name="page" value="<%= cPag.page %>">
+            <label style="display:flex; align-items:center; gap:6px;">
+              <span style="color:#4b5563;">Per page</span>
+              <select name="pageSize" onchange="this.form.page.value=1; this.form.submit();" style="padding:8px 10px; border-radius:10px; border:1px solid #d1d5db;">
+                <% (catalogPageSizeOptions || [10,25,50]).forEach(size => { %>
+                  <option value="<%= size %>" <%= size === cPag.pageSize ? 'selected' : '' %>><%= size %></option>
+                <% }) %>
+              </select>
+            </label>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" onclick="this.form.page.value=1;" <%= cPag.page > 1 ? '' : 'disabled' %>>&laquo; Start</button>
+              <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" onclick="this.form.page.value=<%= Math.max(1, cPag.page - 1) %>;" <%= cPag.hasPrev ? '' : 'disabled' %>>&lsaquo; Back</button>
+              <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" onclick="this.form.page.value=<%= Math.min(cPag.totalPages, cPag.page + 1) %>;" <%= cPag.hasNext ? '' : 'disabled' %>>Next &rsaquo;</button>
+              <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" onclick="this.form.page.value=<%= cPag.totalPages %>;" <%= cPag.page < cPag.totalPages ? '' : 'disabled' %>>End &raquo;</button>
+            </div>
+          </form>
         </div>
         <div style="overflow-x:auto;">
           <table style="width:100%; border-collapse:collapse;">

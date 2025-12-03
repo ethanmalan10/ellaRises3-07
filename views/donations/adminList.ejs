@@ -132,14 +132,10 @@
       btns.start.concat(btns.back).forEach(b => {
         if (!b) return;
         b.disabled = page === 1 || total === 0;
-        b.style.opacity = b.disabled ? 0.6 : 1;
-        b.style.cursor = b.disabled ? 'not-allowed' : 'pointer';
       });
       btns.next.concat(btns.end).forEach(b => {
         if (!b) return;
         b.disabled = page === totalPages || total === 0;
-        b.style.opacity = b.disabled ? 0.6 : 1;
-        b.style.cursor = b.disabled ? 'not-allowed' : 'pointer';
       });
     }
 
