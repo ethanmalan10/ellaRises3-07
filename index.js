@@ -232,16 +232,12 @@ async function getSurveyById(id) {
   return rows[0] || null;
 }
 
-async function reseedSurveyIdSequence() {
-  // Align the surveyid sequence with the current max(surveyid)
-  await pool.query(
-    `SELECT setval(
-        pg_get_serial_sequence('survey','surveyid'),
-        COALESCE(MAX(surveyid), 0) + 1,
-        false
-      )
-     FROM survey`
+async function surveyExists(participantId, eventoccurrenceid) {
+  const { rows } = await pool.query(
+    `SELECT 1 FROM survey WHERE participantid = $1 AND eventoccurrenceid = $2 LIMIT 1`,
+    [participantId, eventoccurrenceid]
   );
+  return rows.length > 0;
 }
 
 async function insertSurvey({
@@ -257,7 +253,13 @@ async function insertSurvey({
   const npsBucket =
     recommendation >= 4 ? 'Promoter' : recommendation === 3 ? 'Passive' : 'Detractor';
 
+  // Manually generate the next surveyid (integer) to avoid sequence usage
+  let nextId = 1;
+  const nextRes = await pool.query(`SELECT COALESCE(MAX(surveyid), 0) + 1 AS nextid FROM survey`);
+  if (nextRes.rows.length) nextId = Number(nextRes.rows[0].nextid) || 1;
+
   const values = [
+    nextId,
     participantId,
     eventoccurrenceid,
     satisfaction,
@@ -269,28 +271,12 @@ async function insertSurvey({
     comments || null,
   ];
 
-  try {
-    await pool.query(
-      `INSERT INTO survey (
-          participantid,
-          eventoccurrenceid,
-          surveysatisfactionscore,
-          surveyusefulnessscore,
-          surveyinstructorscore,
-          surveyrecommendationscore,
-          surveyoverallscore,
-          surveynpsbucket,
-          surveycomments,
-          surveysubmissiondate
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())`,
-      values
-    );
-  } catch (err) {
-    if (err.code === '23505') {
-      // Sequence likely behind; reseed and retry once
-      await reseedSurveyIdSequence();
+  // Try insert; if PK conflict, bump id and retry a couple of times
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
       await pool.query(
         `INSERT INTO survey (
+            surveyid,
             participantid,
             eventoccurrenceid,
             surveysatisfactionscore,
@@ -301,13 +287,25 @@ async function insertSurvey({
             surveynpsbucket,
             surveycomments,
             surveysubmissiondate
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())`,
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())`,
         values
       );
-    } else {
+      return;
+    } catch (err) {
+      if (err.code === '23505') {
+        if (err.constraint === 'survey_participantid_eventoccurrenceid_key') {
+          const dupe = new Error('DUP_SURVEY');
+          dupe.code = 'DUP_SURVEY';
+          throw dupe;
+        }
+        // PK conflict: bump id and retry
+        values[0] = values[0] + 1;
+        continue;
+      }
       throw err;
     }
   }
+  throw new Error('Could not insert survey after retries.');
 }
 
 async function updateSurveyRecord(id, { satisfaction, usefulness, instructor, recommendation, comments }) {
@@ -569,6 +567,18 @@ app.post('/surveys', requireAuth, async (req, res) => {
     const instr = Number(instructor);
     const rec = Number(recommendation);
 
+    // Prevent duplicate submissions for same participant/event
+    if (await surveyExists(participant.participantid, eventId)) {
+      const surveys = await getSurveysForParticipant(participant.participantid);
+      return res.status(400).render(path.join('Surveys', 'userSurveys'), {
+        title: 'Surveys',
+        surveys,
+        events,
+        error: 'You already submitted a survey for this event.',
+        formValues: { eventoccurrenceid, satisfaction, usefulness, instructor, recommendation, comments },
+      });
+    }
+
     const invalid =
       !eventId ||
       Number.isNaN(sat) ||
@@ -605,11 +615,15 @@ app.post('/surveys', requireAuth, async (req, res) => {
     const surveys = await getSurveysForParticipant(
       req.session.user?.participantid || participant?.participantid
     );
+    const errorMsg =
+      err.code === 'DUP_SURVEY'
+        ? 'You already submitted a survey for this event.'
+        : 'Could not submit survey. Please try again or contact support.';
     return res.status(500).render(path.join('Surveys', 'userSurveys'), {
       title: 'Surveys',
       surveys,
       events,
-      error: 'Could not submit survey. Please try again or contact support.',
+      error: errorMsg,
       formValues: { eventoccurrenceid, satisfaction, usefulness, instructor, recommendation, comments },
     });
   }
