@@ -1,0 +1,58 @@
+<main class="container main-content" style="max-width:840px; margin-top:2rem;">
+  <% function calcAge(d){ if(!d) return null; const dob=new Date(d); if(Number.isNaN(dob)) return null; const now=new Date(); let age=now.getFullYear()-dob.getFullYear(); const m=now.getMonth()-dob.getMonth(); if(m<0||(m===0&&now.getDate()<dob.getDate())) age--; return age; } %>
+  <div class="card" style="padding:28px; border-radius:18px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:6px;">
+      <div>
+        <h1 style="margin:0; font-family:var(--font-serif); color:var(--charcoal);">Edit Participant Milestone</h1>
+        <p style="margin:6px 0 0 0; color:#4b5563;">Update the participant and milestone details below.</p>
+      </div>
+      <a href="/admin/milestones/assignments" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Back to Milestones</a>
+    </div>
+
+    <% if (error) { %>
+      <div style="margin-bottom:14px; padding:10px 12px; border-radius:10px; background:#ffebee; color:#b71c1c;">
+        <%= error %>
+      </div>
+    <% } %>
+
+    <form method="POST" action="/admin/milestones/assign/<%= assignment.milestoneid %>/edit" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px,1fr)); gap:14px;">
+      <div>
+        <label style="display:block; font-weight:600; margin-bottom:6px;">Participant</label>
+        <select name="participantid" required style="width:100%; padding:12px; border-radius:10px;">
+          <% participants.forEach(p => { const age = calcAge(p.participantdob); %>
+            <option value="<%= p.participantid %>" <%= p.participantid === assignment.participantid ? 'selected' : '' %>>
+              <%= 'ID ' + p.participantid %> - <%= (p.name && p.name.trim()) ? p.name : (p.participantemail || 'Unknown') %><%= age !== null ? (' (' + age + ')') : '' %>
+            </option>
+          <% }) %>
+        </select>
+      </div>
+
+      <div>
+        <label style="display:block; font-weight:600; margin-bottom:6px;">Milestone</label>
+        <select name="milestonecatalogid" required style="width:100%; padding:12px; border-radius:10px;">
+          <% catalog.forEach(c => { %>
+            <option value="<%= c.id %>" <%= c.id === assignment.milestonecatalogid ? 'selected' : '' %>><%= c.title %></option>
+          <% }) %>
+        </select>
+      </div>
+
+      <div>
+        <label style="display:block; font-weight:600; margin-bottom:6px;">Achieved Date</label>
+        <input type="date" name="achieveddate" value="<%= assignment.milestonedate ? new Date(assignment.milestonedate).toISOString().slice(0,10) : '' %>" style="width:90%; padding:12px; border-radius:10px;">
+      </div>
+
+      <div>
+        <label style="display:block; font-weight:600; margin-bottom:6px;">Milestone #</label>
+        <input type="number" name="milestoneno" value="<%= assignment.milestoneno || '' %>" placeholder="e.g., 1" style="width:90%; padding:12px; border-radius:10px;">
+      </div>
+
+      <div style="grid-column:1 / -1; display:flex; gap:10px; flex-wrap:wrap; margin-top:4px; align-items:center;">
+        <a href="/admin/milestones/assignments" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Cancel</a>
+        <button type="submit" class="btn-login-home" style="padding:10px 16px; border-radius:10px;">Save Changes</button>
+      </div>
+    </form>
+    <form method="POST" action="/admin/milestones/assign/<%= assignment.milestoneid %>/delete" onsubmit="return confirm('Remove this milestone assignment?');" style="margin-top:10px; display:flex; justify-content:flex-end;">
+      <button type="submit" class="btn-outline" style="padding:10px 16px; border-radius:10px; border:1px solid #dc2626; color:#dc2626;">Delete</button>
+    </form>
+  </div>
+</main>

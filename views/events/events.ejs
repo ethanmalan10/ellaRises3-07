@@ -44,12 +44,16 @@
   <!-- Upcoming events -->
   <section style="margin-bottom:2rem;">
     <h3 style="margin:0 0 .75rem 0;">Upcoming</h3>
+    <div style="margin:0 0 12px 0;">
+      <input id="upcoming-search" type="search" placeholder="Quick search upcoming events..." style="width:100%; max-width:360px; padding:10px 12px; border-radius:10px; border:1px solid #d1d5db;">
+    </div>
     <% if (!upcomingEvents || upcomingEvents.length === 0) { %>
       <p style="color:#6b7280;">No upcoming events yet.</p>
     <% } else { %>
       <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px;">
         <% upcomingEvents.forEach(ev => { %>
-          <div class="card" style="padding:16px; border-radius:14px; border:1px solid #e5e7eb; box-shadow:0 10px 30px rgba(0,0,0,0.04);">
+          <% const searchBlob = [(ev.eventname||''),(ev.eventdescription||''),(ev.eventlocation||''),(fmtDate(ev.eventdatetimestart)||''),(fmtDate(ev.eventdatetimeend)||'')].join(' ').toLowerCase(); %>
+          <div class="card upcoming-card" data-search="<%= searchBlob %>" style="padding:16px; border-radius:14px; border:1px solid #e5e7eb; box-shadow:0 10px 30px rgba(0,0,0,0.04);">
             <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
               <div>
                 <h4 style="margin:0 0 .3rem 0; font-size:1.15rem; color:var(--charcoal);"><%= ev.eventname %></h4>
@@ -98,3 +102,19 @@
   </section>
 
 </main>
+
+<script>
+  (() => {
+    const input = document.getElementById('upcoming-search');
+    const cards = Array.from(document.querySelectorAll('.upcoming-card'));
+    if (!input || cards.length === 0) return;
+    const run = () => {
+      const q = (input.value || '').trim().toLowerCase();
+      cards.forEach(c => {
+        const match = !q || (c.dataset.search || '').includes(q);
+        c.style.display = match ? '' : 'none';
+      });
+    };
+    input.addEventListener('input', run);
+  })();
+</script>

@@ -386,7 +386,8 @@ async function listParticipantsBasic() {
   const { rows } = await pool.query(
     `SELECT participantid,
             TRIM(COALESCE(participantfirstname,'') || ' ' || COALESCE(participantlastname,'')) AS name,
-            participantemail
+            participantemail,
+            participantdob
      FROM participant
      ORDER BY COALESCE(participantfirstname,'') || ' ' || COALESCE(participantlastname,'')`
   );
@@ -409,6 +410,28 @@ async function listAllMilestoneAssignments() {
      ORDER BY m.milestonedate DESC NULLS LAST, m.milestoneid DESC`
   );
   return rows;
+}
+
+async function getMilestoneAssignment(id) {
+  const { rows } = await pool.query(
+    `SELECT m.milestoneid,
+            m.participantid,
+            m.milestonecatalogid,
+            m.milestonedate,
+            m.milestoneno,
+            mc.milestonetitle,
+            TRIM(COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,'')) AS participantname,
+            p.participantemail,
+            p.participantcity,
+            p.participantstate
+     FROM milestone m
+     JOIN milestonecatalog mc ON mc.milestonecatalogid = m.milestonecatalogid
+     LEFT JOIN participant p ON p.participantid = m.participantid
+     WHERE m.milestoneid = $1
+     LIMIT 1`,
+    [id]
+  );
+  return rows[0] || null;
 }
 
 async function listMilestonesForParticipant(participantId) {
@@ -2314,11 +2337,16 @@ app.get('/admin/users', requireManager, async (req, res) => {
 // /admin/milestones -> catalog + assignment management
 app.get('/admin/milestones', requireManager, async (req, res) => {
   try {
-    const [catalog, participants, assignments] = await Promise.all([
+    const [catalog, participants, countsRes] = await Promise.all([
       listMilestoneCatalog(),
       listParticipantsBasic(),
-      listAllMilestoneAssignments(),
+      pool.query('SELECT milestonecatalogid, COUNT(*)::int AS count FROM milestone GROUP BY milestonecatalogid'),
     ]);
+
+    const countMap = {};
+    countsRes.rows.forEach(r => {
+      countMap[r.milestonecatalogid] = Number(r.count) || 0;
+    });
 
     const msgMap = {
       'milestone-added': 'Milestone added.',
@@ -2336,13 +2364,78 @@ app.get('/admin/milestones', requireManager, async (req, res) => {
       title: 'Manage Milestones',
       catalog,
       participants,
-      assignments,
+      milestoneCounts: countMap,
       message,
       error: null,
     });
   } catch (err) {
     console.error('Admin milestones load error:', err);
     res.status(500).send('Could not load milestones admin page');
+  }
+});
+
+// Admin: paginated participant milestones view
+app.get('/admin/milestones/assignments', requireManager, async (req, res) => {
+  try {
+    const { page, pageSize } = resolvePagination(req, 'milestoneAssignments');
+    const countRes = await pool.query('SELECT COUNT(*)::int AS count FROM milestone');
+    const total = Number(countRes.rows[0]?.count || 0);
+    const pagination = buildPagination(total, page, pageSize);
+
+    const assignmentsRes = await pool.query(
+      `SELECT m.milestoneid,
+              m.participantid,
+              m.milestonecatalogid,
+              m.milestonedate,
+              m.milestoneno,
+              mc.milestonetitle,
+              TRIM(COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,'')) AS participantname,
+              p.participantemail,
+              p.participantcity,
+              p.participantstate
+       FROM milestone m
+       JOIN milestonecatalog mc ON mc.milestonecatalogid = m.milestonecatalogid
+       LEFT JOIN participant p ON p.participantid = m.participantid
+       ORDER BY m.milestonedate DESC NULLS LAST, m.milestoneid DESC
+       LIMIT $1 OFFSET $2`,
+      [pagination.pageSize, pagination.offset]
+    );
+
+    res.render(path.join('milestones', 'manMilestones_assignments'), {
+      title: 'Participant Milestones',
+      assignments: assignmentsRes.rows,
+      pagination,
+      pageSizeOptions: PAGE_SIZE_OPTIONS,
+    });
+  } catch (err) {
+    console.error('Admin milestones assignments error:', err);
+    res.status(500).send('Could not load participant milestones');
+  }
+});
+
+// Admin: edit a specific milestone assignment (form)
+app.get('/admin/milestones/assignments/:id/edit', requireManager, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.redirect('/admin/milestones/assignments');
+  try {
+    const assignment = await getMilestoneAssignment(id);
+    if (!assignment) return res.redirect('/admin/milestones/assignments');
+
+    const [participants, catalog] = await Promise.all([
+      listParticipantsBasic(),
+      listMilestoneCatalog(),
+    ]);
+
+    res.render(path.join('milestones', 'manMilestones_assignment_edit'), {
+      title: 'Edit Participant Milestone',
+      assignment,
+      participants,
+      catalog,
+      error: null,
+    });
+  } catch (err) {
+    console.error('Load assignment edit error:', err);
+    res.status(500).send('Could not load assignment');
   }
 });
 
