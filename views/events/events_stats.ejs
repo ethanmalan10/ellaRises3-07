@@ -1,0 +1,79 @@
+<main class="container main-content" style="max-width:1100px; margin-top:2.5rem;">
+  <% function fmtDate(d){ return d ? new Date(d).toLocaleString('en-US', { dateStyle:'medium', timeStyle:'short' }) : ''; } %>
+
+  <header style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap; margin-bottom:1.5rem;">
+    <div>
+      <h1 style="margin:0 0 .25rem 0; font-family:var(--font-serif); color:var(--charcoal);">Event Statistics</h1>
+      <p style="margin:0; color:#4b5563; max-width:620px;">Satisfaction summaries from submitted surveys across past event occurrences and by event template.</p>
+    </div>
+    <a href="/events" class="btn-cream" style="padding:12px 16px; border-radius:12px; text-decoration:none; font-weight:600;">Back to Events</a>
+  </header>
+
+  <section style="margin-bottom:1.75rem;">
+    <h3 style="margin:0 0 .5rem 0;">By Event Template</h3>
+    <div class="card" style="padding:0; overflow:hidden; border-radius:14px; border:1px solid #e5e7eb;">
+      <table style="width:100%; border-collapse:collapse;">
+        <thead style="background:#f7f3eb; color:#374151;">
+          <tr>
+            <th style="padding:12px; text-align:left;">Template</th>
+            <th style="padding:12px; text-align:left;">Type</th>
+            <th style="padding:12px; text-align:center;">Occurrences</th>
+            <th style="padding:12px; text-align:center;">Survey Count</th>
+            <th style="padding:12px; text-align:center;">Avg Satisfaction</th>
+            <th style="padding:12px; text-align:center;">Avg Overall</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (!templateStats || templateStats.length === 0) { %>
+            <tr><td colspan="6" style="padding:14px; text-align:center; color:#6b7280;">No template stats yet.</td></tr>
+          <% } else { %>
+            <% templateStats.forEach(t => { %>
+              <tr style="border-top:1px solid #f1f2f5;">
+                <td style="padding:12px; font-weight:600; color:var(--charcoal);"><%= t.eventname %></td>
+                <td style="padding:12px; color:#4b5563;"><%= t.eventtypename || '—' %></td>
+                <td style="padding:12px; text-align:center;"><%= t.occurrences || 0 %></td>
+                <td style="padding:12px; text-align:center;"><%= t.survey_count || 0 %></td>
+                <td style="padding:12px; text-align:center;"><%= t.avg_satisfaction !== null ? Number(t.avg_satisfaction).toFixed(2) : '—' %></td>
+                <td style="padding:12px; text-align:center;"><%= t.avg_overall !== null ? Number(t.avg_overall).toFixed(2) : '—' %></td>
+              </tr>
+            <% }); %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h3 style="margin:0 0 .5rem 0;">Past Event Occurrences</h3>
+    <div class="card" style="padding:0; overflow:hidden; border-radius:14px; border:1px solid #e5e7eb;">
+      <table style="width:100%; border-collapse:collapse;">
+        <thead style="background:#f7f3eb; color:#374151;">
+          <tr>
+            <th style="padding:12px; text-align:left;">Event</th>
+            <th style="padding:12px; text-align:left;">Template</th>
+            <th style="padding:12px; text-align:left;">Date</th>
+            <th style="padding:12px; text-align:center;">Survey Count</th>
+            <th style="padding:12px; text-align:center;">Avg Satisfaction</th>
+            <th style="padding:12px; text-align:center;">Avg Overall</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (!occurrenceStats || occurrenceStats.length === 0) { %>
+            <tr><td colspan="6" style="padding:14px; text-align:center; color:#6b7280;">No past event survey data yet.</td></tr>
+          <% } else { %>
+            <% occurrenceStats.forEach(ev => { %>
+              <tr style="border-top:1px solid #f1f2f5;">
+                <td style="padding:12px; font-weight:600; color:var(--charcoal);"><%= ev.eventname %></td>
+                <td style="padding:12px; color:#4b5563;"><%= ev.eventtypename || '—' %></td>
+                <td style="padding:12px; color:#374151;"><%= fmtDate(ev.eventdatetimestart) %></td>
+                <td style="padding:12px; text-align:center;"><%= ev.survey_count || 0 %></td>
+                <td style="padding:12px; text-align:center;"><%= ev.avg_satisfaction !== null ? Number(ev.avg_satisfaction).toFixed(2) : '—' %></td>
+                <td style="padding:12px; text-align:center;"><%= ev.avg_overall !== null ? Number(ev.avg_overall).toFixed(2) : '—' %></td>
+              </tr>
+            <% }); %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
