@@ -60,16 +60,8 @@ async function findParticipantForUser(user) {
     const byId = await getParticipantById(user.participantid);
     if (byId) return byId;
   }
-
   const byEmail = await findParticipantByEmail(user.username);
   if (byEmail) return byEmail;
-
-  const maybeId = Number(user.username);
-  if (!Number.isNaN(maybeId)) {
-    const byNumeric = await getParticipantById(maybeId);
-    if (byNumeric) return byNumeric;
-  }
-
   return null;
 }
 
@@ -92,7 +84,7 @@ async function getSurveysForParticipant(participantId) {
   const { rows } = await pool.query(
     `SELECT s.surveyid AS id,
             s.participantid,
-            s.eventoccurrenceid AS eventoccurrenceid,
+            s.eventoccurrenceid,
             s.surveysatisfactionscore AS satisfaction,
             s.surveyusefulnessscore AS usefulness,
             s.surveyinstructorscore AS instructor,
@@ -118,7 +110,7 @@ async function getAllSurveys() {
   const { rows } = await pool.query(
     `SELECT s.surveyid AS id,
             s.participantid,
-            s.eventoccurrenceid AS eventoccurrenceid,
+            s.eventoccurrenceid,
             s.surveysatisfactionscore AS satisfaction,
             s.surveyusefulnessscore AS usefulness,
             s.surveyinstructorscore AS instructor,
@@ -142,7 +134,7 @@ async function getSurveyById(id) {
   const { rows } = await pool.query(
     `SELECT s.surveyid AS id,
             s.participantid,
-            s.eventoccurrenceid AS eventoccurrenceid,
+            s.eventoccurrenceid,
             s.surveysatisfactionscore AS satisfaction,
             s.surveyusefulnessscore AS usefulness,
             s.surveyinstructorscore AS instructor,
@@ -168,7 +160,7 @@ async function getSurveysForParticipant(participantId) {
   const { rows } = await pool.query(
     `SELECT s.surveyid AS id,
             s.participantid,
-            s.eventoccurenceid AS eventoccurrenceid,
+            s.eventoccurrenceid AS eventoccurrenceid,
             s.surveysatisfactionscore AS satisfaction,
             s.surveyusefulnessscore AS usefulness,
             s.surveyinstructorscore AS instructor,
@@ -181,7 +173,7 @@ async function getSurveysForParticipant(participantId) {
             et.eventname AS eventName
      FROM survey s
      LEFT JOIN participant p ON s.participantid = p.participantid
-     LEFT JOIN eventoccurrence eo ON eo.eventoccurrenceid = s.eventoccurenceid
+     LEFT JOIN eventoccurrence eo ON eo.eventoccurrenceid = s.eventoccurrenceid
      LEFT JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
      WHERE s.participantid = $1
      ORDER BY s.surveysubmissiondate DESC`,
@@ -194,7 +186,7 @@ async function getAllSurveys() {
   const { rows } = await pool.query(
     `SELECT s.surveyid AS id,
             s.participantid,
-            s.eventoccurenceid AS eventoccurrenceid,
+            s.eventoccurrenceid AS eventoccurrenceid,
             s.surveysatisfactionscore AS satisfaction,
             s.surveyusefulnessscore AS usefulness,
             s.surveyinstructorscore AS instructor,
@@ -207,7 +199,7 @@ async function getAllSurveys() {
             et.eventname AS eventName
      FROM survey s
      LEFT JOIN participant p ON s.participantid = p.participantid
-     LEFT JOIN eventoccurrence eo ON eo.eventoccurrenceid = s.eventoccurenceid
+     LEFT JOIN eventoccurrence eo ON eo.eventoccurrenceid = s.eventoccurrenceid
      LEFT JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
      ORDER BY s.surveysubmissiondate DESC`
   );
@@ -240,6 +232,18 @@ async function getSurveyById(id) {
   return rows[0] || null;
 }
 
+async function reseedSurveyIdSequence() {
+  // Align the surveyid sequence with the current max(surveyid)
+  await pool.query(
+    `SELECT setval(
+        pg_get_serial_sequence('survey','surveyid'),
+        COALESCE(MAX(surveyid), 0) + 1,
+        false
+      )
+     FROM survey`
+  );
+}
+
 async function insertSurvey({
   participantId,
   eventoccurrenceid,
@@ -253,31 +257,57 @@ async function insertSurvey({
   const npsBucket =
     recommendation >= 4 ? 'Promoter' : recommendation === 3 ? 'Passive' : 'Detractor';
 
-  await pool.query(
-    `INSERT INTO survey (
-        participantid,
-        eventoccurrenceid,
-        surveysatisfactionscore,
-        surveyusefulnessscore,
-        surveyinstructorscore,
-        surveyrecommendationscore,
-        surveyoverallscore,
-        surveynpsbucket,
-        surveycomments,
-        surveysubmissiondate
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())`,
-    [
-      participantId,
-      eventoccurrenceid,
-      satisfaction,
-      usefulness,
-      instructor,
-      recommendation,
-      overall,
-      npsBucket,
-      comments || null,
-    ]
-  );
+  const values = [
+    participantId,
+    eventoccurrenceid,
+    satisfaction,
+    usefulness,
+    instructor,
+    recommendation,
+    overall,
+    npsBucket,
+    comments || null,
+  ];
+
+  try {
+    await pool.query(
+      `INSERT INTO survey (
+          participantid,
+          eventoccurrenceid,
+          surveysatisfactionscore,
+          surveyusefulnessscore,
+          surveyinstructorscore,
+          surveyrecommendationscore,
+          surveyoverallscore,
+          surveynpsbucket,
+          surveycomments,
+          surveysubmissiondate
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())`,
+      values
+    );
+  } catch (err) {
+    if (err.code === '23505') {
+      // Sequence likely behind; reseed and retry once
+      await reseedSurveyIdSequence();
+      await pool.query(
+        `INSERT INTO survey (
+            participantid,
+            eventoccurrenceid,
+            surveysatisfactionscore,
+            surveyusefulnessscore,
+            surveyinstructorscore,
+            surveyrecommendationscore,
+            surveyoverallscore,
+            surveynpsbucket,
+            surveycomments,
+            surveysubmissiondate
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())`,
+        values
+      );
+    } else {
+      throw err;
+    }
+  }
 }
 
 async function updateSurveyRecord(id, { satisfaction, usefulness, instructor, recommendation, comments }) {
