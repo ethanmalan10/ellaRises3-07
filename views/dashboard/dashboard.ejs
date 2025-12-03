@@ -1,0 +1,78 @@
+<main class="container main-content" style="max-width:1200px; margin-top:2.5rem;">
+  <header style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap; margin-bottom:1.5rem;">
+    <div>
+      <h1 style="margin:0 0 .35rem 0; font-family:var(--font-serif); color:var(--charcoal);">Impact Dashboard</h1>
+      <p style="margin:0; color:#4b5563; max-width:700px;">
+        Tracking how Ella Rises empowers young women through events, mentorship, and milestones. Use this space to share wins and spot gaps quickly.
+      </p>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <a href="/events/stats" class="btn-cream" style="padding:12px 16px; border-radius:12px; text-decoration:none; font-weight:600;">Event Stats</a>
+      <a href="/participants" class="btn-cream" style="padding:12px 16px; border-radius:12px; text-decoration:none; font-weight:600;">Participants</a>
+    </div>
+  </header>
+
+  <!-- KPI strip -->
+  <section style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin-bottom:1.25rem;">
+    <div style="background:#f7f3eb; border:1px solid #e7dfcf; border-radius:14px; padding:14px; box-shadow:0 8px 20px rgba(0,0,0,.04);">
+      <p style="margin:0; color:#6b7280; font-weight:600; letter-spacing:.3px;">Participants</p>
+      <h2 style="margin:4px 0 0 0; color:var(--charcoal); font-size:2rem;">—</h2>
+      <p style="margin:4px 0 0 0; color:#6b7280; font-size:.9rem;">Active + newly registered</p>
+    </div>
+    <div style="background:#f7f3eb; border:1px solid #e7dfcf; border-radius:14px; padding:14px; box-shadow:0 8px 20px rgba(0,0,0,.04);">
+      <p style="margin:0; color:#6b7280; font-weight:600; letter-spacing:.3px;">Events Hosted</p>
+      <h2 style="margin:4px 0 0 0; color:var(--charcoal); font-size:2rem;">—</h2>
+      <p style="margin:4px 0 0 0; color:#6b7280; font-size:.9rem;">Across all templates</p>
+    </div>
+    <div style="background:#f7f3eb; border:1px solid #e7dfcf; border-radius:14px; padding:14px; box-shadow:0 8px 20px rgba(0,0,0,.04);">
+      <p style="margin:0; color:#6b7280; font-weight:600; letter-spacing:.3px;">Avg Satisfaction</p>
+      <h2 style="margin:4px 0 0 0; color:var(--charcoal); font-size:2rem;">—</h2>
+      <p style="margin:4px 0 0 0; color:#6b7280; font-size:.9rem;">Latest survey average</p>
+    </div>
+    <div style="background:#f7f3eb; border:1px solid #e7dfcf; border-radius:14px; padding:14px; box-shadow:0 8px 20px rgba(0,0,0,.04);">
+      <p style="margin:0; color:#6b7280; font-weight:600; letter-spacing:.3px;">Milestones Achieved</p>
+      <h2 style="margin:4px 0 0 0; color:var(--charcoal); font-size:2rem;">—</h2>
+      <p style="margin:4px 0 0 0; color:#6b7280; font-size:.9rem;">Total completed</p>
+    </div>
+  </section>
+
+  <!-- Tableau embed -->
+  <section style="background:#f7f3eb; border:1px solid #e7dfcf; border-radius:16px; padding:12px; box-shadow:0 10px 30px rgba(0,0,0,0.06);">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:8px;">
+      <h3 style="margin:0; color:var(--charcoal);">Impact Explorer</h3>
+      <span style="color:#6b7280; font-size:.95rem;">Interactive view (Tableau)</span>
+    </div>
+    <div style="position:relative; padding-top:60%; width:100%; overflow:hidden; border-radius:12px; background:#fff;">
+      <iframe
+        src="<%= embedUrl %>"
+        title="Impact Explorer"
+        style="position:absolute; top:0; left:0; width:100%; height:100%; border:none; border-radius:12px;"
+        allowfullscreen
+      ></iframe>
+    </div>
+  </section>
+
+  <!-- Narrative + next actions -->
+  <section style="margin-top:1.5rem; display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:14px;">
+    <div class="card" style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:12px; padding:14px;">
+      <h4 style="margin:0 0 .5rem 0;">What to watch</h4>
+      <ul style="margin:0; padding-left:18px; color:#374151;">
+        <li>Event satisfaction trending down? Check instructor/format notes.</li>
+        <li>Milestones slowing? Nudge mentors and participants with reminders.</li>
+        <li>Low survey counts? Encourage post-event follow-ups within 24 hours.</li>
+      </ul>
+    </div>
+    <div class="card" style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:12px; padding:14px;">
+      <h4 style="margin:0 0 .5rem 0;">Shortcuts</h4>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <a href="/events" class="btn-cream" style="text-decoration:none; padding:10px 12px; border-radius:10px;">Upcoming Events</a>
+        <a href="/events/past" class="btn-cream" style="text-decoration:none; padding:10px 12px; border-radius:10px;">Past Events</a>
+        <a href="/admin/milestones" class="btn-cream" style="text-decoration:none; padding:10px 12px; border-radius:10px;">Manage Milestones</a>
+      </div>
+    </div>
+    <div class="card" style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:12px; padding:14px;">
+      <h4 style="margin:0 0 .5rem 0;">Context</h4>
+      <p style="margin:0; color:#4b5563;">Ella Rises focuses on confidence, creativity, and leadership. Use this dashboard to highlight wins for donors and keep program leaders aligned on what needs attention next.</p>
+    </div>
+  </section>
+</main>

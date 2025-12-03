@@ -1889,6 +1889,16 @@ app.get('/events/stats', requireManager, async (_req, res) => {
   }
 });
 
+// Dashboard placeholder (Tableau embed)
+app.get('/dashboard', requireManager, (_req, res) => {
+  const embedUrl =
+    'https://public.tableau.com/views/RegionalSampleWorkbook/College?:language=en-US&publish=yes&:showVizHome=no';
+  res.render(path.join('dashboard', 'dashboard'), {
+    title: 'Dashboard',
+    embedUrl,
+  });
+});
+
 // Manager: create event template (form)
 app.get('/event-templates/new', requireManager, async (_req, res) => {
   try {
