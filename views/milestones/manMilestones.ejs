@@ -8,9 +8,14 @@
             Add milestones to the catalog and assign them to participants.
           </p>
         </div>
-        <a href="/admin/milestones/add" class="btn-login-home" style="padding:10px 16px; border-radius:10px; text-decoration:none;">
-          + Add Milestone
-        </a>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <a href="/admin/milestones/assignments" class="btn-cream" style="padding:10px 16px; border-radius:10px; text-decoration:none;">
+            Manage and View Participant Milestones
+          </a>
+          <a href="/admin/milestones/add" class="btn-login-home" style="padding:10px 16px; border-radius:10px; text-decoration:none;">
+            + Add Milestone
+          </a>
+        </div>
       </div>
 
       <% if (message) { %>
@@ -26,6 +31,60 @@
     </div>
   </section>
 
+<!-- Add assignment -->
+  <section class="container" style="margin-top:1rem;">
+    <div class="card" style="padding:20px; border-radius:18px;">
+      <h2 style="margin:0 0 12px 0;">Quick Assign Milestone to User</h2>
+      <% if (!participants || participants.length === 0) { %>
+        <p style="margin:0;">No participants found. Add participants first.</p>
+      <% } else if (!catalog || catalog.length === 0) { %>
+        <p style="margin:0;">Add at least one milestone to the catalog to start assigning.</p>
+      <% } else { %>
+        <% function calcAge(d){ if(!d) return null; const dob=new Date(d); if(Number.isNaN(dob)) return null; const now=new Date(); let age=now.getFullYear()-dob.getFullYear(); const m=now.getMonth()-dob.getMonth(); if(m<0||(m===0&&now.getDate()<dob.getDate())) age--; return age; } %>
+        <form method="POST" action="/admin/milestones/assign" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; align-items:end;">
+          <div>
+            <label for="participantid" style="display:block; margin-bottom:6px; font-weight:600;">Participant</label>
+            <select id="participantid" name="participantid" required style="width:90%; padding:10px; border-radius:10px;">
+              <option value="">Select participant</option>
+              <% participants.forEach(p => { %>
+                <option value="<%= p.participantid %>">
+                  <%= 'ID ' + p.participantid %> - 
+                  <%= (p.name && p.name.trim()) ? p.name : (p.participantemail || 'Unknown') %>
+                  <% const age = calcAge(p.participantdob); %>
+                  <%= age !== null ? (' (' + age + ')') : '' %>
+                </option>
+              <% }) %>
+            </select>
+          </div>
+
+          <div>
+            <label for="milestonecatalogid" style="display:block; margin-bottom:6px; font-weight:600;">Milestone</label>
+            <select id="milestonecatalogid" name="milestonecatalogid" required style="width:90%; padding:10px; border-radius:10px;">
+              <option value="">Select milestone</option>
+              <% catalog.forEach(c => { %>
+                <option value="<%= c.id %>"><%= c.title %></option>
+              <% }) %>
+            </select>
+          </div>
+
+          <div>
+            <label for="achieveddate" style="display:block; margin-bottom:6px; font-weight:600;">Achieved Date (optional)</label>
+            <input type="date" id="achieveddate" name="achieveddate" style="width:90%; padding:10px; border-radius:10px;" />
+          </div>
+
+          <div>
+            <label for="milestoneno" style="display:block; margin-bottom:6px; font-weight:600;">Milestone # (optional)</label>
+            <input type="number" id="milestoneno" name="milestoneno" placeholder="e.g., 1" style="width:90%; padding:10px; border-radius:10px;" />
+          </div>
+
+          <div style="display:flex; justify-content:flex-end;">
+            <button type="submit" class="btn-login-home" style="padding:12px 18px; border-radius:10px;">Assign</button>
+          </div>
+        </form>
+      <% } %>
+    </div>
+  </section>
+
   <!-- Catalog -->
   <section class="container" style="margin-top:1rem;">
     <div class="card" style="padding:20px; border-radius:18px;">
@@ -37,6 +96,9 @@
       <% if (!catalog || catalog.length === 0) { %>
         <p style="margin:0;">No milestones in the catalog yet.</p>
       <% } else { %>
+        <div style="margin:0 0 10px 0;">
+          <input id="catalog-search" type="search" placeholder="Quick search milestones..." style="width:100%; max-width:320px; padding:10px 12px; border-radius:10px; border:1px solid #d1d5db;">
+        </div>
         <div style="overflow-x:auto;">
           <table style="width:100%; border-collapse:collapse;">
             <thead>
@@ -48,10 +110,10 @@
             </thead>
             <tbody>
               <% catalog.forEach(c => { %>
-                <tr style="border-bottom:1px solid #f0f0f0;">
+                <tr class="catalog-row" data-search="<%= (c.title || '').toLowerCase() %>" style="border-bottom:1px solid #f0f0f0;">
                   <td style="padding:8px;"><%= c.title %></td>
                   <td style="padding:8px; color:#666;">
-                    <%= (assignments || []).filter(a => a.milestonecatalogid === c.id).length %>
+                    <%= (milestoneCounts && typeof milestoneCounts[c.id] !== 'undefined') ? milestoneCounts[c.id] : 0 %>
                   </td>
                   <td style="padding:8px; display:flex; gap:8px;">
                     <a href="/admin/milestones/<%= c.id %>/edit" style="text-decoration:none; color:#1565c0;">Edit</a>
@@ -66,108 +128,20 @@
     </div>
   </section>
 
-  <!-- Add assignment -->
-  <section class="container" style="margin-top:1rem;">
-    <div class="card" style="padding:20px; border-radius:18px;">
-      <h2 style="margin:0 0 12px 0;">Assign Milestone to User</h2>
-      <% if (!participants || participants.length === 0) { %>
-        <p style="margin:0;">No participants found. Add participants first.</p>
-      <% } else if (!catalog || catalog.length === 0) { %>
-        <p style="margin:0;">Add at least one milestone to the catalog to start assigning.</p>
-      <% } else { %>
-        <form method="POST" action="/admin/milestones/assign" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; align-items:end;">
-          <div>
-            <label for="participantid" style="display:block; margin-bottom:6px; font-weight:600;">Participant</label>
-            <select id="participantid" name="participantid" required style="width:100%; padding:10px; border-radius:10px;">
-              <option value="">Select participant</option>
-              <% participants.forEach(p => { %>
-                <option value="<%= p.participantid %>">
-                  <%= p.name && p.name.trim() ? p.name : p.participantemail || ('ID ' + p.participantid) %>
-                </option>
-              <% }) %>
-            </select>
-          </div>
-
-          <div>
-            <label for="milestonecatalogid" style="display:block; margin-bottom:6px; font-weight:600;">Milestone</label>
-            <select id="milestonecatalogid" name="milestonecatalogid" required style="width:100%; padding:10px; border-radius:10px;">
-              <option value="">Select milestone</option>
-              <% catalog.forEach(c => { %>
-                <option value="<%= c.id %>"><%= c.title %></option>
-              <% }) %>
-            </select>
-          </div>
-
-          <div>
-            <label for="achieveddate" style="display:block; margin-bottom:6px; font-weight:600;">Achieved Date (optional)</label>
-            <input type="date" id="achieveddate" name="achieveddate" style="width:100%; padding:10px; border-radius:10px;" />
-          </div>
-
-          <div>
-            <label for="milestoneno" style="display:block; margin-bottom:6px; font-weight:600;">Milestone # (optional)</label>
-            <input type="number" id="milestoneno" name="milestoneno" placeholder="e.g., 1" style="width:100%; padding:10px; border-radius:10px;" />
-          </div>
-
-          <div style="display:flex; justify-content:flex-end;">
-            <button type="submit" class="btn-login-home" style="padding:12px 18px; border-radius:10px;">Assign</button>
-          </div>
-        </form>
-      <% } %>
-    </div>
-  </section>
-
-  <!-- Existing assignments -->
-  <section class="container" style="margin-top:1rem; margin-bottom:1.75rem;">
-    <div class="card" style="padding:20px; border-radius:18px;">
-      <h2 style="margin:0 0 12px 0;">User Milestones</h2>
-      <% if (!assignments || assignments.length === 0) { %>
-        <p style="margin:0;">No milestones assigned yet.</p>
-      <% } else { %>
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:12px;">
-          <% assignments.forEach(a => { %>
-            <div style="border:1px solid #eee; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:8px;">
-              <form method="POST" action="/admin/milestones/assign/<%= a.milestoneid %>/edit" style="display:flex; flex-direction:column; gap:8px;">
-                <div>
-                  <label style="display:block; font-weight:600; margin-bottom:4px;">Participant</label>
-                  <select name="participantid" required style="width:100%; padding:8px; border-radius:8px;">
-                    <% participants.forEach(p => { %>
-                      <option value="<%= p.participantid %>" <%= p.participantid === a.participantid ? 'selected' : '' %>>
-                        <%= p.name && p.name.trim() ? p.name : p.participantemail || ('ID ' + p.participantid) %>
-                      </option>
-                    <% }) %>
-                  </select>
-                </div>
-
-                <div>
-                  <label style="display:block; font-weight:600; margin-bottom:4px;">Milestone</label>
-                  <select name="milestonecatalogid" required style="width:100%; padding:8px; border-radius:8px;">
-                    <% catalog.forEach(c => { %>
-                      <option value="<%= c.id %>" <%= c.id === a.milestonecatalogid ? 'selected' : '' %>><%= c.title %></option>
-                    <% }) %>
-                  </select>
-                </div>
-
-                <div>
-                  <label style="display:block; font-weight:600; margin-bottom:4px;">Achieved</label>
-                  <input type="date" name="achieveddate" value="<%= a.milestonedate ? new Date(a.milestonedate).toISOString().slice(0,10) : '' %>" style="width:100%; padding:8px; border-radius:8px;" />
-                </div>
-
-                <div>
-                  <label style="display:block; font-weight:600; margin-bottom:4px;">Milestone #</label>
-                  <input type="number" name="milestoneno" value="<%= a.milestoneno || '' %>" placeholder="Number" style="width:100%; padding:8px; border-radius:8px;" />
-                </div>
-
-                <div style="display:flex; gap:8px; justify-content:flex-end;">
-                  <button type="submit" class="btn-login-home" style="padding:8px 12px; border-radius:8px;">Save</button>
-                </div>
-              </form>
-              <form method="POST" action="/admin/milestones/assign/<%= a.milestoneid %>/delete" onsubmit="return confirm('Remove this milestone?');" style="margin:0; display:flex; justify-content:flex-end;">
-                <button type="submit" style="padding:8px 12px; border-radius:8px; background:#ffcdd2; border:1px solid #e57373; color:#b71c1c;">Delete</button>
-              </form>
-            </div>
-          <% }) %>
-        </div>
-      <% } %>
-    </div>
-  </section>
 </main>
+
+<script>
+  (() => {
+    const input = document.getElementById('catalog-search');
+    const rows = Array.from(document.querySelectorAll('.catalog-row'));
+    if (!input || rows.length === 0) return;
+    const run = () => {
+      const q = (input.value || '').trim().toLowerCase();
+      rows.forEach(r => {
+        const match = !q || (r.dataset.search || '').includes(q);
+        r.style.display = match ? '' : 'none';
+      });
+    };
+    input.addEventListener('input', run);
+  })();
+</script>
