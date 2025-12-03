@@ -1,0 +1,35 @@
+<main class="container main-content" style="max-width:900px; margin-top:2.5rem;">
+  <header style="display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:1.25rem; flex-wrap:wrap;">
+    <div>
+      <h1 style="margin:0; font-family:var(--font-serif); color:var(--charcoal);">My Account</h1>
+      <p style="margin:.3rem 0 0 0; color:#4b5563;">View your account details. Update info anytime.</p>
+    </div>
+    <% if (participant) { %>
+      <a href="/my-account/edit" class="btn-cream" style="padding:12px 16px; border-radius:10px; text-decoration:none;">Edit Account</a>
+    <% } %>
+  </header>
+
+  <% if (!participant) { %>
+    <div class="card" style="padding:20px; border-radius:14px; border:1px solid #e5e7eb; background:#f9fafb;">
+      <p style="margin:0; color:#4b5563;">No participant profile found for this account.</p>
+    </div>
+  <% } else { %>
+    <% function fmtCap(v){ if(!v) return '—'; const s=v.toString(); return s[0].toUpperCase()+s.slice(1); } %>
+    <% function fmtPhone(p){ if(!p) return '—'; const d=p.replace(/\\D/g,''); if(d.length===10) return d.slice(0,3)+'-'+d.slice(3,6)+'-'+d.slice(6); return p; } %>
+    <div class="card" style="padding:20px; border-radius:14px; border:1px solid #e5e7eb; background:#f9fafb;">
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px,1fr)); gap:14px;">
+        <div><strong>Name</strong><br><%= [fmtCap(participant.participantfirstname), fmtCap(participant.participantlastname)].filter(v => v !== '—').join(' ') || '—' %></div>
+        <div><strong>Email</strong><br><%= participant.participantemail || (user && user.username) || '—' %></div>
+        <div><strong>Phone</strong><br><%= fmtPhone(participant.participantphone) %></div>
+        <div><strong>Date of Birth</strong><br><%= participant.participantdob || '—' %></div>
+        <div><strong>City</strong><br><%= fmtCap(participant.participantcity) %></div>
+        <div><strong>State</strong><br><%= participant.participantstate || '—' %></div>
+        <div><strong>Zip</strong><br><%= participant.participantzip || '—' %></div>
+        <div><strong>Affiliation Type</strong><br><%= participant.participantaffiliationtype || '—' %></div>
+        <div><strong>Affiliation Name</strong><br><%= participant.participantaffiliationname || '—' %></div>
+        <div><strong>Field of Interest</strong><br><%= participant.participantfieldofinterest || '—' %></div>
+        <div><strong>Total Donations</strong><br><%= participant.totaldonations || 0 %></div>
+      </div>
+    </div>
+  <% } %>
+</main>
