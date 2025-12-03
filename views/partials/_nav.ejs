@@ -42,10 +42,11 @@
       <div class="dropdown">
         <a href="#" class="nav-link">My Account</a>
         <div class="dropdown-content">
-        <a href="/my-account">My Account</a>
-          <a href="/participants">All Participants</a>
-          <a href="/milestones">Milestones</a>
+          <a href="/my-account">My Account</a>
           <% if (manager) { %>
+            <a href="/participants">All Participants</a>
+            <a href="/admin/users">All Users</a>
+            <a href="/milestones">Milestones</a>
             <a href="/admin/milestones">Manage Milestones</a>
             <a href="/dashboard">Dashboard</a>
           <% } %>
