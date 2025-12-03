@@ -1,1 +1,36 @@
+<main class="main-content">
+  <section class="container" style="margin-top:1.25rem; margin-bottom:1.5rem;">
+    <div class="card" style="padding:24px; border-radius:18px;">
+      <h1 style="margin:0; font-family: var(--font-serif);">My Milestones</h1>
+      <p style="margin:6px 0 0 0; color:var(--charcoal); opacity:.8;">
+        Track the milestones assigned to you.
+      </p>
 
+      <% if (error) { %>
+        <div style="margin-top:14px; padding:10px 12px; border-radius:10px; background:#ffebee; color:#b71c1c;">
+          <%= error %>
+        </div>
+      <% } %>
+
+      <% if (milestones && milestones.length) { %>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:12px; margin-top:16px;">
+          <% milestones.forEach(m => { %>
+            <div style="border:1px solid #eee; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:6px;">
+              <div style="font-weight:700; font-size:1.05rem;"><%= m.title %></div>
+              <% if (m.milestonedate) { %>
+                <div style="color:#555;">Achieved: <%= new Date(m.milestonedate).toLocaleDateString() %></div>
+              <% } else { %>
+                <div style="color:#777;">Achieved: not set</div>
+              <% } %>
+              <% if (m.milestoneno) { %>
+                <div style="color:#444;">Milestone #: <%= m.milestoneno %></div>
+              <% } %>
+            </div>
+          <% }) %>
+        </div>
+      <% } else if (!error) { %>
+        <p style="margin-top:16px;">No milestones assigned yet.</p>
+      <% } %>
+    </div>
+  </section>
+</main>
