@@ -304,6 +304,134 @@ async function deleteSurveyRecord(id) {
 }
 
 /* -----------------------------
+   Milestone helpers
+----------------------------- */
+async function listMilestoneCatalog() {
+  const { rows } = await pool.query(
+    `SELECT milestonecatalogid AS id,
+            milestonetitle AS title
+     FROM milestonecatalog
+     ORDER BY milestonetitle ASC`
+  );
+  return rows;
+}
+
+async function getMilestoneCatalogItem(id) {
+  if (!id) return null;
+  const { rows } = await pool.query(
+    `SELECT milestonecatalogid AS id,
+            milestonetitle AS title
+     FROM milestonecatalog
+     WHERE milestonecatalogid = $1
+     LIMIT 1`,
+    [id]
+  );
+  return rows[0] || null;
+}
+
+async function createMilestoneCatalog(title) {
+  if (!title || !title.trim()) throw new Error('Milestone title is required');
+  await pool.query(
+    `INSERT INTO milestonecatalog (milestonetitle)
+     VALUES ($1)`,
+    [title.trim()]
+  );
+}
+
+async function updateMilestoneCatalog(id, title) {
+  if (!id) throw new Error('Missing milestone catalog id');
+  if (!title || !title.trim()) throw new Error('Milestone title is required');
+  await pool.query(
+    `UPDATE milestonecatalog
+     SET milestonetitle = $1
+     WHERE milestonecatalogid = $2`,
+    [title.trim(), id]
+  );
+}
+
+async function deleteMilestoneCatalog(id) {
+  if (!id) throw new Error('Missing milestone catalog id');
+  await pool.query('DELETE FROM milestonecatalog WHERE milestonecatalogid = $1', [id]);
+}
+
+async function listParticipantsBasic() {
+  const { rows } = await pool.query(
+    `SELECT participantid,
+            TRIM(COALESCE(participantfirstname,'') || ' ' || COALESCE(participantlastname,'')) AS name,
+            participantemail
+     FROM participant
+     ORDER BY COALESCE(participantfirstname,'') || ' ' || COALESCE(participantlastname,'')`
+  );
+  return rows;
+}
+
+async function listAllMilestoneAssignments() {
+  const { rows } = await pool.query(
+    `SELECT m.milestoneid,
+            m.participantid,
+            m.milestonecatalogid,
+            m.milestonedate,
+            m.milestoneno,
+            mc.milestonetitle AS title,
+            TRIM(COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,'')) AS participantname,
+            p.participantemail AS participantemail
+     FROM milestone m
+     JOIN milestonecatalog mc ON mc.milestonecatalogid = m.milestonecatalogid
+     LEFT JOIN participant p ON p.participantid = m.participantid
+     ORDER BY m.milestonedate DESC NULLS LAST, m.milestoneid DESC`
+  );
+  return rows;
+}
+
+async function listMilestonesForParticipant(participantId) {
+  if (!participantId) return [];
+  const { rows } = await pool.query(
+    `SELECT m.milestoneid,
+            m.milestonedate,
+            m.milestoneno,
+            mc.milestonetitle AS title
+     FROM milestone m
+     JOIN milestonecatalog mc ON mc.milestonecatalogid = m.milestonecatalogid
+     WHERE m.participantid = $1
+     ORDER BY m.milestonedate DESC NULLS LAST, m.milestoneid DESC`,
+    [participantId]
+  );
+  return rows;
+}
+
+async function addMilestoneAssignment({ participantId, milestoneCatalogId, achievedDate, milestoneNo }) {
+  if (!participantId || !milestoneCatalogId) {
+    throw new Error('Participant and milestone are required.');
+  }
+  await pool.query(
+    `INSERT INTO milestone (participantid, milestonecatalogid, milestonedate, milestoneno)
+     VALUES ($1, $2, $3, $4)`,
+    [participantId, milestoneCatalogId, achievedDate || null, milestoneNo || null]
+  );
+}
+
+async function updateMilestoneAssignment(id, { participantId, milestoneCatalogId, achievedDate, milestoneNo }) {
+  if (!id) throw new Error('Missing milestone id');
+  if (!participantId || !milestoneCatalogId) {
+    throw new Error('Participant and milestone are required.');
+  }
+  await pool.query(
+    `UPDATE milestone
+     SET participantid = $1,
+         milestonecatalogid = $2,
+         milestonedate = $3,
+         milestoneno = $4
+     WHERE milestoneid = $5`,
+    [participantId, milestoneCatalogId, achievedDate || null, milestoneNo || null, id]
+  );
+}
+
+async function deleteMilestoneAssignment(id) {
+  if (!id) throw new Error('Missing milestone id');
+  await pool.query('DELETE FROM milestone WHERE milestoneid = $1', [id]);
+}
+
+/* -----------------------------
    EJS + Layouts + Static
 ----------------------------- */
 app.set('view engine', 'ejs');
@@ -585,9 +713,33 @@ app.post('/surveys', requireAuth, async (req, res) => {
   }
 });
 
-// /milestones placeholder (no survey content)
-app.get('/milestones', (_req, res) => {
-  res.status(404).send('Milestones page is not configured.');
+// /milestones -> logged-in user milestone list
+app.get('/milestones', requireAuth, async (req, res) => {
+  try {
+    const participantId = req.session.user?.participantid || null;
+    if (!participantId) {
+      return res.render(path.join('milestones', 'userMilestones'), {
+        title: 'My Milestones',
+        milestones: [],
+        error: 'No participant record is linked to your account.',
+      });
+    }
+
+    const milestones = await listMilestonesForParticipant(participantId);
+
+    res.render(path.join('milestones', 'userMilestones'), {
+      title: 'My Milestones',
+      milestones,
+      error: milestones.length ? null : 'No milestones assigned yet.',
+    });
+  } catch (err) {
+    console.error('Load user milestones error:', err);
+    res.status(500).render(path.join('milestones', 'userMilestones'), {
+      title: 'My Milestones',
+      milestones: [],
+      error: 'Could not load milestones right now.',
+    });
+  }
 });
 
 /* -----------------------------
@@ -646,9 +798,10 @@ app.post('/login', async (req, res) => {
     }
 
     req.session.user = {
-      id: user.userid,
+      id: user.participantid,
       username: user.username,
       role: mapRole(user.level),
+      level: user.level,
       participantid: participantId,
     };
     return res.redirect('/');
@@ -719,14 +872,7 @@ app.post('/register', async (req, res) => {
     client = await pool.connect();
     await client.query('BEGIN');
 
-    const authInsert = await client.query(
-      `INSERT INTO users (username, password, level)
-       VALUES ($1, $2, $3)
-       RETURNING userid, username, level`,
-      [username, password, 'u'] // TODO: bcrypt hash
-    );
-
-    await client.query(
+    const participantInsert = await client.query(
       `INSERT INTO participant (
         participantemail,
         participantfirstname,
@@ -1330,9 +1476,181 @@ app.get('/my-account', requireAuth, (req, res) => {
 
 /* -------- Optional manager routes based on your files -------- */
 
-// /admin/milestones -> views/milestones/manMilestones.ejs
-app.get('/admin/milestones', requireManager, (_req, res) => {
-  res.status(404).send('Milestones admin page is not configured.');
+// /admin/milestones -> catalog + assignment management
+app.get('/admin/milestones', requireManager, async (req, res) => {
+  try {
+    const [catalog, participants, assignments] = await Promise.all([
+      listMilestoneCatalog(),
+      listParticipantsBasic(),
+      listAllMilestoneAssignments(),
+    ]);
+
+    const msgMap = {
+      'milestone-added': 'Milestone added.',
+      'milestone-updated': 'Milestone updated.',
+      'milestone-deleted': 'Milestone deleted.',
+      'assignment-added': 'Milestone assigned.',
+      'assignment-updated': 'Milestone updated for user.',
+      'assignment-deleted': 'Milestone removed from user.',
+      'assignment-error': 'Could not complete that milestone action.',
+    };
+
+    const message = msgMap[req.query.msg] || null;
+
+    res.render(path.join('milestones', 'manMilestones'), {
+      title: 'Manage Milestones',
+      catalog,
+      participants,
+      assignments,
+      message,
+      error: null,
+    });
+  } catch (err) {
+    console.error('Admin milestones load error:', err);
+    res.status(500).send('Could not load milestones admin page');
+  }
+});
+
+// Catalog: add
+app.get('/admin/milestones/add', requireManager, (_req, res) => {
+  res.render(path.join('milestones', 'manMilestones_add'), {
+    title: 'Add Milestone',
+    error: null,
+  });
+});
+
+app.post('/admin/milestones/add', requireManager, async (req, res) => {
+  try {
+    const { title } = req.body;
+    await createMilestoneCatalog(title);
+    res.redirect('/admin/milestones?msg=milestone-added');
+  } catch (err) {
+    console.error('Add milestone catalog error:', err);
+    res.status(400).render(path.join('milestones', 'manMilestones_add'), {
+      title: 'Add Milestone',
+      error: err.message || 'Could not add milestone.',
+    });
+  }
+});
+
+// Catalog: edit
+app.get('/admin/milestones/:id/edit', requireManager, async (req, res) => {
+  try {
+    const item = await getMilestoneCatalogItem(req.params.id);
+    if (!item) return res.status(404).send('Milestone not found');
+    res.render(path.join('milestones', 'manMilestones_edit'), {
+      title: 'Edit Milestone',
+      item,
+      error: null,
+    });
+  } catch (err) {
+    console.error('Load milestone edit error:', err);
+    res.status(500).send('Could not load milestone');
+  }
+});
+
+app.post('/admin/milestones/:id/edit', requireManager, async (req, res) => {
+  try {
+    const { title } = req.body;
+    await updateMilestoneCatalog(req.params.id, title);
+    res.redirect('/admin/milestones?msg=milestone-updated');
+  } catch (err) {
+    console.error('Update milestone catalog error:', err);
+    res.status(400).render(path.join('milestones', 'manMilestones_edit'), {
+      title: 'Edit Milestone',
+      item: { id: req.params.id, title: req.body.title },
+      error: err.message || 'Could not update milestone.',
+    });
+  }
+});
+
+// Catalog: delete
+app.get('/admin/milestones/:id/delete', requireManager, async (req, res) => {
+  try {
+    const item = await getMilestoneCatalogItem(req.params.id);
+    if (!item) return res.status(404).send('Milestone not found');
+    res.render(path.join('milestones', 'manMilestones_delete'), {
+      title: 'Delete Milestone',
+      item,
+      error: null,
+    });
+  } catch (err) {
+    console.error('Load milestone delete error:', err);
+    res.status(500).send('Could not load milestone');
+  }
+});
+
+app.post('/admin/milestones/:id/delete', requireManager, async (req, res) => {
+  try {
+    await deleteMilestoneCatalog(req.params.id);
+    res.redirect('/admin/milestones?msg=milestone-deleted');
+  } catch (err) {
+    console.error('Delete milestone catalog error:', err);
+    const item = await getMilestoneCatalogItem(req.params.id);
+    res.status(400).render(path.join('milestones', 'manMilestones_delete'), {
+      title: 'Delete Milestone',
+      item,
+      error:
+        err.code === '23503'
+          ? 'This milestone is assigned to users. Remove assignments first.'
+          : err.message || 'Could not delete milestone.',
+    });
+  }
+});
+
+// Assignment add
+app.post('/admin/milestones/assign', requireManager, async (req, res) => {
+  try {
+    const participantId = Number(req.body.participantid);
+    const milestoneCatalogId = Number(req.body.milestonecatalogid);
+    const achievedDate = req.body.achieveddate || null;
+    const milestoneNo = req.body.milestoneno ? Number(req.body.milestoneno) : null;
+
+    await addMilestoneAssignment({
+      participantId,
+      milestoneCatalogId,
+      achievedDate,
+      milestoneNo,
+    });
+
+    res.redirect('/admin/milestones?msg=assignment-added');
+  } catch (err) {
+    console.error('Add milestone assignment error:', err);
+    res.redirect('/admin/milestones?msg=assignment-error');
+  }
+});
+
+// Assignment edit
+app.post('/admin/milestones/assign/:id/edit', requireManager, async (req, res) => {
+  try {
+    const participantId = Number(req.body.participantid);
+    const milestoneCatalogId = Number(req.body.milestonecatalogid);
+    const achievedDate = req.body.achieveddate || null;
+    const milestoneNo = req.body.milestoneno ? Number(req.body.milestoneno) : null;
+
+    await updateMilestoneAssignment(req.params.id, {
+      participantId,
+      milestoneCatalogId,
+      achievedDate,
+      milestoneNo,
+    });
+
+    res.redirect('/admin/milestones?msg=assignment-updated');
+  } catch (err) {
+    console.error('Edit milestone assignment error:', err);
+    res.redirect('/admin/milestones?msg=assignment-error');
+  }
+});
+
+// Assignment delete
+app.post('/admin/milestones/assign/:id/delete', requireManager, async (req, res) => {
+  try {
+    await deleteMilestoneAssignment(req.params.id);
+    res.redirect('/admin/milestones?msg=assignment-deleted');
+  } catch (err) {
+    console.error('Delete milestone assignment error:', err);
+    res.redirect('/admin/milestones?msg=assignment-error');
+  }
 });
 
 // Manager survey list
