@@ -1781,7 +1781,13 @@ app.get('/events/past', requireManager, async (req, res) => {
         et.eventrecurrencepattern,
         et.eventdefaultcapacity,
         COALESCE(regs.count, 0) AS registrations_count,
-        etype.eventtypename
+        etype.eventtypename,
+        stats.survey_count,
+        stats.avg_satisfaction,
+        stats.avg_overall,
+        tpl_stats.template_survey_count,
+        tpl_stats.template_avg_satisfaction,
+        tpl_stats.template_avg_overall
        FROM eventoccurrence eo
        JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
        LEFT JOIN eventtype etype ON et.eventtypeid = etype.eventtypeid
@@ -1790,6 +1796,26 @@ app.get('/events/past', requireManager, async (req, res) => {
          FROM registration
          GROUP BY eventoccurrenceid
        ) regs ON regs.eventoccurrenceid = eo.eventoccurrenceid
+       LEFT JOIN (
+         SELECT
+           eventoccurrenceid,
+           COUNT(*) AS survey_count,
+           ROUND(AVG(surveysatisfactionscore)::numeric, 2) AS avg_satisfaction,
+           ROUND(AVG(surveyoverallscore)::numeric, 2) AS avg_overall
+         FROM survey
+         GROUP BY eventoccurrenceid
+       ) stats ON stats.eventoccurrenceid = eo.eventoccurrenceid
+       LEFT JOIN (
+         SELECT
+           et.eventtemplateid,
+           COUNT(s.*) AS template_survey_count,
+           ROUND(AVG(s.surveysatisfactionscore)::numeric, 2) AS template_avg_satisfaction,
+           ROUND(AVG(s.surveyoverallscore)::numeric, 2) AS template_avg_overall
+         FROM eventtemplate et
+         LEFT JOIN eventoccurrence eo2 ON eo2.eventtemplateid = et.eventtemplateid
+         LEFT JOIN survey s ON s.eventoccurrenceid = eo2.eventoccurrenceid
+         GROUP BY et.eventtemplateid
+       ) tpl_stats ON tpl_stats.eventtemplateid = eo.eventtemplateid
        WHERE eo.eventdatetimeend < NOW()
        ORDER BY eo.eventdatetimestart DESC
        LIMIT $1 OFFSET $2`,
