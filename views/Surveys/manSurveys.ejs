@@ -1,9 +1,31 @@
 <section class="main-content">
+  <% const pag = pagination || { page:1, pageSize:(surveys || []).length || 50, total:(pagination && pagination.total) || (surveys ? surveys.length : 0), totalPages:1, hasPrev:false, hasNext:false }; %>
   <div class="card" style="padding: 24px; border-radius: 18px;">
     <h2 style="margin:0 0 8px 0; font-family: var(--font-serif);">Submitted Surveys</h2>
     <p style="margin:0 0 16px 0; color:var(--charcoal); opacity:0.8;">
       Hover items to see actions. Click through to edit or delete.
     </p>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
+      <div style="color:#4b5563;">Showing <%= Math.min((pag.page - 1) * pag.pageSize + 1, pag.total || 0) %>–<%= Math.min(pag.page * pag.pageSize, pag.total || 0) %> of <%= pag.total || 0 %></div>
+      <form method="GET" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <input type="hidden" name="page" value="<%= pag.page %>">
+        <label style="display:flex; align-items:center; gap:6px;">
+          <span style="color:#4b5563;">Per page</span>
+          <select name="pageSize" onchange="this.form.page.value=1; this.form.submit();" style="padding:8px 10px; border-radius:10px; border:1px solid #d1d5db;">
+            <% (pageSizeOptions || [25,50,75,100]).forEach(size => { %>
+              <option value="<%= size %>" <%= size === pag.pageSize ? 'selected' : '' %>><%= size %></option>
+            <% }) %>
+          </select>
+        </label>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.page > 1 ? '' : 'disabled' %> onclick="this.form.page.value=1;"><< Start</button>
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasPrev ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.max(1, pag.page - 1) %>;">&lt; Back</button>
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasNext ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.min(pag.totalPages, pag.page + 1) %>;">Next &gt;</button>
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.page < pag.totalPages ? '' : 'disabled' %> onclick="this.form.page.value=<%= pag.totalPages %>;">End >></button>
+        </div>
+      </form>
+    </div>
 
     <!-- Filters -->
     <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
@@ -69,6 +91,26 @@
           </div>
         <% }) %>
       </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-top:16px;">
+        <div style="color:#4b5563;">Showing <%= Math.min((pag.page - 1) * pag.pageSize + 1, pag.total || 0) %>–<%= Math.min(pag.page * pag.pageSize, pag.total || 0) %> of <%= pag.total || 0 %></div>
+        <form method="GET" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <input type="hidden" name="page" value="<%= pag.page %>">
+          <label style="display:flex; align-items:center; gap:6px;">
+            <span style="color:#4b5563;">Per page</span>
+            <select name="pageSize" onchange="this.form.page.value=1; this.form.submit();" style="padding:8px 10px; border-radius:10px; border:1px solid #d1d5db;">
+              <% (pageSizeOptions || [25,50,75,100]).forEach(size => { %>
+                <option value="<%= size %>" <%= size === pag.pageSize ? 'selected' : '' %>><%= size %></option>
+              <% }) %>
+            </select>
+          </label>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.page > 1 ? '' : 'disabled' %> onclick="this.form.page.value=1;"><< Start</button>
+            <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasPrev ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.max(1, pag.page - 1) %>;">&lt; Back</button>
+            <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasNext ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.min(pag.totalPages, pag.page + 1) %>;">Next &gt;</button>
+            <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.page < pag.totalPages ? '' : 'disabled' %> onclick="this.form.page.value=<%= pag.totalPages %>;">End >></button>
+          </div>
+        </form>
+      </div>
     <% } else { %>
       <p style="margin:0; color:var(--charcoal); opacity:0.7;">No surveys submitted yet.</p>
     <% } %>
@@ -102,5 +144,18 @@
 
     searchInput?.addEventListener('input', applyFilters);
     scoreFilter?.addEventListener('change', applyFilters);
+  })();
+
+  (function(){
+    const btn = document.createElement('button');
+    btn.id = 'jump-to-top-surveys';
+    btn.type = 'button';
+    btn.textContent = 'Jump to Top';
+    btn.style.cssText = 'position:fixed; right:20px; bottom:20px; padding:10px 14px; border-radius:10px; border:none; background:#2e2f2e; color:#fff; cursor:pointer; display:none; box-shadow:0 6px 18px rgba(0,0,0,0.18); z-index:999;';
+    btn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: "smooth" }));
+    document.body.appendChild(btn);
+    window.addEventListener('scroll', () => {
+      btn.style.display = window.scrollY > 240 ? 'block' : 'none';
+    });
   })();
 </script>
