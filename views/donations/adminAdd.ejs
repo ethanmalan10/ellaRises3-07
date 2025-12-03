@@ -1,0 +1,30 @@
+<section class="main-content" style="max-width: 720px; margin: 0 auto;">
+  <div class="card" style="padding: 24px; border-radius: 14px;">
+    <h2 style="margin:0 0 10px 0; font-family: var(--font-serif);">Add Donation</h2>
+    <% if (error) { %>
+      <div style="background:#ffe1e1; border:1px solid #dd9a9a; color:#7a2e2e; padding:10px 12px; border-radius:10px; margin-bottom:12px;"><%= error %></div>
+    <% } %>
+    <form method="POST" action="/admin/donations/new" style="display:grid; gap:12px;">
+      <div>
+        <label for="donorname" style="font-weight:600; display:block; margin-bottom:.35rem;">Donor Name</label>
+        <input type="text" id="donorname" name="donorname" value="<%= formValues?.donorname || '' %>" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ddd;">
+      </div>
+      <div>
+        <label for="participantid" style="font-weight:600; display:block; margin-bottom:.35rem;">Participant ID (optional)</label>
+        <input type="number" id="participantid" name="participantid" value="<%= formValues?.participantid || '' %>" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ddd;">
+      </div>
+      <div>
+        <label for="amount" style="font-weight:600; display:block; margin-bottom:.35rem;">Amount (USD)</label>
+        <input type="number" step="0.01" id="amount" name="amount" required value="<%= formValues?.amount || '' %>" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ddd;">
+      </div>
+      <div>
+        <label for="donationdate" style="font-weight:600; display:block; margin-bottom:.35rem;">Date (optional)</label>
+        <input type="date" id="donationdate" name="donationdate" value="<%= formValues?.donationdate || '' %>" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ddd;">
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button type="submit" class="btn-login-home" style="padding:12px 16px; border-radius:10px;">Save</button>
+        <a href="/admin/donations" class="btn-login-home" style="padding:12px 16px; border-radius:10px; background:#f0f0f0; color:var(--charcoal);">Cancel</a>
+      </div>
+    </form>
+  </div>
+</section>

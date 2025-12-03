@@ -1,0 +1,55 @@
+<section class="main-content">
+  <div class="card" style="padding: 20px; border-radius: 14px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+      <div>
+        <h2 style="margin:0 0 6px 0; font-family: var(--font-serif);">Recent Donations</h2>
+        <p style="margin:0; color:var(--charcoal); opacity:0.8;">Manage and review donations</p>
+      </div>
+      <a href="/admin/donations/new" class="btn-login-home" style="white-space:nowrap;">+ Add Donation</a>
+    </div>
+
+    <div style="margin-top:14px; display:flex; gap:12px; flex-wrap:wrap;">
+      <input id="donation-search" type="search" placeholder="Search by donor or participant..." style="flex:1 1 240px; padding:10px 12px; border-radius:10px; border:1px solid #ddd;">
+    </div>
+
+    <% if (donations && donations.length) { %>
+      <div id="donation-list" style="margin-top:16px; display:grid; gap:12px;">
+        <% donations.forEach(d => { %>
+          <div class="donation-card" data-search="<%= ((d.donorname || '') + ' ' + (d.participantname || '')).toLowerCase() %>" style="border:1px solid #eee; border-radius:10px; padding:12px 14px; background:#fff;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+              <div>
+                <p style="margin:0; font-weight:700; color:var(--charcoal);">
+                  <%= d.displayname || 'Anonymous' %>
+                </p>
+                <p style="margin:0; color:var(--charcoal); opacity:0.7;">
+                  Amount: $<%= Number(d.amount || 0).toFixed(2) %> · Date: <%= d.date ? new Date(d.date).toLocaleDateString() : 'N/A' %>
+                </p>
+              </div>
+              <div style="display:flex; gap:8px;">
+                <a class="btn-login-home" style="padding:8px 10px; border-radius:8px;" href="/admin/donations/<%= d.id %>/edit">Edit</a>
+                <a class="btn-login-home" style="padding:8px 10px; border-radius:8px; background:#ffe1e1; color:#7a2e2e;" href="/admin/donations/<%= d.id %>/delete">Delete</a>
+              </div>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <p style="margin-top:16px; color:var(--charcoal); opacity:0.7;">No donations yet.</p>
+    <% } %>
+  </div>
+</section>
+
+<script>
+  (() => {
+    const input = document.getElementById('donation-search');
+    const cards = Array.from(document.querySelectorAll('.donation-card'));
+    function filter() {
+      const term = (input.value || '').toLowerCase();
+      cards.forEach(c => {
+        const hay = c.dataset.search || '';
+        c.style.display = hay.includes(term) ? 'block' : 'none';
+      });
+    }
+    input?.addEventListener('input', filter);
+  })();
+</script>

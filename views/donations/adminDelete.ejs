@@ -1,0 +1,12 @@
+<section class="main-content" style="max-width: 640px; margin: 0 auto;">
+  <div class="card" style="padding: 24px; border-radius: 14px;">
+    <h2 style="margin:0 0 10px 0; font-family: var(--font-serif); color:#a33;">Delete Donation</h2>
+    <p style="margin:0 0 16px 0; color:var(--charcoal); opacity:0.8;">
+      Are you sure you want to delete the donation of $<%= Number(donation.amount || 0).toFixed(2) %> from <%= donation.participantname || ('Participant #' + donation.participantid) %>?
+    </p>
+    <form method="POST" action="/admin/donations/<%= donation.id %>/delete" style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button type="submit" class="btn-login-home" style="padding:12px 16px; border-radius:10px; background:#ffe1e1; color:#7a2e2e;">Yes, delete</button>
+      <a href="/admin/donations" class="btn-login-home" style="padding:12px 16px; border-radius:10px; background:#f0f0f0; color:var(--charcoal);">Cancel</a>
+    </form>
+  </div>
+</section>
