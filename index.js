@@ -784,10 +784,37 @@ app.post('/register', async (req, res) => {
       });
     }
 
+    if (!password) {
+      return res.render(path.join('login', 'register'), {
+        title: 'Create Account',
+        error: 'Password is required.',
+        formData: req.body,
+      });
+    }
+
     if (password !== confirmPassword) {
       return res.render(path.join('login', 'register'), {
         title: 'Create Account',
         error: 'Passwords do not match.',
+        formData: req.body,
+      });
+    }
+
+    const requiredFields = [
+      { value: normFirst, msg: 'First name is required.' },
+      { value: normLast, msg: 'Last name is required.' },
+      { value: dob, msg: 'Date of birth is required.' },
+      { value: normSchoolJob, msg: 'School/Job is required.' },
+      { value: normPhone, msg: 'Phone number is required.' },
+      { value: normCity, msg: 'City is required.' },
+      { value: state, msg: 'State is required.' },
+      { value: normZip, msg: 'Zipcode is required.' },
+    ];
+    const missing = requiredFields.find(f => !f.value);
+    if (missing) {
+      return res.render(path.join('login', 'register'), {
+        title: 'Create Account',
+        error: missing.msg,
         formData: req.body,
       });
     }
@@ -858,9 +885,12 @@ app.post('/register', async (req, res) => {
 
     let msg = 'Could not create account.';
     if (err.code === '23505') {
-      msg = err.constraint && err.constraint.includes('participant')
-        ? 'Account could not be created (duplicate participant id). Please contact support to reseed IDs.'
-        : 'Email already exists.';
+      const c = err.constraint || '';
+      if (c.includes('participantemail') || c.includes('users_username') || c.includes('users_pkey')) {
+        msg = 'Email already exists.';
+      } else if (c.includes('participant')) {
+        msg = 'Account could not be created (duplicate participant id). Please contact support to reseed IDs.';
+      }
     }
     return res.render(path.join('login', 'register'), {
       title: 'Create Account',

@@ -27,7 +27,7 @@
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:12px; margin-bottom:1rem;">
           <div>
             <label style="font-weight:600; display:block; margin-bottom:.35rem;">Phone</label>
-            <input name="participantphone" type="text" value="<%= participant.participantphone || '' %>" style="width:100%; padding:12px; border-radius:10px;" oninput="formatPhone(this)" onblur="formatPhone(this)">
+            <input name="participantphone" type="text" value="<%= participant.participantphone || '' %>" style="width:100%; padding:12px; border-radius:10px;" inputmode="tel" pattern="\\d*" onkeypress="return allowDigits(event)" oninput="digitsOnly(this)" onblur="digitsOnly(this)">
           </div>
           <div>
             <label style="font-weight:600; display:block; margin-bottom:.35rem;">Date of Birth</label>
@@ -88,17 +88,15 @@
     if (!s) return '';
     return s[0].toUpperCase() + s.slice(1).toLowerCase();
   }
-  function formatPhone(el) {
-    if (!el) return;
-    const digits = (el.value || '').replace(/\D/g, '').slice(0,10);
-    const parts = [];
-    if (digits.length > 0) parts.push(digits.slice(0,3));
-    if (digits.length > 3) parts.push(digits.slice(3,6));
-    if (digits.length > 6) parts.push(digits.slice(6,10));
-    el.value = parts.filter(Boolean).join('-');
-  }
   function digitsOnly(el) {
     if (!el) return;
-    el.value = (el.value || '').replace(/\D/g, '');
+    el.value = (el.value || '').replace(/\\D/g, '');
+  }
+  function allowDigits(e) {
+    const k = e.key;
+    if (k === 'Backspace' || k === 'Delete' || k === 'Tab' || k === 'ArrowLeft' || k === 'ArrowRight') return true;
+    if (/\\d/.test(k)) return true;
+    e.preventDefault();
+    return false;
   }
 </script>
