@@ -699,22 +699,37 @@ app.get('/donations', (req, res) => {
 
 // Handle donation submit -> redirect home with a thank-you toast
 app.post('/donations', async (req, res) => {
-  const { fullName, donationAmount } = req.body || {};
+  const { fullName, donationAmount, email } = req.body || {};
   const donor = (fullName || '').trim();
+  const donorEmail = (email || '').trim().toLowerCase();
   const amount = Number(donationAmount);
 
-  if (!donor || !donationAmount || Number.isNaN(amount)) {
+  if (!donor || !donorEmail || !donationAmount || Number.isNaN(amount)) {
     return res.redirect('/donations?err=invalid');
   }
 
   try {
+    // Ensure we have (or create) a participant to satisfy the FK on donation.participantid
+    const [firstName, ...restName] = donor.split(' ');
+    const lastName = restName.join(' ').trim() || null;
+    const { rows: participantRows } = await pool.query(
+      `INSERT INTO participant (participantemail, participantfirstname, participantlastname, participantrole)
+       VALUES ($1, $2, $3, 'Donor')
+       ON CONFLICT (participantemail)
+       DO UPDATE SET participantfirstname = EXCLUDED.participantfirstname,
+                     participantlastname = EXCLUDED.participantlastname
+       RETURNING participantid`,
+      [donorEmail, firstName || donor, lastName]
+    );
+    const participantId = participantRows[0]?.participantid;
+
     let nextId = await getNextDonationId();
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         await pool.query(
           `INSERT INTO donation (donationid, participantid, donationamount, donationdate, donorname, donationno)
            VALUES ($1, $2, $3, CURRENT_DATE, $4, $5)`,
-          [nextId, null, amount, donor, 1]
+          [nextId, participantId, amount, donor, 1]
         );
         break;
       } catch (err) {
