@@ -844,7 +844,7 @@ app.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
     const q = `
-      SELECT participantid, username, password, level
+      SELECT userid, participantid, username, password, level
       FROM users
       WHERE LOWER(username) = LOWER($1)
       LIMIT 1
@@ -882,7 +882,7 @@ app.post('/login', async (req, res) => {
     }
 
     req.session.user = {
-      id: user.participantid,
+      id: user.userid,
       username: user.username,
       role: mapRole(user.level),
       level: user.level,
