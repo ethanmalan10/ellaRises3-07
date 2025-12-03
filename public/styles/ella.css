@@ -108,6 +108,19 @@ it stays on your screen */
 }
 .logo-img:hover{ transform:scale(1.05); }
 
+.brand-mark{
+  width:200px;
+  height:200px;
+  max-width:60vw;
+  max-height:60vw;
+  display:block;
+  object-fit:cover;
+  border-radius:50%;
+  clip-path:circle(50%); /* hard-cut the square into a circle */
+  mix-blend-mode:multiply;
+  filter:drop-shadow(0 6px 16px rgba(0,0,0,.12));
+}
+
 .navbar-nav{
   display:flex;
   gap:15px;
