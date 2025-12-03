@@ -1,5 +1,6 @@
 <main class="container main-content" style="max-width:1100px; margin-top:2.5rem;">
   <% function fmtDate(d){ return d ? new Date(d).toLocaleString('en-US', { dateStyle:'medium', timeStyle:'short' }) : ''; } %>
+  <% const pag = pagination || { page:1, pageSize:(events || []).length || 50, total:(pagination && pagination.total) || (events ? events.length : 0), totalPages:1, hasPrev:false, hasNext:false }; %>
 
   <header style="display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:1.25rem; flex-wrap:wrap;">
     <div>
@@ -87,6 +88,24 @@
           </div>
         </div>
       <% }) %>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px;">
+      <div style="color:#4b5563;">Showing <%= Math.min((pag.page - 1) * pag.pageSize + 1, pag.total || 0) %>–<%= Math.min(pag.page * pag.pageSize, pag.total || 0) %> of <%= pag.total || 0 %></div>
+      <form method="GET" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <input type="hidden" name="page" value="<%= pag.page %>">
+        <label style="display:flex; align-items:center; gap:6px;">
+          <span style="color:#4b5563;">Per page</span>
+          <select name="pageSize" onchange="this.form.page.value=1; this.form.submit();" style="padding:8px 10px; border-radius:10px; border:1px solid #d1d5db;">
+            <% (pageSizeOptions || [25,50,75,100]).forEach(size => { %>
+              <option value="<%= size %>" <%= size === pag.pageSize ? 'selected' : '' %>><%= size %></option>
+            <% }) %>
+          </select>
+        </label>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasPrev ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.max(1, pag.page - 1) %>;">Back</button>
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasNext ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.min(pag.totalPages, pag.page + 1) %>;">Next</button>
+        </div>
+      </form>
     </div>
   <% } else { %>
     <p style="color:#6b7280;">No past events found.</p>

@@ -1,4 +1,4 @@
-<main class="container main-content" style="max-width:760px; margin-top:2.5rem;">
+<main class="container main-content" style="max-width:920px; margin-top:2.5rem;">
   <div class="card" style="padding:32px; border-radius:14px;">
     <h2 style="margin:0 0 1rem 0; font-family:var(--font-serif); color:var(--charcoal);">Add Participant</h2>
     <p style="margin:0 0 1rem 0; color:#4b5563;">Create a participant and optionally a linked user.</p>
@@ -92,7 +92,7 @@
         </div>
       </div>
 
-      <div style="margin-bottom:1rem; padding:12px; border:1px solid #e5e7eb; border-radius:10px;">
+      <div style="margin-bottom:1rem; padding:14px; border:1px solid #e5e7eb; border-radius:10px;">
         <label style="font-weight:600; display:block; margin-bottom:.35rem;">Create User Account?</label>
         <label style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
           <input type="checkbox" name="createUser" value="true"> Yes, create login
@@ -106,11 +106,20 @@
             <label style="font-weight:600; display:block; margin-bottom:.35rem;">Password</label>
             <input name="password" type="text" value="" style="width:100%; padding:12px; border-radius:10px;">
           </div>
+          <div>
+            <label style="font-weight:600; display:block; margin-bottom:.35rem;">Role</label>
+            <% const levelVal = ((participant.userLevel || participant.level || 'u').toString().toLowerCase()); %>
+            <select name="userLevel" style="width:100%; padding:12px; border-radius:10px;">
+              <option value="u" <%= levelVal === 'u' ? 'selected' : '' %>>Common User</option>
+              <option value="m" <%= levelVal === 'm' ? 'selected' : '' %>>Manager</option>
+            </select>
+          </div>
         </div>
       </div>
 
       <div style="display:flex; gap:12px; align-items:center; margin-top:1.2rem;">
         <button type="submit" class="btn-gradient" style="padding:12px 18px; border-radius:12px;">Save</button>
+        <button type="button" class="btn-cream" style="padding:10px 16px; border-radius:10px;" onclick="window.history.back();">Back</button>
         <a href="/participants" class="btn-cream" style="padding:10px 16px; border-radius:10px; text-decoration:none;">Cancel</a>
       </div>
     </form>

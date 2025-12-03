@@ -467,7 +467,8 @@ async function listParticipantsWithUsers() {
             p.participantdob,
             p.participantcity,
             u.username,
-            u.password
+            u.password,
+            u.level
      FROM participant p
      LEFT JOIN users u ON u.participantid = p.participantid
      ORDER BY p.participantlastname, p.participantfirstname`
@@ -498,7 +499,8 @@ async function getParticipantDetail(id) {
   const participantRes = await pool.query(
     `SELECT p.*,
             u.username,
-            u.password
+            u.password,
+            u.level
      FROM participant p
      LEFT JOIN users u ON u.participantid = p.participantid
      WHERE p.participantid = $1
@@ -563,6 +565,48 @@ function mapRole(level) {
   if (v === 'a' || v === 'admin') return 'admin';
   if (v === 'm' || v === 'manager') return 'manager';
   return 'user';
+}
+
+function normalizeUserLevel(input) {
+  const v = (input || '').toString().trim().toLowerCase();
+  if (v === 'm' || v === 'manager') return 'm';
+  if (v === 'a' || v === 'admin') return 'a';
+  return 'u';
+}
+
+const PAGE_SIZE_OPTIONS = [25, 50, 75, 100];
+
+function resolvePagination(req, key) {
+  const sessionSizes = req.session.pageSizes || {};
+  let pageSize = Number(sessionSizes[key]) || 50;
+  const requestedSize = Number(req.query.pageSize);
+  if (PAGE_SIZE_OPTIONS.includes(requestedSize)) {
+    pageSize = requestedSize;
+    req.session.pageSizes = { ...sessionSizes, [key]: pageSize };
+  } else {
+    req.session.pageSizes = sessionSizes;
+  }
+
+  let page = Number(req.query.page);
+  if (Number.isNaN(page) || page < 1) page = 1;
+
+  return { page, pageSize };
+}
+
+function buildPagination(total, page, pageSize) {
+  const safeTotal = Number(total) || 0;
+  const totalPages = safeTotal > 0 ? Math.ceil(safeTotal / pageSize) : 1;
+  const currentPage = Math.min(Math.max(page, 1), totalPages);
+  const offset = (currentPage - 1) * pageSize;
+  return {
+    total: safeTotal,
+    totalPages,
+    page: currentPage,
+    pageSize,
+    offset,
+    hasPrev: currentPage > 1,
+    hasNext: currentPage < totalPages,
+  };
 }
 
 function isManagerUser(user) {
@@ -1442,41 +1486,50 @@ app.post('/events/:id/delete', requireManager, async (req, res) => {
 });
 
 // Manager: past events with filters (lazy load)
-app.get('/events/past', requireManager, async (_req, res) => {
-  const baseQuery = `
-    SELECT
-      eo.eventoccurrenceid,
-      eo.eventtemplateid,
-      eo.eventdatetimestart,
-      eo.eventdatetimeend,
-      eo.eventlocation,
-      eo.eventcapacity,
-      eo.eventregistrationdeadline,
-      et.eventname,
-      et.eventdescription,
-      et.eventtypeid,
-      et.eventrecurrencepattern,
-      et.eventdefaultcapacity,
-      COALESCE(regs.count, 0) AS registrations_count,
-      etype.eventtypename
-    FROM eventoccurrence eo
-    JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
-    LEFT JOIN eventtype etype ON et.eventtypeid = etype.eventtypeid
-    LEFT JOIN (
-      SELECT eventoccurrenceid, COUNT(*) AS count
-      FROM registration
-      GROUP BY eventoccurrenceid
-    ) regs ON regs.eventoccurrenceid = eo.eventoccurrenceid
-    WHERE eo.eventdatetimeend < NOW()
-    ORDER BY eo.eventdatetimestart DESC
-    LIMIT 500;
-  `;
-
+app.get('/events/past', requireManager, async (req, res) => {
   try {
-    const eventsRes = await pool.query(baseQuery);
+    const { page, pageSize } = resolvePagination(req, 'pastEvents');
+    const countRes = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM eventoccurrence WHERE eventdatetimeend < NOW()`
+    );
+    const total = Number(countRes.rows[0]?.count || 0);
+    const pagination = buildPagination(total, page, pageSize);
+
+    const eventsRes = await pool.query(
+      `SELECT
+        eo.eventoccurrenceid,
+        eo.eventtemplateid,
+        eo.eventdatetimestart,
+        eo.eventdatetimeend,
+        eo.eventlocation,
+        eo.eventcapacity,
+        eo.eventregistrationdeadline,
+        et.eventname,
+        et.eventdescription,
+        et.eventtypeid,
+        et.eventrecurrencepattern,
+        et.eventdefaultcapacity,
+        COALESCE(regs.count, 0) AS registrations_count,
+        etype.eventtypename
+       FROM eventoccurrence eo
+       JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
+       LEFT JOIN eventtype etype ON et.eventtypeid = etype.eventtypeid
+       LEFT JOIN (
+         SELECT eventoccurrenceid, COUNT(*) AS count
+         FROM registration
+         GROUP BY eventoccurrenceid
+       ) regs ON regs.eventoccurrenceid = eo.eventoccurrenceid
+       WHERE eo.eventdatetimeend < NOW()
+       ORDER BY eo.eventdatetimestart DESC
+       LIMIT $1 OFFSET $2`,
+      [pagination.pageSize, pagination.offset]
+    );
+
     return res.render(path.join('events', 'events_past'), {
       title: 'Past Events',
       events: eventsRes.rows,
+      pagination,
+      pageSizeOptions: PAGE_SIZE_OPTIONS,
     });
   } catch (err) {
     console.error('Past events error:', err);
@@ -1867,12 +1920,34 @@ app.get('/events/:id/attendees', requireManager, async (req, res) => {
 ----------------------------- */
 
 // List participants
-app.get('/participants', requireManager, async (_req, res) => {
+app.get('/participants', requireManager, async (req, res) => {
   try {
-    const participants = await listParticipantsWithUsers();
+    const { page, pageSize } = resolvePagination(req, 'participants');
+    const countRes = await pool.query('SELECT COUNT(*)::int AS count FROM participant');
+    const total = Number(countRes.rows[0]?.count || 0);
+    const pagination = buildPagination(total, page, pageSize);
+
+    const participantsRes = await pool.query(
+      `SELECT p.participantid,
+              p.participantfirstname,
+              p.participantlastname,
+              p.participantdob,
+              p.participantcity,
+              u.username,
+              u.password,
+              u.level
+       FROM participant p
+       LEFT JOIN users u ON u.participantid = p.participantid
+       ORDER BY p.participantlastname, p.participantfirstname
+       LIMIT $1 OFFSET $2`,
+      [pagination.pageSize, pagination.offset]
+    );
+
     return res.render(path.join('allParticipants', 'index'), {
       title: 'All Participants',
-      participants,
+      participants: participantsRes.rows,
+      pagination,
+      pageSizeOptions: PAGE_SIZE_OPTIONS,
     });
   } catch (err) {
     console.error('Participants list error:', err);
@@ -1913,6 +1988,7 @@ app.post('/participants/new', requireManager, async (req, res) => {
     createUser,
     username,
     password,
+    userLevel,
   } = req.body;
   const milestoneIds = Array.isArray(req.body.milestones)
     ? req.body.milestones
@@ -1979,11 +2055,13 @@ app.post('/participants/new', requireManager, async (req, res) => {
       }
     }
 
+    const newUserLevel = normalizeUserLevel(userLevel);
+
     if (createUser && username && password) {
       await client.query(
         `INSERT INTO users (username, password, level, participantid)
          VALUES ($1, $2, $3, $4)`,
-        [username.trim(), password, 'u', participantId]
+        [username.trim(), password, newUserLevel, participantId]
       );
     }
 
@@ -2066,6 +2144,7 @@ app.post('/participants/:id/edit', requireManager, async (req, res) => {
     participantfieldofinterest,
     username,
     password,
+    userLevel,
   } = req.body;
   const milestoneIds = Array.isArray(req.body.milestones)
     ? req.body.milestones
@@ -2126,6 +2205,8 @@ app.post('/participants/:id/edit', requireManager, async (req, res) => {
       }
     }
 
+    const normalizedLevel = normalizeUserLevel(userLevel);
+
     if (username) {
       const userRes = await client.query(
         'SELECT userid FROM users WHERE participantid = $1',
@@ -2133,13 +2214,13 @@ app.post('/participants/:id/edit', requireManager, async (req, res) => {
       );
       if (userRes.rows.length > 0) {
         await client.query(
-          'UPDATE users SET username = $1, password = COALESCE($2,password) WHERE participantid = $3',
-          [username.trim(), password || null, id]
+          'UPDATE users SET username = $1, password = COALESCE($2,password), level = $3 WHERE participantid = $4',
+          [username.trim(), password || null, normalizedLevel, id]
         );
       } else if (password) {
         await client.query(
           'INSERT INTO users (username, password, level, participantid) VALUES ($1,$2,$3,$4)',
-          [username.trim(), password, 'u', id]
+          [username.trim(), password, normalizedLevel, id]
         );
       }
     }
@@ -2154,7 +2235,7 @@ app.post('/participants/:id/edit', requireManager, async (req, res) => {
     const catalog = await listMilestoneCatalog();
     return res.render(path.join('allParticipants', 'edit'), {
       title: 'Edit Participant',
-      participant: { participantid: id, participantfirstname, participantlastname, participantemail, participantdob, participantphone, participantcity, participantstate, participantzip, participantaffiliationtype, participantaffiliationname, participantfieldofinterest },
+      participant: { participantid: id, participantfirstname, participantlastname, participantemail, participantdob, participantphone, participantcity, participantstate, participantzip, participantaffiliationtype, participantaffiliationname, participantfieldofinterest, username, userLevel },
       milestones: [],
       catalog,
       milestoneIds,
@@ -2193,12 +2274,36 @@ app.post('/participants/:id/delete', requireManager, async (req, res) => {
 });
 
 // All Users (manager)
-app.get('/admin/users', requireManager, async (_req, res) => {
+app.get('/admin/users', requireManager, async (req, res) => {
   try {
-    const users = await listUsersWithParticipants();
+    const { page, pageSize } = resolvePagination(req, 'adminUsers');
+    const countRes = await pool.query('SELECT COUNT(*)::int AS count FROM users');
+    const total = Number(countRes.rows[0]?.count || 0);
+    const pagination = buildPagination(total, page, pageSize);
+
+    const usersRes = await pool.query(
+      `SELECT
+          u.userid,
+          u.username,
+          u.level,
+          u.participantid,
+          p.participantfirstname,
+          p.participantlastname,
+          p.participantemail,
+          p.participantcity,
+          p.participantstate
+       FROM users u
+       LEFT JOIN participant p ON p.participantid = u.participantid
+       ORDER BY LOWER(u.username)
+       LIMIT $1 OFFSET $2`,
+      [pagination.pageSize, pagination.offset]
+    );
+
     return res.render(path.join('allUsers', 'allUsers'), {
       title: 'All Users',
-      users,
+      users: usersRes.rows,
+      pagination,
+      pageSizeOptions: PAGE_SIZE_OPTIONS,
     });
   } catch (err) {
     console.error('All users load error:', err);
@@ -2386,10 +2491,39 @@ app.post('/admin/milestones/assign/:id/delete', requireManager, async (req, res)
 // Manager survey list
 app.get('/admin/surveys', requireManager, async (req, res) => {
   try {
-    const surveys = await getAllSurveys();
+    const { page, pageSize } = resolvePagination(req, 'adminSurveys');
+    const countRes = await pool.query('SELECT COUNT(*)::int AS count FROM survey');
+    const total = Number(countRes.rows[0]?.count || 0);
+    const pagination = buildPagination(total, page, pageSize);
+
+    const surveysRes = await pool.query(
+      `SELECT s.surveyid AS id,
+              s.participantid,
+              s.eventoccurrenceid,
+              s.surveysatisfactionscore AS satisfaction,
+              s.surveyusefulnessscore AS usefulness,
+              s.surveyinstructorscore AS instructor,
+              s.surveyrecommendationscore AS recommendation,
+              s.surveyoverallscore AS overall,
+              s.surveynpsbucket AS npsBucket,
+              s.surveycomments AS comments,
+              s.surveysubmissiondate AS submittedAt,
+              TRIM(BOTH ' ' FROM COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,'')) AS participantName,
+              et.eventname AS eventName
+       FROM survey s
+       LEFT JOIN participant p ON s.participantid = p.participantid
+       LEFT JOIN eventoccurrence eo ON eo.eventoccurrenceid = s.eventoccurrenceid
+       LEFT JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
+       ORDER BY s.surveysubmissiondate DESC
+       LIMIT $1 OFFSET $2`,
+      [pagination.pageSize, pagination.offset]
+    );
+
     res.render(path.join('Surveys', 'manSurveys'), {
       title: 'Manage Surveys',
-      surveys,
+      surveys: surveysRes.rows,
+      pagination,
+      pageSizeOptions: PAGE_SIZE_OPTIONS,
     });
   } catch (err) {
     console.error('Admin survey list error:', err);
