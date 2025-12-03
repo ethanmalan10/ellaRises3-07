@@ -16,22 +16,22 @@
   <section style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin-bottom:1.25rem;">
     <div style="background:#f7f3eb; border:1px solid #e7dfcf; border-radius:14px; padding:14px; box-shadow:0 8px 20px rgba(0,0,0,.04);">
       <p style="margin:0; color:#6b7280; font-weight:600; letter-spacing:.3px;">Participants</p>
-      <h2 style="margin:4px 0 0 0; color:var(--charcoal); font-size:2rem;">—</h2>
+      <h2 style="margin:4px 0 0 0; color:var(--charcoal); font-size:2rem;"><%= (typeof stats !== 'undefined' && stats && stats.participants != null) ? stats.participants : '—' %></h2>
       <p style="margin:4px 0 0 0; color:#6b7280; font-size:.9rem;">Active + newly registered</p>
     </div>
     <div style="background:#f7f3eb; border:1px solid #e7dfcf; border-radius:14px; padding:14px; box-shadow:0 8px 20px rgba(0,0,0,.04);">
       <p style="margin:0; color:#6b7280; font-weight:600; letter-spacing:.3px;">Events Hosted</p>
-      <h2 style="margin:4px 0 0 0; color:var(--charcoal); font-size:2rem;">—</h2>
+      <h2 style="margin:4px 0 0 0; color:var(--charcoal); font-size:2rem;"><%= (typeof stats !== 'undefined' && stats && stats.events != null) ? stats.events : '—' %></h2>
       <p style="margin:4px 0 0 0; color:#6b7280; font-size:.9rem;">Across all templates</p>
     </div>
     <div style="background:#f7f3eb; border:1px solid #e7dfcf; border-radius:14px; padding:14px; box-shadow:0 8px 20px rgba(0,0,0,.04);">
       <p style="margin:0; color:#6b7280; font-weight:600; letter-spacing:.3px;">Avg Satisfaction</p>
-      <h2 style="margin:4px 0 0 0; color:var(--charcoal); font-size:2rem;">—</h2>
+      <h2 style="margin:4px 0 0 0; color:var(--charcoal); font-size:2rem;"><%= (typeof stats !== 'undefined' && stats && stats.avgSatisfaction != null) ? stats.avgSatisfaction : '—' %></h2>
       <p style="margin:4px 0 0 0; color:#6b7280; font-size:.9rem;">Latest survey average</p>
     </div>
     <div style="background:#f7f3eb; border:1px solid #e7dfcf; border-radius:14px; padding:14px; box-shadow:0 8px 20px rgba(0,0,0,.04);">
       <p style="margin:0; color:#6b7280; font-weight:600; letter-spacing:.3px;">Milestones Achieved</p>
-      <h2 style="margin:4px 0 0 0; color:var(--charcoal); font-size:2rem;">—</h2>
+      <h2 style="margin:4px 0 0 0; color:var(--charcoal); font-size:2rem;"><%= (typeof stats !== 'undefined' && stats && stats.milestones != null) ? stats.milestones : '—' %></h2>
       <p style="margin:4px 0 0 0; color:#6b7280; font-size:.9rem;">Total completed</p>
     </div>
   </section>

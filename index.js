@@ -1889,14 +1889,43 @@ app.get('/events/stats', requireManager, async (_req, res) => {
   }
 });
 
-// Dashboard placeholder (Tableau embed)
-app.get('/dashboard', requireManager, (_req, res) => {
+// Dashboard with basic KPIs
+app.get('/dashboard', requireManager, async (_req, res) => {
   const embedUrl =
     'https://public.tableau.com/views/RegionalSampleWorkbook/College?:language=en-US&publish=yes&:showVizHome=no';
-  res.render(path.join('dashboard', 'dashboard'), {
-    title: 'Dashboard',
-    embedUrl,
-  });
+
+  try {
+    const [
+      participantCount,
+      eventCount,
+      milestoneCount,
+      satisfactionAvg,
+    ] = await Promise.all([
+      pool.query('SELECT COUNT(*)::int AS count FROM participant'),
+      pool.query('SELECT COUNT(*)::int AS count FROM eventoccurrence'),
+      pool.query('SELECT COUNT(*)::int AS count FROM milestone'),
+      pool.query('SELECT ROUND(AVG(surveyoverallscore)::numeric, 2) AS avg FROM survey'),
+    ]);
+
+    const stats = {
+      participants: participantCount.rows[0]?.count ?? 0,
+      events: eventCount.rows[0]?.count ?? 0,
+      milestones: milestoneCount.rows[0]?.count ?? 0,
+      avgSatisfaction:
+        satisfactionAvg.rows[0]?.avg !== null && satisfactionAvg.rows[0]?.avg !== undefined
+          ? Number(satisfactionAvg.rows[0].avg).toFixed(2)
+          : null,
+    };
+
+    res.render(path.join('dashboard', 'dashboard'), {
+      title: 'Dashboard',
+      embedUrl,
+      stats,
+    });
+  } catch (err) {
+    console.error('Dashboard load error:', err);
+    res.status(500).send('Could not load dashboard');
+  }
 });
 
 // Manager: create event template (form)
