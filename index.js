@@ -3061,6 +3061,26 @@ app.post('/admin/users/:id/edit', requireManager, async (req, res) => {
   }
 });
 
+// Delete user
+app.post('/admin/users/:id/delete', requireManager, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.redirect('/admin/users');
+
+  // Prevent a manager/admin from deleting their own account
+  const currentUserId = Number(req.session?.user?.id);
+  if (currentUserId && currentUserId === id) {
+    return res.redirect('/admin/users?err=cannot-delete-self');
+  }
+
+  try {
+    await pool.query('DELETE FROM users WHERE userid = $1', [id]);
+    return res.redirect('/admin/users?msg=user-deleted');
+  } catch (err) {
+    console.error('Delete user error:', err);
+    return res.redirect('/admin/users?err=user-delete');
+  }
+});
+
 // /admin/milestones -> catalog + assignment management
 app.get('/admin/milestones', requireManager, async (req, res) => {
   try {
