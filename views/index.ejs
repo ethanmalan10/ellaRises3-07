@@ -215,7 +215,7 @@
       }
     </style>
     <div class="milestone-marquee" aria-label="Recent milestones achieved">
-      <div class="milestone-track">
+      <div class="milestone-track" id="milestone-track">
         <% const milestonesFeed = (milestoneHighlights && milestoneHighlights.length) ? milestoneHighlights : []; %>
         <% const milestoneCards = milestonesFeed.map(m => ({
           type: 'milestone',
