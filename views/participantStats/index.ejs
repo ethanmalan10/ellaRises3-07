@@ -7,6 +7,9 @@
       <h1 style="margin:0; font-family:var(--font-serif); color:var(--charcoal);">Participant Statistics</h1>
       <p style="margin:.3rem 0 0 0; color:#4b5563;">View participant engagement with filters and search. Read-only.</p>
     </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <a href="/participants/stats/dashboard" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Visualize Participant Stats</a>
+    </div>
   </header>
 
   <% if (!participants || participants.length === 0) { %>
@@ -122,7 +125,6 @@
             <th scope="col" style="padding:8px; text-align:center;">Surveys</th>
             <th scope="col" style="padding:8px; text-align:center;">Milestones</th>
             <th scope="col" style="padding:8px;">Engagement</th>
-            <th scope="col" style="padding:8px;">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -148,9 +150,6 @@
               <td style="padding:8px; display:flex; align-items:center; gap:8px;">
                 <span aria-hidden="true" style="width:12px; height:12px; border-radius:50%; display:inline-block; background:<%= engColor %>;"></span>
                 <span><%= engLabel %></span>
-              </td>
-              <td style="padding:8px; display:flex; gap:6px; flex-wrap:wrap;">
-                <a href="/participants/<%= p.participantid %>?from=stats&page=<%= pag.page %>&pageSize=<%= pag.pageSize %>&sortBy=<%= filters && filters.sortBy ? filters.sortBy : 'name' %>&sortDir=<%= filters && filters.sortDir ? filters.sortDir : 'desc' %>&eventTemplateId=<%= filters && filters.eventTemplateId ? filters.eventTemplateId : '' %>&eventTypeId=<%= filters && filters.eventTypeId ? filters.eventTypeId : '' %>&milestoneCatalogId=<%= filters && filters.milestoneCatalogId ? filters.milestoneCatalogId : '' %>&engagement=<%= filters && filters.engagement ? filters.engagement : '' %>&q=<%= filters && filters.q ? encodeURIComponent(filters.q) : '' %>" class="btn-cream" style="padding:8px 12px; border-radius:8px; text-decoration:none;">View</a>
               </td>
             </tr>
           <% }) %>

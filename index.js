@@ -2627,6 +2627,70 @@ app.get('/participants/stats', requireManager, async (req, res) => {
   }
 });
 
+// Participant statistics dashboard (chart)
+app.get('/participants/stats/dashboard', requireManager, async (_req, res) => {
+  try {
+    const participantsRes = await pool.query(
+      `SELECT p.participantid,
+              p.participantfirstname,
+              p.participantlastname,
+              p.participantdob,
+              p.participantcity,
+              p.participantstate,
+              COALESCE(reg.events_attended, 0) AS events_attended,
+              COALESCE(ms.milestones_completed, 0) AS milestones_completed,
+              COALESCE(dn.totaldonations, 0) AS totaldonations,
+              evt.event_type_ids,
+              evt.event_type_names,
+              evt.last_event_date,
+              CASE
+                WHEN COALESCE(reg.events_attended,0) >= 4 THEN 'engaged'
+                WHEN COALESCE(reg.events_attended,0) >= 2 THEN 'returning'
+                WHEN COALESCE(reg.events_attended,0) >= 1 THEN 'new'
+                ELSE 'none'
+              END AS engagement_level
+       FROM participant p
+       LEFT JOIN (
+         SELECT r.participantid, COUNT(DISTINCT r.eventoccurrenceid) AS events_attended
+         FROM registration r
+         GROUP BY r.participantid
+       ) reg ON reg.participantid = p.participantid
+       LEFT JOIN (
+         SELECT m.participantid, COUNT(*) AS milestones_completed
+         FROM milestone m
+         GROUP BY m.participantid
+       ) ms ON ms.participantid = p.participantid
+       LEFT JOIN (
+         SELECT participantid, SUM(donationamount) AS totaldonations
+         FROM donation
+         GROUP BY participantid
+       ) dn ON dn.participantid = p.participantid
+       LEFT JOIN (
+         SELECT r.participantid,
+                ARRAY_AGG(DISTINCT ety.eventtypeid) AS event_type_ids,
+                ARRAY_AGG(DISTINCT ety.eventtypename) AS event_type_names,
+                MAX(eo.eventdatetimestart) AS last_event_date
+         FROM registration r
+         JOIN eventoccurrence eo ON eo.eventoccurrenceid = r.eventoccurrenceid
+         JOIN eventtemplate et ON et.eventtemplateid = eo.eventtemplateid
+         JOIN eventtype ety ON ety.eventtypeid = et.eventtypeid
+         GROUP BY r.participantid
+       ) evt ON evt.participantid = p.participantid`
+    );
+
+    const eventTypesRes = await pool.query('SELECT eventtypeid, eventtypename FROM eventtype ORDER BY eventtypename');
+
+    res.render(path.join('participantStats', 'dashboard'), {
+      title: 'Participant Statistics Dashboard',
+      participants: participantsRes.rows,
+      eventTypes: eventTypesRes.rows,
+    });
+  } catch (err) {
+    console.error('Participant stats dashboard error:', err);
+    return res.status(500).send('Could not load stats dashboard');
+  }
+});
+
 // Export participants (CSV) with current filters/sorting
 app.get('/participants/export', requireManager, async (req, res) => {
   try {

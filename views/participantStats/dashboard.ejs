@@ -1,0 +1,334 @@
+<main class="container main-content" style="max-width:1200px; margin-top:2.5rem;">
+  <header style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap; margin-bottom:1rem;">
+    <div>
+      <h1 style="margin:0; font-family:var(--font-serif); color:var(--charcoal);">Participant Statistics Dashboard</h1>
+      <p style="margin:.3rem 0 0 0; color:#4b5563; max-width:760px;">
+        Explore how event attendance correlates with milestone achievements. Filter by participant, age, engagement, and event type. Export the chart as PNG anytime.
+      </p>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <a href="/participants/stats" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Back to Statistics</a>
+    </div>
+  </header>
+
+  <section class="card" style="padding:14px; border-radius:14px; border:1px solid #e5e7eb; margin-bottom:12px;">
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px; row-gap:16px; align-items:end;">
+      <label style="display:flex; flex-direction:column; gap:6px; grid-column:1 / -1; margin-bottom:8px;">
+        <span style="color:#4b5563; font-size:.9rem;">Select participant</span>
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+          <input id="filter-participant-search" type="text" placeholder="Search participants..." style="padding:10px; border-radius:10px; border:1px solid #d1d5db; flex:1;">
+          <button type="button" id="participant-search-btn" class="btn-cream" style="padding:10px 12px; border-radius:10px;">Search</button>
+          <button type="button" id="participant-clear-btn" class="btn-outline" style="padding:10px 12px; border-radius:10px;">Clear</button>
+        </div>
+        <select id="filter-participant" style="padding:10px; border-radius:10px; border:1px solid #d1d5db;">
+          <option value="">All participants</option>
+        </select>
+      </label>
+      <label style="display:flex; flex-direction:column; gap:6px;">
+        <span style="color:#4b5563; font-size:.9rem;">Age min</span>
+        <input id="filter-age-min" type="number" min="0" placeholder="e.g. 12" style="padding:10px; border-radius:10px; border:1px solid #d1d5db;">
+      </label>
+      <label style="display:flex; flex-direction:column; gap:6px;">
+        <span style="color:#4b5563; font-size:.9rem;">Age max</span>
+        <input id="filter-age-max" type="number" min="0" placeholder="e.g. 25" style="padding:10px; border-radius:10px; border:1px solid #d1d5db;">
+      </label>
+      <label style="display:flex; flex-direction:column; gap:6px;">
+        <span style="color:#4b5563; font-size:.9rem;">Engagement</span>
+        <select id="filter-engagement" style="padding:10px; border-radius:10px; border:1px solid #d1d5db;">
+          <option value="">All</option>
+          <option value="new">New (1 event)</option>
+          <option value="returning">Returning (2-3 events)</option>
+          <option value="engaged">Engaged (4+ events)</option>
+          <option value="none">No events (0)</option>
+        </select>
+      </label>
+    </div>
+
+    <div style="margin-top:12px;">
+      <div style="color:#4b5563; font-size:.9rem; margin-bottom:6px;">Event types</div>
+      <div id="filter-eventtypes" style="display:flex; gap:10px; flex-wrap:wrap;">
+        <% const defaultCheckedNames = ['Arts','Leadership','STEM']; %>
+        <% (eventTypes || []).forEach(t => { %>
+          <label style="display:flex; align-items:center; gap:6px; background:#f3f4f6; padding:6px 10px; border-radius:10px; border:1px solid #e5e7eb;">
+            <input type="checkbox" value="<%= t.eventtypeid %>" <%= defaultCheckedNames.includes(t.eventtypename) ? 'checked' : '' %>> <span><%= t.eventtypename %></span>
+          </label>
+        <% }); %>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
+      <button id="apply-filters" class="btn-gradient" style="padding:10px 14px; border-radius:10px;">Apply Filters</button>
+      <button id="reset-filters" class="btn-cream" style="padding:10px 14px; border-radius:10px;">Reset</button>
+      <button id="export-png" class="btn-outline" style="padding:10px 14px; border-radius:10px;">Export PNG</button>
+    </div>
+  </section>
+
+  <section id="chart-container" class="card" style="padding:14px; border-radius:14px; border:1px solid #e5e7eb;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:8px;">
+      <div>
+        <h3 style="margin:0; color:var(--charcoal);">Events vs Milestones</h3>
+        <p style="margin:2px 0 0 0; color:#4b5563;">Each point is a participant. Colors reflect engagement.</p>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <span style="display:inline-flex; align-items:center; gap:6px;"><span style="width:12px; height:12px; background:#f472b6; border-radius:50%; display:inline-block;"></span> New</span>
+        <span style="display:inline-flex; align-items:center; gap:6px;"><span style="width:12px; height:12px; background:#eab308; border-radius:50%; display:inline-block;"></span> Returning</span>
+        <span style="display:inline-flex; align-items:center; gap:6px;"><span style="width:12px; height:12px; background:#4caf50; border-radius:50%; display:inline-block;"></span> Engaged</span>
+        <span style="display:inline-flex; align-items:center; gap:6px;"><span style="width:12px; height:12px; background:#9ca3af; border-radius:50%; display:inline-block;"></span> No events</span>
+      </div>
+    </div>
+    <canvas id="chart" width="1100" height="520" style="width:100%; max-width:1100px; border:1px solid #e5e7eb; border-radius:10px; background:#fff;"></canvas>
+    <div id="chart-meta" style="margin-top:8px; color:#4b5563; font-size:.95rem;"></div>
+    <div id="chart-tooltip" style="display:none; position:absolute; background:#111827; color:#fff; padding:8px 10px; border-radius:8px; font-size:.9rem; pointer-events:none; z-index:50;"></div>
+  </section>
+</main>
+
+<script>
+  (() => {
+    const data = <%- JSON.stringify(participants || []) %>;
+    const eventTypes = <%- JSON.stringify(eventTypes || []) %>;
+    const chart = document.getElementById('chart');
+    const ctx = chart.getContext('2d');
+    const tooltip = document.getElementById('chart-tooltip');
+    const meta = document.getElementById('chart-meta');
+
+    const participantSelect = document.getElementById('filter-participant');
+    const participantSearch = document.getElementById('filter-participant-search');
+    const ageMinEl = document.getElementById('filter-age-min');
+    const ageMaxEl = document.getElementById('filter-age-max');
+    const engEl = document.getElementById('filter-engagement');
+    const evtWrap = document.getElementById('filter-eventtypes');
+
+    const getSelectedEventTypes = () => {
+      return Array.from(evtWrap.querySelectorAll('input[type=\"checkbox\"]'))
+        .filter(cb => cb.checked)
+        .map(cb => Number(cb.value));
+    };
+
+    const parseAge = (dob) => {
+      if (!dob) return null;
+      const d = new Date(dob);
+      if (Number.isNaN(d)) return null;
+      const now = new Date();
+      let age = now.getFullYear() - d.getFullYear();
+      const m = now.getMonth() - d.getMonth();
+      if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
+      return age;
+    };
+
+    const engColor = (eng) => {
+      if (eng === 'engaged') return '#4caf50';
+      if (eng === 'returning') return '#eab308';
+      if (eng === 'new') return '#f472b6';
+      return '#9ca3af';
+    };
+
+    const renderParticipantOptions = (q = '') => {
+      const text = q.trim().toLowerCase();
+      const opts = [{ value: '', label: 'All participants' }];
+      data.forEach(p => {
+        const name = [p.participantfirstname || '', p.participantlastname || ''].join(' ').trim();
+        const age = parseAge(p.participantdob);
+        const label = `ID ${p.participantid} - ${name || 'Participant'}${age != null ? ` (${age})` : ''}`;
+        const searchBlob = `${label} ${p.participantcity || ''} ${p.participantstate || ''}`.toLowerCase();
+        if (!text || searchBlob.includes(text)) {
+          opts.push({ value: p.participantid, label });
+        }
+      });
+      const current = participantSelect.value;
+      participantSelect.innerHTML = '';
+      opts.forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o.value;
+        opt.textContent = o.label;
+        if (String(o.value) === String(current)) opt.selected = true;
+        participantSelect.appendChild(opt);
+      });
+    };
+
+    let filtered = [...data];
+
+    const applyFilters = () => {
+      const participantId = participantSelect.value ? Number(participantSelect.value) : null;
+      const ageMin = ageMinEl.value ? Number(ageMinEl.value) : null;
+      const ageMax = ageMaxEl.value ? Number(ageMaxEl.value) : null;
+      const eng = engEl.value;
+      const evt = getSelectedEventTypes();
+
+      filtered = data.filter(p => {
+        if (participantId && Number(p.participantid) !== participantId) return false;
+
+        const age = parseAge(p.participantdob);
+        if (ageMin !== null && (age === null || age < ageMin)) return false;
+        if (ageMax !== null && (age === null || age > ageMax)) return false;
+
+        if (eng && (p.engagement_level || '') !== eng) return false;
+
+        if (evt.length) {
+          const ids = (p.event_type_ids || []).map(Number);
+          const overlap = ids.some(id => evt.includes(id));
+          if (!overlap) return false;
+        }
+        return true;
+      });
+
+      flashButton(document.getElementById('apply-filters'), 'Applied');
+      draw();
+    };
+
+    const resetFilters = () => {
+      participantSelect.value = '';
+      ageMinEl.value = '';
+      ageMaxEl.value = '';
+      engEl.value = '';
+      evtWrap.querySelectorAll('input[type=\"checkbox\"]').forEach(cb => cb.checked = false);
+      filtered = [...data];
+      flashButton(document.getElementById('reset-filters'), 'Reset');
+      draw();
+    };
+
+    const drawAxes = (maxX, maxY, margin) => {
+      ctx.clearRect(0,0,chart.width,chart.height);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0,0,chart.width,chart.height);
+      ctx.strokeStyle = '#d1d5db';
+      ctx.lineWidth = 1;
+      // axes
+      ctx.beginPath();
+      ctx.moveTo(margin.left, margin.top);
+      ctx.lineTo(margin.left, chart.height - margin.bottom);
+      ctx.lineTo(chart.width - margin.right, chart.height - margin.bottom);
+      ctx.stroke();
+
+      // ticks
+      const ticks = 5;
+      ctx.fillStyle = '#6b7280';
+      ctx.font = '12px sans-serif';
+      for (let i=0; i<=ticks; i++) {
+        const xVal = Math.round((maxX / ticks) * i);
+        const x = margin.left + (chart.width - margin.left - margin.right) * (i / ticks);
+        ctx.beginPath();
+        ctx.moveTo(x, chart.height - margin.bottom);
+        ctx.lineTo(x, chart.height - margin.bottom + 5);
+        ctx.stroke();
+        ctx.fillText(xVal, x - 6, chart.height - margin.bottom + 18);
+      }
+      for (let i=0; i<=ticks; i++) {
+        const yVal = Math.round((maxY / ticks) * i);
+        const y = chart.height - margin.bottom - (chart.height - margin.top - margin.bottom) * (i / ticks);
+        ctx.beginPath();
+        ctx.moveTo(margin.left - 5, y);
+        ctx.lineTo(margin.left, y);
+        ctx.stroke();
+        ctx.fillText(yVal, margin.left - 30, y + 4);
+      }
+
+      // labels
+      ctx.fillStyle = '#111827';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('Events attended', (chart.width - margin.left - margin.right)/2 + margin.left - 40, chart.height - 10);
+      ctx.save();
+      ctx.translate(14, (chart.height - margin.bottom - margin.top)/2 + margin.top);
+      ctx.rotate(-Math.PI/2);
+      ctx.fillText('Milestones achieved', 0, 0);
+      ctx.restore();
+    };
+
+    const draw = () => {
+      const maxX = Math.max(1, ...filtered.map(p => p.events_attended || 0), 1);
+      const maxY = Math.max(1, ...filtered.map(p => p.milestones_completed || 0), 1);
+      const margin = { left: 70, right: 20, top: 30, bottom: 50 };
+      drawAxes(maxX, maxY, margin);
+
+      const scaleX = (val) => margin.left + (chart.width - margin.left - margin.right) * (val / Math.max(maxX, 1));
+      const scaleY = (val) => chart.height - margin.bottom - (chart.height - margin.top - margin.bottom) * (val / Math.max(maxY, 1));
+
+      filtered.forEach(p => {
+        const x = scaleX(p.events_attended || 0);
+        const y = scaleY(p.milestones_completed || 0);
+        ctx.beginPath();
+        ctx.arc(x, y, 6, 0, Math.PI * 2);
+        ctx.fillStyle = engColor(p.engagement_level);
+        ctx.fill();
+      });
+
+      // summary
+      const n = filtered.length;
+      const avgEvents = n ? (filtered.reduce((s,p)=>s+(p.events_attended||0),0)/n).toFixed(2) : 0;
+      const avgMiles = n ? (filtered.reduce((s,p)=>s+(p.milestones_completed||0),0)/n).toFixed(2) : 0;
+      meta.textContent = `Showing ${n} participants | Avg events: ${avgEvents} | Avg milestones: ${avgMiles}`;
+    };
+
+    const exportPng = () => {
+      const link = document.createElement('a');
+      link.download = 'participant-stats.png';
+      link.href = chart.toDataURL('image/png');
+      link.click();
+      flashButton(document.getElementById('export-png'), 'Exported');
+    };
+
+    // tooltip
+    chart.addEventListener('mousemove', (e) => {
+      const rect = chart.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const margin = { left: 70, right: 20, top: 30, bottom: 50 };
+      const maxX = Math.max(1, ...filtered.map(p => p.events_attended || 0), 1);
+      const maxY = Math.max(1, ...filtered.map(p => p.milestones_completed || 0), 1);
+      const scaleX = (val) => margin.left + (chart.width - margin.left - margin.right) * (val / Math.max(maxX, 1));
+      const scaleY = (val) => chart.height - margin.bottom - (chart.height - margin.top - margin.bottom) * (val / Math.max(maxY, 1));
+
+      let found = null;
+      filtered.forEach(p => {
+        const px = scaleX(p.events_attended || 0);
+        const py = scaleY(p.milestones_completed || 0);
+        const dist = Math.hypot(px - x, py - y);
+        if (dist <= 8) found = { p, px, py };
+      });
+
+      if (found) {
+        tooltip.style.display = 'block';
+        tooltip.style.left = `${found.px + rect.left + 12}px`;
+        tooltip.style.top = `${found.py + rect.top - 10}px`;
+        const name = [found.p.participantfirstname || '', found.p.participantlastname || ''].join(' ').trim();
+        tooltip.innerHTML = `
+          <div style="font-weight:700;">${name || 'Participant'}</div>
+          <div>Events: ${found.p.events_attended || 0}</div>
+          <div>Milestones: ${found.p.milestones_completed || 0}</div>
+          <div>Engagement: ${found.p.engagement_level || 'n/a'}</div>
+        `;
+      } else {
+        tooltip.style.display = 'none';
+      }
+    });
+
+    chart.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+
+    participantSearch.addEventListener('input', () => renderParticipantOptions(participantSearch.value));
+    document.getElementById('participant-search-btn').addEventListener('click', () => renderParticipantOptions(participantSearch.value));
+    document.getElementById('participant-clear-btn').addEventListener('click', (e) => {
+      participantSearch.value = '';
+      renderParticipantOptions('');
+      flashButton(e.currentTarget, 'Cleared');
+    });
+    document.getElementById('apply-filters').addEventListener('click', applyFilters);
+    document.getElementById('reset-filters').addEventListener('click', resetFilters);
+    document.getElementById('export-png').addEventListener('click', exportPng);
+
+    // Visual feedback helper
+    function flashButton(btn, label) {
+      if (!btn) return;
+      const original = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = label;
+      btn.classList.add('btn-busy');
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = original;
+        btn.classList.remove('btn-busy');
+      }, 700);
+    }
+
+    renderParticipantOptions();
+    draw();
+  })();
+</script>
