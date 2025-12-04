@@ -58,26 +58,28 @@
     </p>
   </div>
 
-  <!-- Attendance Progress -->
-  <section class="container" style="margin:0 auto 1.25rem auto;">
-    <div style="background:#f5efe3; border-radius:14px; padding:16px; box-shadow:0 6px 14px rgba(0,0,0,0.06);">
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:8px;">
-        <div style="font-weight:700; color:var(--charcoal); display:flex; align-items:center; gap:8px;">
-          <span>Progress: <%= _progressStage %> (goal: <%= _progressTarget %> events)</span>
-          <% if (_currentMedal) { %>
-            <span aria-label="Current status" title="Current status" style="font-size:1.05rem; line-height:1;"><%= _currentMedal %></span>
+  <!-- Attendance Progress (users only) -->
+  <% if (isAuthed && !(currentUser && (currentUser.role === 'admin' || currentUser.role === 'manager'))) { %>
+    <section class="container" style="margin:0 auto 1.25rem auto;">
+      <div style="background:#f5efe3; border-radius:14px; padding:16px; box-shadow:0 6px 14px rgba(0,0,0,0.06);">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:8px;">
+          <div style="font-weight:700; color:var(--charcoal); display:flex; align-items:center; gap:8px;">
+            <span>Progress: <%= _progressStage %> (goal: <%= _progressTarget %> events)</span>
+            <% if (_currentMedal) { %>
+              <span aria-label="Current status" title="Current status" style="font-size:1.05rem; line-height:1;"><%= _currentMedal %></span>
+            <% } %>
+          </div>
+          <div style="color:var(--charcoal); opacity:0.8;">Attended: <%= _attendanceCount %></div>
+        </div>
+        <div style="position:relative; width:100%; height:14px; background:#e7dcc9; border-radius:999px; overflow:hidden; border:1px solid rgba(0,0,0,0.08);">
+          <div style="height:100%; width:<%= Math.min(100, _progressPercent) %>%; background:var(--sage); border-radius:999px; position:relative;"></div>
+          <% if (_nextMedal) { %>
+            <span style="position:absolute; right:6px; top:50%; transform:translateY(-50%); font-size:1.1rem;"><%= _nextMedal %></span>
           <% } %>
         </div>
-        <div style="color:var(--charcoal); opacity:0.8;">Attended: <%= _attendanceCount %></div>
       </div>
-      <div style="position:relative; width:100%; height:14px; background:#e7dcc9; border-radius:999px; overflow:hidden; border:1px solid rgba(0,0,0,0.08);">
-        <div style="height:100%; width:<%= Math.min(100, _progressPercent) %>%; background:var(--sage); border-radius:999px; position:relative;"></div>
-        <% if (_nextMedal) { %>
-          <span style="position:absolute; right:6px; top:50%; transform:translateY(-50%); font-size:1.1rem;"><%= _nextMedal %></span>
-        <% } %>
-      </div>
-    </div>
-  </section>
+    </section>
+  <% } %>
 
   <hr style="border:0; border-top:2px solid rgba(58,63,59,0.15); margin:0 0 1.25rem 0;">
 
