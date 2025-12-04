@@ -18,6 +18,7 @@
 </head>
 
 <body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
 
   <!-- NAVBAR -->
   <nav class="navbar">
@@ -29,7 +30,7 @@
 
     <!-- Center Section: Main Links -->
     <div class="navbar-nav" style="margin-left: .25rem;">
-      <a href="/donations" class="nav-link" style="background: var(--sage); color: #fff; padding:8px 14px; border-radius:12px;">🤍 Donations</a>
+      <a href="/donations" class="nav-link" style="background: var(--sage); color: #fff; padding:8px 14px; border-radius:12px;">Donations</a>
       <% if (user) { %>
         <a href="/surveys"   class="nav-link">Surveys</a>
       <% } %>
@@ -39,8 +40,8 @@
     <!-- Right Side -->
     <div class="navbar-nav" style="margin-left:auto; align-items:center; gap:10px;">
       <div class="dropdown" id="lang-dropdown" style="position:relative;">
-        <a href="#" class="nav-link notranslate">Language ▾</a>
-        <div class="dropdown-content" style="right:0; min-width:140px;">
+        <button type="button" id="lang-toggle" class="nav-link nav-toggle notranslate" aria-haspopup="true" aria-expanded="false" aria-controls="lang-menu">Language</button>
+        <div id="lang-menu" class="dropdown-content" style="right:0; min-width:140px;">
           <a href="#" class="lang-option" data-target="en">English</a>
           <a href="#" class="lang-option" data-target="es">Español</a>
         </div>
@@ -48,8 +49,8 @@
       <% if (!user) { %>
         <!-- Login / Register Dropdown -->
         <div class="dropdown">
-          <a href="#" class="nav-link">Login / Register</a>
-          <div class="dropdown-content">
+          <button type="button" class="nav-link nav-toggle" aria-haspopup="true" aria-expanded="false" aria-controls="auth-menu">Login / Register</button>
+          <div id="auth-menu" class="dropdown-content">
             <a href="/login">Login</a>
             <a href="/register">Create Account</a>
           </div>
@@ -58,8 +59,8 @@
       <% } else { %>
         <!-- User Dropdown -->
         <div class="dropdown">
-          <a href="#" class="nav-link">My Account</a>
-          <div class="dropdown-content">
+          <button type="button" class="nav-link nav-toggle" aria-haspopup="true" aria-expanded="false" aria-controls="account-menu">My Account</button>
+          <div id="account-menu" class="dropdown-content">
 
             <!-- Always available -->
             <a href="/my-account">My Account</a>
@@ -87,7 +88,7 @@
     </div>
   </nav>
 
-  <main class="container">
+  <main class="container" id="main-content">
     <%- body %>
   </main>
 
@@ -98,5 +99,55 @@
 
   <div id="google_translate_element" aria-hidden="true" style="display:none;"></div>
   <script src="/js/lang-toggle.js"></script>
+  <script>
+    (function () {
+      const toggles = Array.from(document.querySelectorAll('.nav-toggle'));
+      const dropdowns = toggles.map(btn => ({
+        btn,
+        menu: btn.parentElement.querySelector('.dropdown-content')
+      }));
+
+      const closeAll = (exceptBtn = null) => {
+        dropdowns.forEach(({ btn, menu }) => {
+          if (exceptBtn && btn === exceptBtn) return;
+          btn.setAttribute('aria-expanded', 'false');
+          btn.parentElement.classList.remove('open');
+          if (menu) menu.dataset.open = 'false';
+        });
+      };
+
+      dropdowns.forEach(({ btn, menu }) => {
+        if (!menu) return;
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const isOpen = btn.getAttribute('aria-expanded') === 'true';
+          if (isOpen) {
+            closeAll();
+          } else {
+            closeAll(btn);
+            btn.setAttribute('aria-expanded', 'true');
+            btn.parentElement.classList.add('open');
+            menu.dataset.open = 'true';
+            (menu.querySelector('a') || menu).focus();
+          }
+        });
+
+        btn.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') {
+            closeAll();
+            btn.focus();
+          }
+        });
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.dropdown')) closeAll();
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeAll();
+      });
+    })();
+  </script>
 </body>
 </html>

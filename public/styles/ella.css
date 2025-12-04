@@ -10,6 +10,46 @@ html, body { min-height: 100vh; }
 body { display: flex; flex-direction: column; padding-bottom: 0; }
 main.container { flex: 1; }
 
+.skip-link {
+  position: absolute;
+  left: -999px;
+  top: 0;
+  background: #fff;
+  color: var(--charcoal);
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 2px solid var(--charcoal);
+  z-index: 2000;
+}
+.skip-link:focus-visible {
+  left: 12px;
+  top: 12px;
+}
+
+:focus-visible {
+  outline: 3px solid var(--pink-dark);
+  outline-offset: 2px;
+}
+.nav-link:focus-visible,
+.btn-outline:focus-visible,
+.btn-cream:focus-visible,
+.btn-gradient:focus-visible,
+.btn-login-home:focus-visible {
+  outline: 3px solid var(--pink-dark);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position:absolute;
+  width:1px;
+  height:1px;
+  padding:0;
+  margin:-1px;
+  overflow:hidden;
+  clip:rect(0,0,0,0);
+  border:0;
+}
+
 
 /* -------------------------------------------
    ELLA RISES BRAND VARIABLES
@@ -161,6 +201,13 @@ it stays on your screen */
   box-shadow:0 4px 8px rgba(249,175,177,.3);
 }
 .navbar-nav .nav-link:active{ transform:translateY(0); }
+.navbar-nav .nav-toggle{
+  background:none;
+  border:none;
+  font:inherit;
+  color:inherit;
+  cursor:pointer;
+}
 
 /* Override hover for language toggle */
 #lang-toggle.nav-link:hover{
@@ -390,7 +437,7 @@ button[type="submit"]:active{ transform:translateY(0); }
   border-radius:8px;
   overflow:hidden;
   top:100%;
-  margin-top:5px;
+  margin-top:0;
   right:0;
 }
 .dropdown-content a{
@@ -425,6 +472,10 @@ button[type="submit"]:active{ transform:translateY(0); }
 }
 .dropdown-submenu:hover > .dropdown-content{
     display:block;
+}
+.dropdown.open > .dropdown-content,
+.dropdown:focus-within > .dropdown-content{
+  display:block;
 }
 /* -------------------------------------------
    CONTAINER
