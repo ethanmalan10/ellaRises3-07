@@ -1,20 +1,50 @@
 <main class="container main-content" style="max-width:1100px; margin-top:2.5rem;">
   <% const isAuthed = !!currentUser; const regSet = new Set((registeredEventIds || []).map(Number)); function fmtDate(d){ return d ? new Date(d).toLocaleString('en-US', { dateStyle:'medium', timeStyle:'short' }) : ''; } %>
 
-  <header style="display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:1.5rem;">
-    <div>
-      <h1 style="margin:0; font-family:var(--font-serif); color:var(--charcoal);">Events</h1>
-      <p style="margin:.3rem 0 0 0; color:#4b5563;">Browse upcoming events. Login to RSVP; managers can create and manage events.</p>
+  <!-- Hero Card -->
+  <section style="margin:0 0 2.25rem 0; width:82vw; position:relative; left:48%; transform:translateX(-50%);">
+    <div style="
+      position:relative;
+      width:100%;
+      height:180px;
+      border-radius:16px;
+      overflow:hidden;
+      background:url('/images/office.jpeg') center 50%/cover no-repeat;
+      display:flex;
+      align-items:center;
+      padding:24px 28px;
+      box-shadow:0 12px 30px rgba(0,0,0,0.12);
+    ">
+      <div style="
+        position:absolute;
+        inset:0;
+        background:linear-gradient(90deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.25) 25%, rgba(255,255,255,0) 45%);
+      "></div>
+      <h1 style="
+        position:relative;
+        margin:0;
+        font-family:var(--font-serif);
+        font-size:2.4rem;
+        color:var(--charcoal);
+        letter-spacing:0.5px;
+      ">
+        Events
+      </h1>
     </div>
-    <% if (typeof isManager !== 'undefined' && isManager) { %>
-      <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
-        <a href="/events/stats" class="btn-cream" style="padding:12px 16px; border-radius:10px; text-decoration:none;">Event Stats</a>
-        <a href="/events/past" class="btn-cream" style="padding:12px 16px; border-radius:10px; text-decoration:none;">View Past Events</a>
-        <a href="/events/new" class="btn-cream" style="padding:12px 16px; border-radius:10px; text-decoration:none;">Create Event</a>
-        <a href="/event-templates" class="btn-cream" style="padding:12px 16px; border-radius:10px; text-decoration:none;">Manage Event Templates</a>
-      </div>
-    <% } %>
-  </header>
+  </section>
+
+  <hr style="border:0; border-top:2px solid rgba(58,63,59,0.15); margin:0 0 1.35rem 0;">
+
+  <div style="background:var(--cream); border-radius:14px; padding:18px; text-align:center; margin:0 0 1.35rem 0; color:var(--charcoal); box-shadow:0 8px 18px rgba(0,0,0,0.06);">
+    <h2 style="margin:0 0 .35rem 0; font-family:var(--font-serif); font-size:1.6rem; font-weight:700;">
+      Come join us on our next adventure!
+    </h2>
+    <p style="margin:0; font-size:1rem; color:#4b5563;">
+      We hold STEM, ART, & tour events! Everyone is invited. Create an account to RSVP!
+    </p>
+  </div>
+
+  <hr style="border:0; border-top:2px solid rgba(58,63,59,0.15); margin:0 0 1.25rem 0;">
 
   <!-- Messages -->
   <% if (message) { %>
@@ -44,14 +74,26 @@
 
   <!-- Upcoming events -->
   <section style="margin-bottom:2rem;">
-    <h3 style="margin:0 0 .75rem 0;">Upcoming</h3>
-    <div style="margin:0 0 12px 0;">
-      <input id="upcoming-search" type="search" placeholder="Quick search upcoming events..." style="width:100%; max-width:360px; padding:10px 12px; border-radius:10px; border:1px solid #d1d5db;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap; margin-bottom:1.4rem;">
+      <div>
+        <h3 style="margin:0 0 .5rem 0; font-size:1.5rem;">Upcoming</h3>
+        <div>
+          <input id="upcoming-search" type="search" placeholder="Quick search upcoming events..." style="width:100%; max-width:460px; padding:10px 12px; border-radius:10px; border:1px solid #d1d5db;">
+        </div>
+      </div>
+      <% if (typeof isManager !== 'undefined' && isManager) { %>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+          <a href="/events/stats" class="btn-cream" style="padding:12px 16px; border-radius:10px; text-decoration:none;">Event Stats</a>
+          <a href="/events/past" class="btn-cream" style="padding:12px 16px; border-radius:10px; text-decoration:none;">View Past Events</a>
+          <a href="/events/new" class="btn-cream" style="padding:12px 16px; border-radius:10px; text-decoration:none;">Create Event</a>
+          <a href="/event-templates" class="btn-cream" style="padding:12px 16px; border-radius:10px; text-decoration:none;">Manage Event Templates</a>
+        </div>
+      <% } %>
     </div>
     <% if (!upcomingEvents || upcomingEvents.length === 0) { %>
       <p style="color:#6b7280;">No upcoming events yet.</p>
     <% } else { %>
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px;">
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px; margin-top:12px;">
         <% upcomingEvents.forEach(ev => { %>
           <% const searchBlob = [(ev.eventname||''),(ev.eventdescription||''),(ev.eventlocation||''),(fmtDate(ev.eventdatetimestart)||''),(fmtDate(ev.eventdatetimeend)||'')].join(' ').toLowerCase(); %>
           <div class="card upcoming-card" data-search="<%= searchBlob %>" style="padding:16px; border-radius:14px; border:1px solid #e5e7eb; box-shadow:0 10px 30px rgba(0,0,0,0.04);">
