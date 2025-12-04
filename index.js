@@ -528,9 +528,15 @@ async function getParticipantDetail(id) {
     `SELECT p.*,
             u.username,
             u.password,
-            u.level
+            u.level,
+            COALESCE(d.totaldonations, 0)::numeric AS totaldonations
      FROM participant p
      LEFT JOIN users u ON u.participantid = p.participantid
+     LEFT JOIN (
+       SELECT participantid, SUM(donationamount) AS totaldonations
+       FROM donation
+       GROUP BY participantid
+     ) d ON d.participantid = p.participantid
      WHERE p.participantid = $1
      LIMIT 1`,
     [id]
@@ -2417,11 +2423,17 @@ app.get('/participants', requireManager, async (req, res) => {
                 u.username,
                 u.password,
                 u.level,
-                COALESCE(reg_counts.events_attended, 0) AS events_attended,
-                COALESCE(surv_counts.surveys_completed, 0) AS surveys_completed,
-                COALESCE(ms_counts.milestones_completed, 0) AS milestones_completed
-         FROM participant p
-         LEFT JOIN users u ON u.participantid = p.participantid
+        COALESCE(reg_counts.events_attended, 0) AS events_attended,
+        COALESCE(surv_counts.surveys_completed, 0) AS surveys_completed,
+        COALESCE(ms_counts.milestones_completed, 0) AS milestones_completed,
+        CASE
+          WHEN COALESCE(reg_counts.events_attended,0) >= 4 THEN 'engaged'
+          WHEN COALESCE(reg_counts.events_attended,0) >= 2 THEN 'returning'
+          WHEN COALESCE(reg_counts.events_attended,0) >= 1 THEN 'new'
+          ELSE 'none'
+        END AS engagement_level
+       FROM participant p
+       LEFT JOIN users u ON u.participantid = p.participantid
          LEFT JOIN (
            SELECT r.participantid, COUNT(DISTINCT r.eventoccurrenceid) AS events_attended
            FROM registration r
@@ -2474,6 +2486,166 @@ app.get('/participants', requireManager, async (req, res) => {
   }
 });
 
+// Participant statistics (read-only list with engagement)
+app.get('/participants/stats', requireManager, async (req, res) => {
+  try {
+    const { page, pageSize } = resolvePagination(req, 'participantStats');
+    const sortByParam = (req.query.sortBy || '').toString().trim().toLowerCase();
+    const sortBy = ['events', 'surveys', 'milestones', 'name'].includes(sortByParam)
+      ? sortByParam
+      : 'name';
+    const sortDirParamRaw = (req.query.sortDir || '').toString().trim().toLowerCase();
+    const sortDirParam = sortDirParamRaw === 'asc' ? 'asc' : sortDirParamRaw === 'desc' ? 'desc' : 'desc';
+    const sortDir = sortDirParam === 'asc' ? 'ASC' : 'DESC';
+    const eventTemplateId = req.query.eventTemplateId ? Number(req.query.eventTemplateId) : null;
+    const eventTypeId = req.query.eventTypeId ? Number(req.query.eventTypeId) : null;
+    const milestoneCatalogId = req.query.milestoneCatalogId ? Number(req.query.milestoneCatalogId) : null;
+    const engagementFilter = (req.query.engagement || '').toString().trim().toLowerCase();
+
+    const params = [];
+    const addParam = (v) => { params.push(v); return `$${params.length}`; };
+
+    const eventFilters = [];
+    if (eventTemplateId) eventFilters.push(`eo.eventtemplateid = ${addParam(eventTemplateId)}`);
+    if (eventTypeId) eventFilters.push(`et.eventtypeid = ${addParam(eventTypeId)}`);
+    const eventWhere = eventFilters.length ? `WHERE ${eventFilters.join(' AND ')}` : '';
+
+    const surveyFilters = [];
+    if (eventTemplateId) surveyFilters.push(`eo2.eventtemplateid = ${addParam(eventTemplateId)}`);
+    if (eventTypeId) surveyFilters.push(`et2.eventtypeid = ${addParam(eventTypeId)}`);
+    const surveyWhere = surveyFilters.length ? `WHERE ${surveyFilters.join(' AND ')}` : '';
+
+    const milestoneFilters = [];
+    if (milestoneCatalogId) milestoneFilters.push(`m.milestonecatalogid = ${addParam(milestoneCatalogId)}`);
+    const milestoneWhere = milestoneFilters.length ? `WHERE ${milestoneFilters.join(' AND ')}` : '';
+
+    const sortClause = (() => {
+      switch (sortBy) {
+        case 'events': return `events_attended ${sortDir}, LOWER(COALESCE(p.participantfirstname,'')) ${sortDir}, LOWER(COALESCE(p.participantlastname,'')) ${sortDir}`;
+        case 'surveys': return `surveys_completed ${sortDir}, LOWER(COALESCE(p.participantfirstname,'')) ${sortDir}, LOWER(COALESCE(p.participantlastname,'')) ${sortDir}`;
+        case 'milestones': return `milestones_completed ${sortDir}, LOWER(COALESCE(p.participantfirstname,'')) ${sortDir}, LOWER(COALESCE(p.participantlastname,'')) ${sortDir}`;
+        default: return `LOWER(COALESCE(p.participantfirstname,'')) ${sortDir}, LOWER(COALESCE(p.participantlastname,'')) ${sortDir}`;
+      }
+    })();
+
+    const q = (req.query.q || '').toString().trim().toLowerCase();
+    const hasSearch = q.length > 0;
+    const searchClause = hasSearch ? `WHERE LOWER(TRIM(COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,''))) LIKE ${addParam(`%${q}%`)}` : '';
+
+    const engagementCase = `CASE
+          WHEN COALESCE(reg_counts.events_attended,0) >= 4 THEN 'engaged'
+          WHEN COALESCE(reg_counts.events_attended,0) >= 2 THEN 'returning'
+          WHEN COALESCE(reg_counts.events_attended,0) >= 1 THEN 'new'
+          ELSE 'none'
+        END`;
+    const whereClauses = [];
+    if (hasSearch) whereClauses.push(`LOWER(TRIM(COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,''))) LIKE ${addParam(`%${q}%`)}`);
+    if (['new', 'returning', 'engaged', 'none'].includes(engagementFilter)) {
+      whereClauses.push(`${engagementCase} = ${addParam(engagementFilter)}`);
+    }
+    const participantWhere = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+    const countRes = await pool.query(
+      `SELECT COUNT(*)::int AS count
+       FROM participant p
+       LEFT JOIN (
+         SELECT r.participantid, COUNT(DISTINCT r.eventoccurrenceid) AS events_attended
+         FROM registration r
+         JOIN eventoccurrence eo ON eo.eventoccurrenceid = r.eventoccurrenceid
+         JOIN eventtemplate et ON et.eventtemplateid = eo.eventtemplateid
+         ${eventWhere}
+         GROUP BY r.participantid
+       ) reg_counts ON reg_counts.participantid = p.participantid
+       LEFT JOIN (
+         SELECT s.participantid, COUNT(*) AS surveys_completed
+         FROM survey s
+         JOIN eventoccurrence eo2 ON eo2.eventoccurrenceid = s.eventoccurrenceid
+         JOIN eventtemplate et2 ON et2.eventtemplateid = eo2.eventtemplateid
+         ${surveyWhere}
+         GROUP BY s.participantid
+       ) surv_counts ON surv_counts.participantid = p.participantid
+       LEFT JOIN (
+         SELECT m.participantid, COUNT(*) AS milestones_completed
+         FROM milestone m
+         ${milestoneWhere}
+         GROUP BY m.participantid
+       ) ms_counts ON ms_counts.participantid = p.participantid
+       ${participantWhere}`,
+      params
+    );
+    const total = Number(countRes.rows[0]?.count || 0);
+    const pagination = buildPagination(total, page, pageSize);
+
+    const participantsRes = await pool.query(
+      `SELECT p.participantid,
+              p.participantfirstname,
+              p.participantlastname,
+              p.participantdob,
+              p.participantcity,
+              p.participantstate,
+              COALESCE(reg_counts.events_attended, 0) AS events_attended,
+              COALESCE(surv_counts.surveys_completed, 0) AS surveys_completed,
+              COALESCE(ms_counts.milestones_completed, 0) AS milestones_completed,
+              ${engagementCase} AS engagement_level
+       FROM participant p
+       LEFT JOIN (
+         SELECT r.participantid, COUNT(DISTINCT r.eventoccurrenceid) AS events_attended
+         FROM registration r
+         JOIN eventoccurrence eo ON eo.eventoccurrenceid = r.eventoccurrenceid
+         JOIN eventtemplate et ON et.eventtemplateid = eo.eventtemplateid
+         ${eventWhere}
+         GROUP BY r.participantid
+       ) reg_counts ON reg_counts.participantid = p.participantid
+       LEFT JOIN (
+         SELECT s.participantid, COUNT(*) AS surveys_completed
+         FROM survey s
+         JOIN eventoccurrence eo2 ON eo2.eventoccurrenceid = s.eventoccurrenceid
+         JOIN eventtemplate et2 ON et2.eventtemplateid = eo2.eventtemplateid
+         ${surveyWhere}
+         GROUP BY s.participantid
+       ) surv_counts ON surv_counts.participantid = p.participantid
+       LEFT JOIN (
+         SELECT m.participantid, COUNT(*) AS milestones_completed
+         FROM milestone m
+         ${milestoneWhere}
+         GROUP BY m.participantid
+       ) ms_counts ON ms_counts.participantid = p.participantid
+       ${participantWhere}
+       ORDER BY ${sortClause}
+       LIMIT ${addParam(pagination.pageSize)} OFFSET ${addParam(pagination.offset)}`,
+      params
+    );
+
+    const [eventTemplatesRes, eventTypesRes, milestoneCatalogRes] = await Promise.all([
+      pool.query('SELECT eventtemplateid, eventname FROM eventtemplate ORDER BY eventname'),
+      pool.query('SELECT eventtypeid, eventtypename FROM eventtype ORDER BY eventtypename'),
+      pool.query('SELECT milestonecatalogid, milestonetitle FROM milestonecatalog ORDER BY milestonetitle'),
+    ]);
+
+    res.render(path.join('participantStats', 'index'), {
+      title: 'Participant Statistics',
+      participants: participantsRes.rows,
+      pagination,
+      pageSizeOptions: PAGE_SIZE_OPTIONS,
+      filters: {
+        sortBy,
+        sortDir: sortDirParam,
+        eventTemplateId,
+        eventTypeId,
+        milestoneCatalogId,
+        q,
+        engagement: engagementFilter,
+      },
+      eventTemplates: eventTemplatesRes.rows,
+      eventTypes: eventTypesRes.rows,
+      milestoneCatalog: milestoneCatalogRes.rows,
+    });
+  } catch (err) {
+    console.error('Participant stats error:', err);
+    return res.status(500).send('Could not load participant statistics');
+  }
+});
+
 // Export participants (CSV) with current filters/sorting
 app.get('/participants/export', requireManager, async (req, res) => {
   try {
@@ -2487,6 +2659,7 @@ app.get('/participants/export', requireManager, async (req, res) => {
     const eventTemplateId = req.query.eventTemplateId ? Number(req.query.eventTemplateId) : null;
     const eventTypeId = req.query.eventTypeId ? Number(req.query.eventTypeId) : null;
     const milestoneCatalogId = req.query.milestoneCatalogId ? Number(req.query.milestoneCatalogId) : null;
+    const engagementFilter = (req.query.engagement || '').toString().trim().toLowerCase();
     const q = (req.query.q || '').toString();
 
     const params = [];
@@ -2507,6 +2680,12 @@ app.get('/participants/export', requireManager, async (req, res) => {
     const milestoneWhere = milestoneFilters.length ? `WHERE ${milestoneFilters.join(' AND ')}` : '';
 
     const participantFilters = [];
+    const engagementCase = `CASE
+          WHEN COALESCE(reg_counts.events_attended,0) >= 4 THEN 'engaged'
+          WHEN COALESCE(reg_counts.events_attended,0) >= 2 THEN 'returning'
+          WHEN COALESCE(reg_counts.events_attended,0) >= 1 THEN 'new'
+          ELSE 'none'
+        END`;
     if (q.trim()) {
       const likeParam = addParam(`%${q.trim().toLowerCase()}%`);
       participantFilters.push(`(LOWER(p.participantfirstname) LIKE ${likeParam}
@@ -2514,6 +2693,9 @@ app.get('/participants/export', requireManager, async (req, res) => {
         OR LOWER(p.participantemail) LIKE ${likeParam}
         OR LOWER(p.participantcity) LIKE ${likeParam}
         OR LOWER(p.participantstate) LIKE ${likeParam})`);
+    }
+    if (['new','returning','engaged','none'].includes(engagementFilter)) {
+      participantFilters.push(`${engagementCase} = ${addParam(engagementFilter)}`);
     }
     const participantWhere = participantFilters.length ? `WHERE ${participantFilters.join(' AND ')}` : '';
 
@@ -2530,11 +2712,23 @@ app.get('/participants/export', requireManager, async (req, res) => {
               p.participantcity,
               p.participantstate,
               u.username,
+              p.participantphone,
+              p.participantzip,
+              p.participantaffiliationtype,
+              p.participantaffiliationname,
+              p.participantfieldofinterest,
               COALESCE(reg_counts.events_attended, 0) AS events_attended,
               COALESCE(surv_counts.surveys_completed, 0) AS surveys_completed,
-              COALESCE(ms_counts.milestones_completed, 0) AS milestones_completed
+              COALESCE(ms_counts.milestones_completed, 0) AS milestones_completed,
+              COALESCE(dn.totaldonations,0) AS totaldonations,
+              ${engagementCase} AS engagement_level
        FROM participant p
        LEFT JOIN users u ON u.participantid = p.participantid
+       LEFT JOIN (
+         SELECT participantid, SUM(donationamount) AS totaldonations
+         FROM donation
+         GROUP BY participantid
+       ) dn ON dn.participantid = p.participantid
        LEFT JOIN (
          SELECT r.participantid, COUNT(DISTINCT r.eventoccurrenceid) AS events_attended
          FROM registration r
@@ -2566,13 +2760,21 @@ app.get('/participants/export', requireManager, async (req, res) => {
       'Participant ID',
       'First Name',
       'Last Name',
+      'Email',
+      'Phone',
       'City',
       'State',
+      'Zip',
+      'Affiliation Type',
+      'Affiliation Name',
+      'Field of Interest',
       'DOB',
       'Username',
       'Events Attended',
       'Surveys Completed',
       'Milestones Completed',
+      'Engagement',
+      'Total Donations',
     ];
 
     const escapeCsv = (val) => {
@@ -2590,13 +2792,21 @@ app.get('/participants/export', requireManager, async (req, res) => {
           r.participantid,
           r.participantfirstname || '',
           r.participantlastname || '',
+          r.participantemail || '',
+          r.participantphone || '',
           r.participantcity || '',
           r.participantstate || '',
+          r.participantzip || '',
+          r.participantaffiliationtype || '',
+          r.participantaffiliationname || '',
+          r.participantfieldofinterest || '',
           r.participantdob ? new Date(r.participantdob).toISOString().slice(0, 10) : '',
           r.username || '',
           r.events_attended || 0,
           r.surveys_completed || 0,
           r.milestones_completed || 0,
+          r.engagement_level || '',
+          r.totaldonations || 0,
         ].map(escapeCsv).join(',')
       ),
     ].join('\n');
@@ -2748,12 +2958,24 @@ app.get('/participants/:id', requireManager, async (req, res) => {
     if (!detail) return res.redirect('/participants');
 
     const fromAssignments = req.query.from === 'assignments';
+    const fromStats = req.query.from === 'stats';
     let backUrl = '/participants';
     if (fromAssignments) {
       const page = req.query.page || 1;
       const pageSize = req.query.pageSize || 50;
       const q = req.query.q ? `&q=${encodeURIComponent(req.query.q)}` : '';
       backUrl = `/admin/milestones/assignments?page=${page}&pageSize=${pageSize}${q}`;
+    } else if (fromStats) {
+      const page = req.query.page || 1;
+      const pageSize = req.query.pageSize || 50;
+      const q = req.query.q ? `&q=${encodeURIComponent(req.query.q)}` : '';
+      const sortBy = req.query.sortBy ? `&sortBy=${encodeURIComponent(req.query.sortBy)}` : '';
+      const sortDir = req.query.sortDir ? `&sortDir=${encodeURIComponent(req.query.sortDir)}` : '';
+      const eventTemplateId = req.query.eventTemplateId ? `&eventTemplateId=${encodeURIComponent(req.query.eventTemplateId)}` : '';
+      const eventTypeId = req.query.eventTypeId ? `&eventTypeId=${encodeURIComponent(req.query.eventTypeId)}` : '';
+      const milestoneCatalogId = req.query.milestoneCatalogId ? `&milestoneCatalogId=${encodeURIComponent(req.query.milestoneCatalogId)}` : '';
+      const engagement = req.query.engagement ? `&engagement=${encodeURIComponent(req.query.engagement)}` : '';
+      backUrl = `/participants/stats?page=${page}&pageSize=${pageSize}${q}${sortBy}${sortDir}${eventTemplateId}${eventTypeId}${milestoneCatalogId}${engagement}`;
     }
 
     return res.render(path.join('allParticipants', 'view'), {
