@@ -94,9 +94,28 @@
     <%- body %>
   </main>
 
+  <style>
+    .footer { position: relative; }
+    .teapot-link {
+      position: absolute;
+      right: 12px;
+      bottom: 6px;
+      font-family: monospace;
+      font-size: 14px;
+      color: #fdf2e9;
+      text-decoration: none;
+    }
+    .teapot-link:focus-visible {
+      outline: 2px solid #f5d0a9;
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+  </style>
+
   <!-- Footer -->
   <footer class="footer">
     <p>&copy; 2025 Ella Rises. Empowering the rising generation of women.</p>
+    <a href="/teapot" class="teapot-link" aria-label="HTTP 418 teapot link">c(_)</a>
   </footer>
 
   <div id="google_translate_element" aria-hidden="true" style="display:none;"></div>
