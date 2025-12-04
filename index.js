@@ -699,19 +699,18 @@ app.get('/donations', (req, res) => {
 
 // Handle donation submit -> redirect home with a thank-you toast
 app.post('/donations', async (req, res) => {
-  const { fullName, donationAmount, email } = req.body || {};
-  const donor = (fullName || '').trim();
+  const { firstName, lastName, donationAmount, email } = req.body || {};
+  const donorFirst = (firstName || '').trim();
+  const donorLast = (lastName || '').trim();
   const donorEmail = (email || '').trim().toLowerCase();
   const amount = Number(donationAmount);
 
-  if (!donor || !donorEmail || !donationAmount || Number.isNaN(amount)) {
+  if (!donorFirst || !donorEmail || !donationAmount || Number.isNaN(amount)) {
     return res.redirect('/donations?err=invalid');
   }
 
   try {
     // Ensure we have (or create) a participant to satisfy the FK on donation.participantid
-    const [firstName, ...restName] = donor.split(' ');
-    const lastName = restName.join(' ').trim() || null;
     const { rows: participantRows } = await pool.query(
       `INSERT INTO participant (participantemail, participantfirstname, participantlastname, participantrole)
        VALUES ($1, $2, $3, 'Donor')
@@ -719,7 +718,7 @@ app.post('/donations', async (req, res) => {
        DO UPDATE SET participantfirstname = EXCLUDED.participantfirstname,
                      participantlastname = EXCLUDED.participantlastname
        RETURNING participantid`,
-      [donorEmail, firstName || donor, lastName]
+      [donorEmail, donorFirst, donorLast || null]
     );
     const participantId = participantRows[0]?.participantid;
 
@@ -727,9 +726,9 @@ app.post('/donations', async (req, res) => {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         await pool.query(
-          `INSERT INTO donation (donationid, participantid, donationamount, donationdate, donorname, donationno)
-           VALUES ($1, $2, $3, CURRENT_DATE, $4, $5)`,
-          [nextId, participantId, amount, donor, 1]
+          `INSERT INTO donation (donationid, participantid, donationamount, donationdate, donorfirstname, donorlastname, donationno)
+           VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, $6)`,
+          [nextId, participantId, amount, donorFirst, donorLast || null, 1]
         );
         break;
       } catch (err) {
@@ -747,7 +746,8 @@ app.post('/donations', async (req, res) => {
 
   const params = new URLSearchParams();
   params.set('donated', '1');
-  params.set('donor', donor);
+  const donorDisplay = donorLast ? `${donorFirst} ${donorLast}` : donorFirst;
+  params.set('donor', donorDisplay);
   params.set('amount', amount.toString());
 
   return res.redirect(`/?${params.toString()}`);
@@ -764,10 +764,12 @@ async function listDonations() {
             d.donationdate AS date,
             CASE
               WHEN d.participantid IS NOT NULL THEN TRIM(BOTH ' ' FROM COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,''))
-              WHEN d.donorname IS NOT NULL THEN d.donorname
+              WHEN COALESCE(d.donorfirstname,'') <> '' OR COALESCE(d.donorlastname,'') <> ''
+                THEN TRIM(BOTH ' ' FROM COALESCE(d.donorfirstname,'') || ' ' || COALESCE(d.donorlastname,''))
               ELSE 'Anonymous'
             END AS displayname,
-            d.donorname,
+            d.donorfirstname,
+            d.donorlastname,
             TRIM(BOTH ' ' FROM COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,'')) AS participantname
      FROM donation d
      LEFT JOIN participant p ON d.participantid = p.participantid
@@ -785,10 +787,12 @@ async function getDonation(id) {
             d.donationdate AS date,
             CASE
               WHEN d.participantid IS NOT NULL THEN TRIM(BOTH ' ' FROM COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,''))
-              WHEN d.donorname IS NOT NULL THEN d.donorname
+              WHEN COALESCE(d.donorfirstname,'') <> '' OR COALESCE(d.donorlastname,'') <> ''
+                THEN TRIM(BOTH ' ' FROM COALESCE(d.donorfirstname,'') || ' ' || COALESCE(d.donorlastname,''))
               ELSE 'Anonymous'
             END AS displayname,
-            d.donorname,
+            d.donorfirstname,
+            d.donorlastname,
             TRIM(BOTH ' ' FROM COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,'')) AS participantname
      FROM donation d
      LEFT JOIN participant p ON d.participantid = p.participantid
@@ -821,18 +825,19 @@ app.get('/admin/donations/new', requireManager, (req, res) => {
 });
 
 app.post('/admin/donations/new', requireManager, async (req, res) => {
-  const { donorname, participantid, amount, donationdate } = req.body;
+  const { donorfirstname, donorlastname, participantid, amount, donationdate } = req.body;
   const pid = Number(participantid);
   const amt = Number(amount);
   const date = donationdate ? new Date(donationdate) : null;
-  const donor = (donorname || '').trim();
+  const donorFirst = (donorfirstname || '').trim();
+  const donorLast = (donorlastname || '').trim();
 
   try {
-    if (!donor && (!pid || Number.isNaN(pid))) {
+    if (!donorFirst && !donorLast && (!pid || Number.isNaN(pid))) {
       return res.status(400).render(path.join('donations', 'adminAdd'), {
         title: 'Add Donation',
         error: 'Provide a donor name or participant ID.',
-        formValues: { donorname, participantid, amount, donationdate },
+        formValues: { donorfirstname, donorlastname, participantid, amount, donationdate },
       });
     }
 
@@ -840,7 +845,7 @@ app.post('/admin/donations/new', requireManager, async (req, res) => {
       return res.status(400).render(path.join('donations', 'adminAdd'), {
         title: 'Add Donation',
         error: 'Amount is required.',
-        formValues: { donorname, participantid, amount, donationdate },
+        formValues: { donorfirstname, donorlastname, participantid, amount, donationdate },
       });
     }
 
@@ -848,15 +853,16 @@ app.post('/admin/donations/new', requireManager, async (req, res) => {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         await pool.query(
-          `INSERT INTO donation (donationid, participantid, donationamount, donationdate, donorname, donationno)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
+          `INSERT INTO donation (donationid, participantid, donationamount, donationdate, donorfirstname, donorlastname, donationno)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
           [
             nextId,
             pid && !Number.isNaN(pid) ? pid : null,
             amt,
             date && !Number.isNaN(date.valueOf()) ? date : CURRENT_DATE,
-            donor || null,
-            1,
+            donorFirst || null,
+            donorLast || null,
+            1
           ]
         );
         break;
@@ -898,10 +904,11 @@ app.get('/admin/donations/:id/edit', requireManager, async (req, res) => {
 });
 
 app.post('/admin/donations/:id/edit', requireManager, async (req, res) => {
-  const { amount, donationdate, donorname } = req.body;
+  const { amount, donationdate, donorfirstname, donorlastname } = req.body;
   const amt = Number(amount);
   const date = donationdate ? new Date(donationdate) : null;
-  const donor = (donorname || '').trim();
+  const donorFirst = (donorfirstname || '').trim();
+  const donorLast = (donorlastname || '').trim();
 
   try {
     if (!amount || Number.isNaN(amt)) {
@@ -919,9 +926,10 @@ app.post('/admin/donations/:id/edit', requireManager, async (req, res) => {
       `UPDATE donation
        SET donationamount = $1,
            donationdate = $2,
-           donorname = $3
-       WHERE donationid = $4`,
-      [amt, date && !Number.isNaN(date.valueOf()) ? date : null, donor || null, req.params.id]
+           donorfirstname = $3,
+           donorlastname = $4
+       WHERE donationid = $5`,
+      [amt, date && !Number.isNaN(date.valueOf()) ? date : null, donorFirst || null, donorLast || null, req.params.id]
     );
 
     res.redirect('/admin/donations');

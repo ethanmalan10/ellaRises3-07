@@ -24,18 +24,27 @@
 
       <form method="POST" action="/donations" style="display:flex; flex-direction:column; gap:16px;">
 
-        <!-- Full Name -->
-        <div>
-          <label for="fullName" style="display:block; margin-bottom:6px; font-weight:600;">
-            Full Name
-          </label>
-          <input
-            id="fullName"
-            name="fullName"
-            type="text"
-            required
-            style="width:100%; padding:12px; border-radius:10px;"
-          >
+        <!-- Donor Name -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:14px;">
+          <div>
+            <label for="firstName" style="display:block; margin-bottom:6px; font-weight:600;">First Name</label>
+            <input
+              id="firstName"
+              name="firstName"
+              type="text"
+              required
+              style="width:100%; padding:12px; border-radius:10px; box-sizing:border-box;"
+            >
+          </div>
+          <div>
+            <label for="lastName" style="display:block; margin-bottom:6px; font-weight:600;">Last Name</label>
+            <input
+              id="lastName"
+              name="lastName"
+              type="text"
+              style="width:100%; padding:12px; border-radius:10px; box-sizing:border-box;"
+            >
+          </div>
         </div>
 
         <!-- Email -->

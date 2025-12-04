@@ -1,6 +1,61 @@
+<style>
+  @keyframes review-pop {
+    0% { opacity:0; transform:scale(0.6) translateY(20px); }
+    60%{ opacity:1; transform:scale(1.05) translateY(-4px); }
+    100%{ opacity:1; transform:scale(1) translateY(0); }
+  }
+  .floating-review{
+    position:absolute;
+    width:220px;
+    padding:12px 14px;
+    border-radius:12px;
+    background:rgba(255,255,255,0.92);
+    box-shadow:0 10px 28px rgba(0,0,0,0.15);
+    border:1px solid rgba(0,0,0,0.06);
+    animation:review-pop .85s ease-out forwards;
+    opacity:0;
+  }
+  .floating-review .stars{ color:#f7c948; letter-spacing:1px; font-weight:700; }
+</style>
+
+<div style="position:relative; max-width:1200px; margin:0 auto;">
+
+  <!-- Left floating reviews -->
+  <div class="floating-review" style="top:120px; left:-300px; animation-delay:0.15s;">
+    <div class="stars">★★★★★</div>
+    <p style="margin:6px 0 0 0; color:var(--charcoal); font-size:0.95rem;">“Loved the workshop! Learned so much.”</p>
+  </div>
+  <div class="floating-review" style="top:320px; left:-260px; animation-delay:0.45s;">
+    <div class="stars">★★★★★</div>
+    <p style="margin:6px 0 0 0; color:var(--charcoal); font-size:0.95rem;">“Great instructors and hands-on projects.”</p>
+  </div>
+  <div class="floating-review" style="top:520px; left:-300px; animation-delay:0.75s;">
+    <div class="stars">★★★★★</div>
+    <p style="margin:6px 0 0 0; color:var(--charcoal); font-size:0.95rem;">“Can’t wait for the next event!”</p>
+  </div>
+
+  <!-- Right floating reviews -->
+  <div class="floating-review" style="top:140px; right:-300px; animation-delay:0.25s;">
+    <div class="stars">★★★★★</div>
+    <p style="margin:6px 0 0 0; color:var(--charcoal); font-size:0.95rem;">“So organized and welcoming.”</p>
+  </div>
+  <div class="floating-review" style="top:340px; right:-260px; animation-delay:0.55s;">
+    <div class="stars">★★★★★</div>
+    <p style="margin:6px 0 0 0; color:var(--charcoal); font-size:0.95rem;">“STEM + art was the perfect combo.”</p>
+  </div>
+  <div class="floating-review" style="top:540px; right:-300px; animation-delay:0.85s;">
+    <div class="stars">★★★★★</div>
+    <p style="margin:6px 0 0 0; color:var(--charcoal); font-size:0.95rem;">“My daughter felt inspired and confident.”</p>
+  </div>
+
 <section class="main-content" style="max-width: 900px; margin: 0 auto;">
   <div class="card" style="padding: 28px; border-radius: 18px;">
-    <h2 style="margin:0 0 12px 0; font-family: var(--font-serif);">Share Your Event Survey</h2>
+    <div style="text-align:center; margin-bottom:6px;">
+      <span aria-hidden="true" style="color:#f7c948; letter-spacing:2px; font-size:1.2rem;">★★★★★</span>
+    </div>
+    <h2 style="margin:0 0 12px 0; font-family: var(--font-serif); text-align:center;">
+      Share Your Event Survey
+    </h2>
     <p style="margin:0 0 20px 0; color: var(--charcoal); opacity:0.8;">
       Submit feedback for an event you attended in the last month.
     </p>
@@ -125,3 +180,4 @@
     <% } %>
   </div>
 </section>
+</div>
