@@ -2321,7 +2321,17 @@ async function findParticipantByEmail(email) {
 // GET /my-account
 app.get('/my-account', requireAuth, async (req, res) => {
   try {
-    const participant = await findParticipantForUser(req.session.user);
+    const baseParticipant = await findParticipantForUser(req.session.user);
+    let participant = baseParticipant;
+    if (baseParticipant?.participantid) {
+      try {
+        const detail = await getParticipantDetail(baseParticipant.participantid);
+        participant = detail?.participant || baseParticipant;
+      } catch (e) {
+        console.warn('My account detail fetch failed, falling back to basic participant:', e);
+        participant = baseParticipant;
+      }
+    }
 
     // Compute attendance-based medal for account view
     let accountMedal = '';
