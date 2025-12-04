@@ -16,17 +16,20 @@
   <% if (!participants || participants.length === 0) { %>
     <p style="color:#6b7280;">No participants found.</p>
   <% } else { %>
-    <form id="participant-filters" action="/participants" method="GET" style="margin:6px 0 12px 0; display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px; align-items:end; background:#fbeee8; padding:12px; border-radius:12px; border:1px solid #eadfd5;">
+    <form id="participant-filters" action="/participants" method="GET" style="margin:6px 0 12px 0; background:#fbeee8; padding:14px; border-radius:16px; border:1px solid #eadfd5; display:flex; flex-direction:column; gap:10px;">
       <input type="hidden" name="page" value="1">
       <input type="hidden" name="pageSize" value="<%= pag.pageSize %>">
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <input id="participant-search" name="q" type="text" placeholder="Quick search participants..." value="<%= (typeof filters !== 'undefined' && filters.q) ? filters.q : '' %>" style="flex:1; min-width:240px; padding:10px 12px; border:1px solid #d1d5db; border-radius:10px;">
-        <button id="participant-search-btn" type="submit" class="btn-cream" style="padding:10px 14px; border-radius:10px;">Search</button>
-        <a href="/participants" class="btn-outline" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Clear</a>
+
+      <!-- Row 1: search + actions -->
+      <div style="display:flex; gap:10px; align-items:center;">
+        <input id="participant-search" name="q" type="text" placeholder="Quick search participants..." value="<%= (typeof filters !== 'undefined' && filters.q) ? filters.q : '' %>" style="flex:1; min-width:260px; padding:10px 12px; border:1px solid #d1d5db; border-radius:10px;">
+        <button id="participant-search-btn" type="submit" class="btn-cream" style="padding:10px 14px; border-radius:10px; min-width:110px;">Search</button>
+        <a href="/participants" class="btn-outline" style="padding:10px 14px; border-radius:10px; text-decoration:none; min-width:90px; text-align:center;">Clear</a>
       </div>
 
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <label style="display:flex; flex-direction:column; gap:4px; min-width:170px;">
+      <!-- Row 2: sort, direction, milestone, actions -->
+      <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+        <label style="display:flex; flex-direction:column; gap:4px; min-width:200px; flex:1;">
           <span style="color:#4b5563; font-size:.9rem;">Sort by</span>
           <select name="sortBy" style="padding:12px 12px; border-radius:10px; border:1px solid #d1d5db; width:100%;">
             <option value="name" <%= filters && filters.sortBy === 'name' ? 'selected' : '' %>>Name</option>
@@ -35,35 +38,16 @@
             <option value="milestones" <%= filters && filters.sortBy === 'milestones' ? 'selected' : '' %>>Milestones achieved</option>
           </select>
         </label>
-        <label style="display:flex; flex-direction:column; gap:4px; min-width:120px;">
+
+        <label style="display:flex; flex-direction:column; gap:4px; min-width:200px; flex:1;">
           <span style="color:#4b5563; font-size:.9rem;">Direction</span>
           <select name="sortDir" style="padding:12px 12px; border-radius:10px; border:1px solid #d1d5db; width:100%;">
             <option value="desc" <%= (!filters || filters.sortDir !== 'asc') ? 'selected' : '' %>>High to low</option>
             <option value="asc" <%= filters && filters.sortDir === 'asc' ? 'selected' : '' %>>Low to high</option>
           </select>
         </label>
-      </div>
 
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <label style="display:flex; flex-direction:column; gap:4px; min-width:180px;">
-          <span style="color:#4b5563; font-size:.9rem;">Filter by event template</span>
-          <select name="eventTemplateId" style="padding:12px 12px; border-radius:10px; border:1px solid #d1d5db; width:100%;">
-            <option value="">All</option>
-            <% (eventTemplates || []).forEach(t => { %>
-              <option value="<%= t.eventtemplateid %>" <%= filters && Number(filters.eventTemplateId) === Number(t.eventtemplateid) ? 'selected' : '' %>><%= t.eventname %></option>
-            <% }) %>
-          </select>
-        </label>
-        <label style="display:flex; flex-direction:column; gap:4px; min-width:180px;">
-          <span style="color:#4b5563; font-size:.9rem;">Filter by event type</span>
-          <select name="eventTypeId" style="padding:12px 12px; border-radius:10px; border:1px solid #d1d5db; width:100%;">
-            <option value="">All</option>
-            <% (eventTypes || []).forEach(t => { %>
-              <option value="<%= t.eventtypeid %>" <%= filters && Number(filters.eventTypeId) === Number(t.eventtypeid) ? 'selected' : '' %>><%= t.eventtypename %></option>
-            <% }) %>
-          </select>
-        </label>
-        <label style="display:flex; flex-direction:column; gap:4px; min-width:180px;">
+        <label style="display:flex; flex-direction:column; gap:4px; min-width:220px; flex:1;">
           <span style="color:#4b5563; font-size:.9rem;">Filter by milestone type</span>
           <select name="milestoneCatalogId" style="padding:12px 12px; border-radius:10px; border:1px solid #d1d5db; width:100%;">
             <option value="">All</option>
@@ -72,11 +56,11 @@
             <% }) %>
           </select>
         </label>
-      </div>
 
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button type="submit" class="btn-gradient" style="padding:10px 14px; border-radius:10px; font-weight:700;">Apply Filters</button>
-        <a href="/participants" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Reset</a>
+        <div style="display:flex; gap:8px; margin-left:auto; align-items:center;">
+          <button type="submit" class="btn-gradient" style="padding:10px 14px; border-radius:10px; font-weight:700; min-width:130px;">Apply Filters</button>
+          <a href="/participants" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none; min-width:100px; text-align:center;">Reset</a>
+        </div>
       </div>
     </form>
 
