@@ -6,8 +6,11 @@
     <% } %>
     <form method="POST" action="/admin/donations/new" style="display:grid; gap:12px;">
       <div>
-        <label for="donorname" style="font-weight:600; display:block; margin-bottom:.35rem;">Donor Name</label>
-        <input type="text" id="donorname" name="donorname" value="<%= formValues?.donorname || '' %>" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ddd;">
+      <label style="font-weight:600; display:block; margin-bottom:.35rem;">Donor Name</label>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <input type="text" placeholder="First name" name="donorfirstname" value="<%= formValues?.donorfirstname || '' %>" style="flex:1; padding:10px; border-radius:10px; border:1px solid #ddd;">
+        <input type="text" placeholder="Last name" name="donorlastname" value="<%= formValues?.donorlastname || '' %>" style="flex:1; min-width:140px; padding:10px; border-radius:10px; border:1px solid #ddd;">
+      </div>
       </div>
       <div>
         <label for="participantid" style="font-weight:600; display:block; margin-bottom:.35rem;">Participant ID (optional)</label>
