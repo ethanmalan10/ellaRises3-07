@@ -11,11 +11,12 @@
   </div>
 </div>
 
-<div style="margin:6px 0 12px 0; display:flex; gap:8px; flex-wrap:wrap;">
+<form style="margin:6px 0 12px 0; display:flex; gap:8px; flex-wrap:wrap;" onsubmit="return false;">
+  <label for="user-search" class="sr-only">Search users</label>
   <input id="user-search" type="text" placeholder="Quick search users..." style="width:100%; max-width:320px; padding:10px 12px; border:1px solid #d1d5db; border-radius:10px;">
   <button id="user-search-btn" class="btn-cream" style="padding:10px 14px; border-radius:10px;">Search</button>
   <button id="user-clear-btn" class="btn-outline" style="padding:10px 14px; border-radius:10px;">Clear</button>
-</div>
+</form>
 <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
   <div style="color:#4b5563;">Showing <%= Math.min((pag.page - 1) * pag.pageSize + 1, pag.total || 0) %>–<%= Math.min(pag.page * pag.pageSize, pag.total || 0) %> of <%= pag.total || 0 %></div>
   <form method="GET" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
@@ -42,15 +43,16 @@
   <% } else { %>
     <div class="card" style="padding:16px; border-radius:12px; border:1px solid #e5e7eb;">
       <table id="users-table" style="width:100%; border-collapse:collapse;">
+        <caption style="text-align:left; padding:10px; font-weight:600;">All users</caption>
         <thead>
           <tr style="text-align:left; border-bottom:1px solid #e5e7eb;">
-            <th style="padding:10px;">User ID</th>
-            <th style="padding:10px;">Username</th>
-            <th style="padding:10px;">Role</th>
-            <th style="padding:10px;">Participant</th>
-            <th style="padding:10px;">City / State</th>
-            <th style="padding:10px;">Email</th>
-            <th style="padding:10px;">Actions</th>
+            <th scope="col" style="padding:10px;">User ID</th>
+            <th scope="col" style="padding:10px;">Username</th>
+            <th scope="col" style="padding:10px;">Role</th>
+            <th scope="col" style="padding:10px;">Participant</th>
+            <th scope="col" style="padding:10px;">City / State</th>
+            <th scope="col" style="padding:10px;">Email</th>
+            <th scope="col" style="padding:10px;">Actions</th>
           </tr>
         </thead>
         <tbody>
