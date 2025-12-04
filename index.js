@@ -2432,6 +2432,142 @@ app.get('/participants', requireManager, async (req, res) => {
   }
 });
 
+// Export participants (CSV) with current filters/sorting
+app.get('/participants/export', requireManager, async (req, res) => {
+  try {
+    const sortByParam = (req.query.sortBy || '').toString().trim().toLowerCase();
+    const sortBy = ['events', 'surveys', 'milestones', 'name'].includes(sortByParam)
+      ? sortByParam
+      : 'name';
+    const sortDirParamRaw = (req.query.sortDir || '').toString().trim().toLowerCase();
+    const sortDirParam = sortDirParamRaw === 'asc' ? 'asc' : 'desc';
+    const sortDir = sortDirParam === 'asc' ? 'ASC' : 'DESC';
+    const eventTemplateId = req.query.eventTemplateId ? Number(req.query.eventTemplateId) : null;
+    const eventTypeId = req.query.eventTypeId ? Number(req.query.eventTypeId) : null;
+    const milestoneCatalogId = req.query.milestoneCatalogId ? Number(req.query.milestoneCatalogId) : null;
+    const q = (req.query.q || '').toString();
+
+    const params = [];
+    const addParam = (v) => { params.push(v); return `$${params.length}`; };
+
+    const eventFilters = [];
+    if (eventTemplateId) eventFilters.push(`eo.eventtemplateid = ${addParam(eventTemplateId)}`);
+    if (eventTypeId) eventFilters.push(`et.eventtypeid = ${addParam(eventTypeId)}`);
+    const eventWhere = eventFilters.length ? `WHERE ${eventFilters.join(' AND ')}` : '';
+
+    const surveyFilters = [];
+    if (eventTemplateId) surveyFilters.push(`eo2.eventtemplateid = ${addParam(eventTemplateId)}`);
+    if (eventTypeId) surveyFilters.push(`et2.eventtypeid = ${addParam(eventTypeId)}`);
+    const surveyWhere = surveyFilters.length ? `WHERE ${surveyFilters.join(' AND ')}` : '';
+
+    const milestoneFilters = [];
+    if (milestoneCatalogId) milestoneFilters.push(`m.milestonecatalogid = ${addParam(milestoneCatalogId)}`);
+    const milestoneWhere = milestoneFilters.length ? `WHERE ${milestoneFilters.join(' AND ')}` : '';
+
+    const participantFilters = [];
+    if (q.trim()) {
+      const likeParam = addParam(`%${q.trim().toLowerCase()}%`);
+      participantFilters.push(`(LOWER(p.participantfirstname) LIKE ${likeParam}
+        OR LOWER(p.participantlastname) LIKE ${likeParam}
+        OR LOWER(p.participantemail) LIKE ${likeParam}
+        OR LOWER(p.participantcity) LIKE ${likeParam}
+        OR LOWER(p.participantstate) LIKE ${likeParam})`);
+    }
+    const participantWhere = participantFilters.length ? `WHERE ${participantFilters.join(' AND ')}` : '';
+
+    let sortClause = `p.participantlastname ${sortDir}, p.participantfirstname ${sortDir}`;
+    if (sortBy === 'events') sortClause = `events_attended ${sortDir}, p.participantlastname ASC`;
+    else if (sortBy === 'surveys') sortClause = `surveys_completed ${sortDir}, p.participantlastname ASC`;
+    else if (sortBy === 'milestones') sortClause = `milestones_completed ${sortDir}, p.participantlastname ASC`;
+
+    const { rows } = await pool.query(
+      `SELECT p.participantid,
+              p.participantfirstname,
+              p.participantlastname,
+              p.participantdob,
+              p.participantcity,
+              p.participantstate,
+              u.username,
+              COALESCE(reg_counts.events_attended, 0) AS events_attended,
+              COALESCE(surv_counts.surveys_completed, 0) AS surveys_completed,
+              COALESCE(ms_counts.milestones_completed, 0) AS milestones_completed
+       FROM participant p
+       LEFT JOIN users u ON u.participantid = p.participantid
+       LEFT JOIN (
+         SELECT r.participantid, COUNT(DISTINCT r.eventoccurrenceid) AS events_attended
+         FROM registration r
+         JOIN eventoccurrence eo ON eo.eventoccurrenceid = r.eventoccurrenceid
+         JOIN eventtemplate et ON et.eventtemplateid = eo.eventtemplateid
+         ${eventWhere}
+         GROUP BY r.participantid
+       ) reg_counts ON reg_counts.participantid = p.participantid
+       LEFT JOIN (
+         SELECT s.participantid, COUNT(*) AS surveys_completed
+         FROM survey s
+         JOIN eventoccurrence eo2 ON eo2.eventoccurrenceid = s.eventoccurrenceid
+         JOIN eventtemplate et2 ON et2.eventtemplateid = eo2.eventtemplateid
+         ${surveyWhere}
+         GROUP BY s.participantid
+       ) surv_counts ON surv_counts.participantid = p.participantid
+       LEFT JOIN (
+         SELECT m.participantid, COUNT(*) AS milestones_completed
+         FROM milestone m
+         ${milestoneWhere}
+         GROUP BY m.participantid
+       ) ms_counts ON ms_counts.participantid = p.participantid
+       ${participantWhere}
+       ORDER BY ${sortClause}`,
+      params
+    );
+
+    const headers = [
+      'Participant ID',
+      'First Name',
+      'Last Name',
+      'City',
+      'State',
+      'DOB',
+      'Username',
+      'Events Attended',
+      'Surveys Completed',
+      'Milestones Completed',
+    ];
+
+    const escapeCsv = (val) => {
+      const v = val === null || typeof val === 'undefined' ? '' : String(val);
+      if (v.includes('"') || v.includes(',') || v.includes('\n')) {
+        return `"${v.replace(/"/g, '""')}"`;
+      }
+      return v;
+    };
+
+    const csvRows = [
+      headers.join(','),
+      ...rows.map(r =>
+        [
+          r.participantid,
+          r.participantfirstname || '',
+          r.participantlastname || '',
+          r.participantcity || '',
+          r.participantstate || '',
+          r.participantdob ? new Date(r.participantdob).toISOString().slice(0, 10) : '',
+          r.username || '',
+          r.events_attended || 0,
+          r.surveys_completed || 0,
+          r.milestones_completed || 0,
+        ].map(escapeCsv).join(',')
+      ),
+    ].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="participants.csv"');
+    return res.send(csvRows);
+  } catch (err) {
+    console.error('Participants export error:', err);
+    return res.status(500).send('Could not export participants');
+  }
+});
+
 // New participant form
 app.get('/participants/new', requireManager, async (_req, res) => {
   try {
