@@ -25,23 +25,22 @@
   };
 
   const updateButtonUI = (lang) => {
-    const btn = document.getElementById('lang-toggle');
-    if (!btn) return;
-    btn.classList.add('notranslate');
-    if (lang === 'es') {
-      btn.textContent = 'EN';
-      btn.setAttribute('aria-label', 'Switch to English');
-      btn.setAttribute('aria-pressed', 'true');
-    } else {
-      btn.textContent = 'ES';
-      btn.setAttribute('aria-label', 'Cambiar a español');
-      btn.setAttribute('aria-pressed', 'false');
-    }
+    // highlight active option
+    const options = document.querySelectorAll('.lang-option');
+    options.forEach((opt) => {
+      const isActive = (opt.dataset.target === lang);
+      if (isActive) {
+        opt.style.fontWeight = '700';
+        opt.style.color = 'var(--charcoal)';
+      } else {
+        opt.style.fontWeight = '500';
+        opt.style.color = '';
+      }
+    });
   };
 
-  const toggleLanguage = () => {
-    const current = getCurrentLang();
-    const next = current === 'es' ? '/en/en' : '/en/es';
+  const switchLanguage = (targetLang) => {
+    const next = targetLang === 'es' ? '/en/es' : '/en/en';
     setCookie(next);
     const langCode = next.includes('/es') ? 'es' : 'en';
     updateButtonUI(langCode);
@@ -50,15 +49,20 @@
   };
 
   const initButton = () => {
-    const btn = document.getElementById('lang-toggle');
-    if (!btn) return;
     const lang = getCurrentLang();
     applyLangAttributes(lang);
     updateButtonUI(lang);
-    if (!btn.dataset.bound) {
-      btn.addEventListener('click', toggleLanguage);
-      btn.dataset.bound = 'true';
-    }
+    const options = document.querySelectorAll('.lang-option');
+    options.forEach((opt) => {
+      if (!opt.dataset.bound) {
+        opt.addEventListener('click', (e) => {
+          e.preventDefault();
+          const targetLang = opt.dataset.target;
+          if (targetLang) switchLanguage(targetLang);
+        });
+        opt.dataset.bound = 'true';
+      }
+    });
   };
 
   const loadGoogleTranslate = () => {

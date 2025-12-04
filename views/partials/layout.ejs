@@ -38,6 +38,13 @@
 
     <!-- Right Side -->
     <div class="navbar-nav" style="margin-left:auto; align-items:center; gap:10px;">
+      <div class="dropdown" id="lang-dropdown" style="position:relative;">
+        <a href="#" class="nav-link notranslate">Language ▾</a>
+        <div class="dropdown-content" style="right:0; min-width:140px;">
+          <a href="#" class="lang-option" data-target="en">English</a>
+          <a href="#" class="lang-option" data-target="es">Español</a>
+        </div>
+      </div>
       <% if (!user) { %>
         <!-- Login / Register Dropdown -->
         <div class="dropdown">
@@ -76,28 +83,6 @@
           </div>
         </div>
       <% } %>
-
-      <button
-        id="lang-toggle"
-        type="button"
-        class="nav-link lang-toggle-btn notranslate"
-        aria-label="Cambiar a español"
-        aria-pressed="false"
-        style="
-          border:1px solid var(--sage);
-          color: #fff;
-          background: var(--charcoal);
-          width: 34px;
-          height: 34px;
-          border-radius: 50%;
-          display:flex;
-          align-items:center;
-          justify-content:center;
-          font-weight:700;
-          font-size: 0.85rem;
-        ">
-        ES
-      </button>
 
     </div>
   </nav>
