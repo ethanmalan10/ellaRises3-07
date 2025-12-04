@@ -849,6 +849,21 @@ app.post('/admin/donations/new', requireManager, async (req, res) => {
       });
     }
 
+    // Resolve participant id: use provided id or create a donor participant so the FK is satisfied
+    let participantId = (pid && !Number.isNaN(pid)) ? pid : null;
+    if (!participantId) {
+      const fallbackFirst = donorFirst || 'Anonymous';
+      const fallbackEmail = `donor-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@ella.local`;
+      const { rows } = await pool.query(
+        `INSERT INTO participant (participantemail, participantfirstname, participantlastname, participantrole)
+         VALUES ($1, $2, $3, 'Donor')
+         RETURNING participantid`,
+        [fallbackEmail, fallbackFirst, donorLast || null]
+      );
+      participantId = rows[0]?.participantid;
+      if (!participantId) throw new Error('Could not resolve participant for donation');
+    }
+
     let nextId = await getNextDonationId();
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
@@ -857,7 +872,7 @@ app.post('/admin/donations/new', requireManager, async (req, res) => {
            VALUES ($1, $2, $3, $4, $5, $6, $7)`,
           [
             nextId,
-            pid && !Number.isNaN(pid) ? pid : null,
+            participantId,
             amt,
             date && !Number.isNaN(date.valueOf()) ? date : CURRENT_DATE,
             donorFirst || null,
