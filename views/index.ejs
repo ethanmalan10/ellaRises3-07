@@ -31,6 +31,7 @@
 <%
   // Safely read logged-in user from locals
   const user = locals.currentUser || null;
+  const milestoneHighlights = (locals && locals.milestoneHighlights) || [];
 %>
 
 <!-- HERO SLIDER -->
@@ -92,7 +93,7 @@
 </section>
 
   <!-- MISSION STATEMENT -->
-  <section class="container" style="margin-top:1.25rem;">
+  <section class="container" style="margin:1rem auto 0.5rem auto;">
     <div class="card" style="padding:28px; border-radius:18px;">
       <h2 style="text-align:center; margin:0 0 10px 0; font-family: var(--font-serif);">
         Our Mission
@@ -248,4 +249,3 @@
     if (playing) start();
   })();
 </script>
-
