@@ -1,4 +1,4 @@
-<main class="container main-content" style="max-width:1100px; margin-top:2.5rem;">
+<main class="container main-content" style="max-width:1200px; margin-top:2.5rem;">
   <% function calcAge(d){ if(!d) return '—'; const dob=new Date(d); if(Number.isNaN(dob)) return '—'; const now=new Date(); let age=now.getFullYear()-dob.getFullYear(); const m=now.getMonth()-dob.getMonth(); if(m<0||(m===0&&now.getDate()<dob.getDate())) age--; return age; } %>
 
   <header style="display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:1.25rem; flex-wrap:wrap;">
@@ -13,7 +13,7 @@
   </header>
 
   <div class="card" style="padding:20px; border-radius:14px; border:1px solid #e5e7eb; background:#f9fafb; margin-bottom:1rem;">
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px,1fr)); gap:14px;">
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px,1fr)); gap:16px;">
       <div><strong>Name</strong><br><%= [participant.participantfirstname, participant.participantlastname].filter(Boolean).join(' ') || '—' %></div>
       <div><strong>Age</strong><br><%= calcAge(participant.participantdob) %></div>
       <div><strong>Email</strong><br><%= participant.participantemail || '—' %></div>
@@ -48,6 +48,50 @@
           <li><strong><%= m.milestonetitle %></strong> <% if (m.milestonedate) { %> — <%= m.milestonedate %> <% } %></li>
         <% }) %>
       </ul>
+    <% } %>
+  </div>
+
+  <div class="card" style="padding:20px; border-radius:14px; border:1px solid #e5e7eb; background:#f9fafb; margin-top:1rem;">
+    <h3 style="margin:0 0 .75rem 0;">Event Attendance</h3>
+    <% const evts = (typeof events !== 'undefined' && events) ? events : []; %>
+    <% if (!evts || !evts.length) { %>
+      <p style="color:#6b7280;">No event registrations found.</p>
+    <% } else { %>
+      <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; min-width:520px;">
+          <thead>
+            <tr style="background:#f1f5f9; color:#1f2937;">
+              <th style="text-align:left; padding:8px 10px; border-bottom:1px solid #e5e7eb;">Event</th>
+              <th style="text-align:left; padding:8px 10px; border-bottom:1px solid #e5e7eb;">When</th>
+              <th style="text-align:left; padding:8px 10px; border-bottom:1px solid #e5e7eb;">Location</th>
+              <th style="text-align:left; padding:8px 10px; border-bottom:1px solid #e5e7eb;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% evts.forEach(evt => { %>
+              <tr style="border-bottom:1px solid #e5e7eb;">
+                <td style="padding:8px 10px;"><%= evt.eventname || 'Event #' + evt.eventoccurrenceid %></td>
+                <td style="padding:8px 10px;">
+                  <% if (evt.eventdatetimestart) { %>
+                    <%= new Date(evt.eventdatetimestart).toLocaleDateString() %>
+                    <% if (evt.eventdatetimeend) { %> - <%= new Date(evt.eventdatetimeend).toLocaleDateString() %> <% } %>
+                  <% } else { %>
+                    N/A
+                  <% } %>
+                </td>
+                <td style="padding:8px 10px;"><%= evt.eventlocation || 'N/A' %></td>
+                <td style="padding:8px 10px;">
+                  <% const status = (evt.registrationstatus || '').toLowerCase(); %>
+                  <% const badgeColor = status === 'attended' ? '#bbf7d0' : status === 'cancelled' ? '#fee2e2' : status === 'no-show' ? '#fde68a' : '#e5e7eb'; %>
+                  <span style="display:inline-block; padding:4px 8px; border-radius:10px; background:<%= badgeColor %>; color:#111827; font-weight:700; text-transform:capitalize;">
+                    <%= status || 'unknown' %>
+                  </span>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
     <% } %>
   </div>
 </main>

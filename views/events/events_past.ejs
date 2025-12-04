@@ -118,6 +118,7 @@
 
           <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:14px;">
             <a href="/events/<%= ev.eventoccurrenceid %>/edit" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Edit</a>
+            <a href="/events/occurrences/<%= ev.eventoccurrenceid %>/attendance?back=<%= encodeURIComponent('/events/past') %>" class="btn-login-home" style="padding:10px 14px; border-radius:10px; text-decoration:none;">View attendance</a>
             <form method="POST" action="/events/<%= ev.eventoccurrenceid %>/delete" onsubmit="return confirm('Delete this event?');">
               <button type="submit" class="btn-outline" style="padding:10px 14px; border-radius:10px; border:1px solid #dc2626; color:#dc2626;">Delete</button>
             </form>

@@ -23,29 +23,30 @@
       </p>
 
       <form method="POST" action="/donations" style="display:flex; flex-direction:column; gap:16px;">
-
-        <!-- Donor Name -->
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:14px;">
-          <div>
-            <label for="firstName" style="display:block; margin-bottom:6px; font-weight:600;">First Name</label>
-            <input
-              id="firstName"
-              name="firstName"
-              type="text"
-              required
-              style="width:100%; padding:12px; border-radius:10px; box-sizing:border-box;"
-            >
+        <% const loggedIn = !!currentUser; %>
+        <% const p = typeof participant !== 'undefined' && participant ? participant : null; %>
+        <% if (loggedIn && p) { %>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:14px;">
+            <div>
+              <label style="display:block; margin-bottom:6px; font-weight:600;">First Name</label>
+              <input
+                type="text"
+                value="<%= p.participantfirstname || '' %>"
+                readonly
+                style="width:100%; padding:12px; border-radius:10px; box-sizing:border-box; background:#f4f4f5; cursor:not-allowed;"
+              >
+            </div>
+            <div>
+              <label style="display:block; margin-bottom:6px; font-weight:600;">Last Name</label>
+              <input
+                type="text"
+                value="<%= p.participantlastname || '' %>"
+                readonly
+                style="width:100%; padding:12px; border-radius:10px; box-sizing:border-box; background:#f4f4f5; cursor:not-allowed;"
+              >
+            </div>
           </div>
-          <div>
-            <label for="lastName" style="display:block; margin-bottom:6px; font-weight:600;">Last Name</label>
-            <input
-              id="lastName"
-              name="lastName"
-              type="text"
-              style="width:100%; padding:12px; border-radius:10px; box-sizing:border-box;"
-            >
-          </div>
-        </div>
+        <% } %>
 
         <!-- Email -->
         <div>
@@ -57,6 +58,7 @@
             name="email"
             type="email"
             required
+            value="<%= (p && p.participantemail) ? p.participantemail : '' %>"
             style="width:100%; padding:12px; border-radius:10px;"
           >
         </div>
