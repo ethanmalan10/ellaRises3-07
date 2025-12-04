@@ -3825,6 +3825,10 @@ app.post('/admin/surveys/:id/delete', requireManager, async (req, res) => {
 /* -----------------------------
    Health & 404
 ----------------------------- */
+app.get('/teapot', (_req, res) => {
+  res.status(418).render('teapot', { title: "I'm a teapot" });
+});
+
 app.get('/healthz', async (_req, res) => {
   try {
     await pool.query('SELECT 1');

@@ -1,0 +1,160 @@
+<style>
+  .teapot-page {
+    min-height: 70vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f6f8fb;
+    padding: 36px 16px 52px;
+  }
+  .teapot-card {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    align-items: center;
+    background: #fff;
+    border: 1px solid #e6e9ef;
+    border-radius: 18px;
+    padding: 32px 36px;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.06);
+    max-width: 980px;
+    width: 100%;
+  }
+  .teapot-copy h1 {
+    margin: 0 0 10px 0;
+    font-size: 2.35rem;
+    font-weight: 800;
+    color: #111827;
+  }
+  .teapot-copy h1 span { color: #2f80ed; }
+  .teapot-copy p {
+    margin: 0 0 12px 0;
+    color: #1f2937;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+  .teapot-copy p.note { color: #4b5563; font-weight: 500; margin-bottom: 0; }
+  .teapot-graphic { justify-self: center; }
+  #teapot-svg {
+    width: 260px;
+    max-width: 100%;
+    cursor: pointer;
+    overflow: visible;
+  }
+  #body, #rim, #lid, #handle, #spout, #eyes, #gear-l, #gear-r, #mouth, #cup, #cup-shadow, #pour, #drop, #steam {
+    transition: transform 0.45s ease, opacity 0.25s ease;
+  }
+  #cup-shadow { opacity: 0.6; }
+  #pour, #drop { opacity: 0; }
+  #teapot-svg.pouring #body,
+  #teapot-svg.pouring #rim,
+  #teapot-svg.pouring #lid,
+  #teapot-svg.pouring #handle,
+  #teapot-svg.pouring #spout,
+  #teapot-svg.pouring #eyes,
+  #teapot-svg.pouring #gear-l,
+  #teapot-svg.pouring #gear-r,
+  #teapot-svg.pouring #mouth {
+    transform: rotate(-24deg) translate(-18px, -10px);
+    transform-origin: 150px 120px;
+  }
+  #teapot-svg.pouring #pour {
+    opacity: 1;
+    animation: pour-line 1s ease-in-out forwards;
+  }
+  #teapot-svg.pouring #drop {
+    opacity: 1;
+    animation: drip 1s ease-in-out forwards;
+  }
+  #teapot-svg.pouring #steam { opacity: 0.12; }
+  @keyframes pour-line {
+    0% { stroke-dashoffset: 110; opacity: 0; }
+    12% { opacity: 1; }
+    100% { stroke-dashoffset: 0; opacity: 1; }
+  }
+  @keyframes drip {
+    0%   { transform: translate(0, -6px); opacity: 0; }
+    25%  { opacity: 1; }
+    100% { transform: translate(-6px, 42px); opacity: 0; }
+  }
+  @media (max-width: 820px) {
+    .teapot-card { grid-template-columns: 1fr; text-align: center; }
+    .teapot-graphic { justify-self: center; }
+  }
+</style>
+
+<section class="teapot-page">
+  <div class="teapot-card">
+    <div class="teapot-copy">
+      <h1><span>418.</span> I am a teapot.</h1>
+      <p><strong>The requested entity body is short and stout.</strong></p>
+      <p class="note">Tip me over and pour me out.</p>
+    </div>
+    <div class="teapot-graphic">
+      <svg id="teapot-svg" viewBox="0 0 320 240" fill="none" stroke="#4a9dfc" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-label="Teapot illustration">
+        <g id="steam">
+          <path d="M108 58c-6 6-6 12 0 18" />
+          <path d="M120 52c-6 6-6 12 0 18" />
+        </g>
+        <g id="cup-shadow">
+          <ellipse cx="128" cy="202" rx="46" ry="12" fill="#d7e9ff" stroke="none"/>
+        </g>
+        <g id="cup">
+          <ellipse cx="126" cy="186" rx="36" ry="10" fill="#eef3ff"/>
+          <path d="M90 186c0 10 14 18 36 18s36-8 36-18" fill="#f8fbff"/>
+          <path d="M90 186v10c0 10 14 18 36 18s36-8 36-18v-10" />
+          <path d="M162 188c8 0 12-4 12-8s-4-8-12-8" />
+        </g>
+        <g id="body">
+          <ellipse cx="172" cy="110" rx="80" ry="54" fill="#f4f8ff"/>
+          <path id="rim" d="M100 102c0-24 28-46 72-46s72 22 72 46" />
+          <path d="M108 148c18 14 44 22 64 22s46-8 64-22" />
+        </g>
+        <g id="lid">
+          <path d="M152 58c0-8 12-14 28-14s28 6 28 14" fill="#f4f8ff"/>
+          <rect x="164" y="46" width="20" height="10" rx="3" fill="#f4f8ff"/>
+          <path d="M156 66h48" />
+        </g>
+        <g id="handle">
+          <path d="M96 120c-18 0-28-10-28-24s10-24 28-24" />
+          <path d="M94 116c-10 0-16-8-16-16s6-16 16-16" />
+        </g>
+        <g id="spout">
+          <path d="M248 120c16 0 26-10 28-22s-6-22-18-22" />
+          <path d="M254 116c8 0 14-6 16-14s-2-16-10-16" />
+          <path d="M242 124c-4 12-2 18 10 20" />
+        </g>
+        <g id="gear-l">
+          <circle cx="142" cy="118" r="18" />
+          <path d="M142 100v36M124 118h36" />
+          <path d="M130 106l24 24M154 106l-24 24" />
+        </g>
+        <g id="gear-r">
+          <circle cx="200" cy="118" r="18" />
+          <path d="M200 100v36M182 118h36" />
+          <path d="M188 106l24 24M212 106l-24 24" />
+        </g>
+        <g id="eyes">
+          <circle cx="142" cy="118" r="6" fill="#f4f8ff" />
+          <circle cx="200" cy="118" r="6" fill="#f4f8ff" />
+        </g>
+        <path id="mouth" d="M150 142c14 10 32 10 46 0" />
+        <path id="pour" d="M244 138c-8 16-18 22-38 26-20 4-38 0-56-10-12-8-22-12-32-14" stroke-dasharray="110 110"/>
+        <circle id="drop" cx="246" cy="142" r="4.5" fill="#4a9dfc" stroke="none" />
+      </svg>
+    </div>
+  </div>
+</section>
+
+<script>
+  (function () {
+    const svg = document.getElementById('teapot-svg');
+    if (!svg) return;
+    svg.addEventListener('click', () => {
+      svg.classList.remove('pouring');
+      void svg.offsetWidth; // reset
+      svg.classList.add('pouring');
+      setTimeout(() => svg.classList.remove('pouring'), 1100);
+    });
+  })();
+</script>
