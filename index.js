@@ -545,6 +545,21 @@ async function getParticipantDetail(id) {
     [id]
   );
   if (!participantRes.rows.length) return null;
+  const eventsRes = await pool.query(
+    `SELECT r.registrationid,
+            r.registrationstatus,
+            r.eventoccurrenceid,
+            eo.eventdatetimestart,
+            eo.eventdatetimeend,
+            eo.eventlocation,
+            et.eventname
+     FROM registration r
+     JOIN eventoccurrence eo ON eo.eventoccurrenceid = r.eventoccurrenceid
+     LEFT JOIN eventtemplate et ON et.eventtemplateid = eo.eventtemplateid
+     WHERE r.participantid = $1
+     ORDER BY eo.eventdatetimestart DESC NULLS LAST, r.registrationid DESC`,
+    [id]
+  );
   const milestonesRes = await pool.query(
     `SELECT m.milestoneid,
             m.milestonecatalogid,
@@ -557,7 +572,7 @@ async function getParticipantDetail(id) {
      ORDER BY m.milestonedate DESC NULLS LAST, m.milestoneid DESC`,
     [id]
   );
-  return { participant: participantRes.rows[0], milestones: milestonesRes.rows };
+  return { participant: participantRes.rows[0], milestones: milestonesRes.rows, events: eventsRes.rows };
 }
 
 /* -----------------------------
@@ -802,42 +817,45 @@ app.get('/', async (req, res) => {
 });
 
 // /donations -> views/donations/donations.ejs
-app.get('/donations', (req, res) => {
-  res.render(path.join('donations', 'donations'), { title: 'Donations' });
+app.get('/donations', async (req, res) => {
+  let participant = null;
+  try {
+    participant = await findParticipantForUser(req.session.user || null);
+  } catch (err) {
+    console.error('Donation form participant lookup failed:', err);
+  }
+  res.render(path.join('donations', 'donations'), {
+    title: 'Donations',
+    participant,
+  });
 });
 
 // Handle donation submit -> redirect home with a thank-you toast
 app.post('/donations', async (req, res) => {
-  const { firstName, lastName, donationAmount, email } = req.body || {};
-  const donorFirst = (firstName || '').trim();
-  const donorLast = (lastName || '').trim();
+  const { donationAmount, email } = req.body || {};
   const donorEmail = (email || '').trim().toLowerCase();
   const amount = Number(donationAmount);
 
-  if (!donorFirst || !donorEmail || !donationAmount || Number.isNaN(amount)) {
+  if (!donorEmail || !donationAmount || Number.isNaN(amount)) {
     return res.redirect('/donations?err=invalid');
   }
 
+  let participantId = null;
   try {
-    // Ensure we have (or create) a participant to satisfy the FK on donation.participantid
-    const { rows: participantRows } = await pool.query(
-      `INSERT INTO participant (participantemail, participantfirstname, participantlastname, participantrole)
-       VALUES ($1, $2, $3, 'Donor')
-       ON CONFLICT (participantemail)
-       DO UPDATE SET participantfirstname = EXCLUDED.participantfirstname,
-                     participantlastname = EXCLUDED.participantlastname
-       RETURNING participantid`,
-      [donorEmail, donorFirst, donorLast || null]
-    );
-    const participantId = participantRows[0]?.participantid;
+    const p = await findParticipantForUser(req.session.user || null);
+    if (p) participantId = p.participantid;
+  } catch (err) {
+    console.error('Donation participant resolution failed:', err);
+  }
 
+  try {
     let nextId = await getNextDonationId();
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         await pool.query(
-          `INSERT INTO donation (donationid, participantid, donationamount, donationdate, donorfirstname, donorlastname, donationno)
-           VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, $6)`,
-          [nextId, participantId, amount, donorFirst, donorLast || null, 1]
+          `INSERT INTO donation (donationid, participantid, donationamount, donationdate, donationno)
+           VALUES ($1, $2, $3, CURRENT_DATE, $4)`,
+          [nextId, participantId, amount, 1]
         );
         break;
       } catch (err) {
@@ -855,8 +873,7 @@ app.post('/donations', async (req, res) => {
 
   const params = new URLSearchParams();
   params.set('donated', '1');
-  const donorDisplay = donorLast ? `${donorFirst} ${donorLast}` : donorFirst;
-  params.set('donor', donorDisplay);
+  params.set('donor', donorEmail);
   params.set('amount', amount.toString());
 
   return res.redirect(`/?${params.toString()}`);
@@ -872,13 +889,9 @@ async function listDonations() {
             d.donationamount AS amount,
             d.donationdate AS date,
             CASE
-              WHEN d.participantid IS NOT NULL THEN TRIM(BOTH ' ' FROM COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,''))
-              WHEN COALESCE(d.donorfirstname,'') <> '' OR COALESCE(d.donorlastname,'') <> ''
-                THEN TRIM(BOTH ' ' FROM COALESCE(d.donorfirstname,'') || ' ' || COALESCE(d.donorlastname,''))
+              WHEN d.participantid IS NOT NULL THEN NULLIF(TRIM(BOTH ' ' FROM COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,'')), '')
               ELSE 'Anonymous'
             END AS displayname,
-            d.donorfirstname,
-            d.donorlastname,
             TRIM(BOTH ' ' FROM COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,'')) AS participantname
      FROM donation d
      LEFT JOIN participant p ON d.participantid = p.participantid
@@ -895,13 +908,9 @@ async function getDonation(id) {
             d.donationamount AS amount,
             d.donationdate AS date,
             CASE
-              WHEN d.participantid IS NOT NULL THEN TRIM(BOTH ' ' FROM COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,''))
-              WHEN COALESCE(d.donorfirstname,'') <> '' OR COALESCE(d.donorlastname,'') <> ''
-                THEN TRIM(BOTH ' ' FROM COALESCE(d.donorfirstname,'') || ' ' || COALESCE(d.donorlastname,''))
+              WHEN d.participantid IS NOT NULL THEN NULLIF(TRIM(BOTH ' ' FROM COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,'')), '')
               ELSE 'Anonymous'
             END AS displayname,
-            d.donorfirstname,
-            d.donorlastname,
             TRIM(BOTH ' ' FROM COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,'')) AS participantname
      FROM donation d
      LEFT JOIN participant p ON d.participantid = p.participantid
@@ -934,58 +943,33 @@ app.get('/admin/donations/new', requireManager, (req, res) => {
 });
 
 app.post('/admin/donations/new', requireManager, async (req, res) => {
-  const { donorfirstname, donorlastname, participantid, amount, donationdate } = req.body;
+  const { participantid, amount, donationdate } = req.body;
   const pid = Number(participantid);
   const amt = Number(amount);
   const date = donationdate ? new Date(donationdate) : null;
-  const donorFirst = (donorfirstname || '').trim();
-  const donorLast = (donorlastname || '').trim();
 
   try {
-    if (!donorFirst && !donorLast && (!pid || Number.isNaN(pid))) {
-      return res.status(400).render(path.join('donations', 'adminAdd'), {
-        title: 'Add Donation',
-        error: 'Provide a donor name or participant ID.',
-        formValues: { donorfirstname, donorlastname, participantid, amount, donationdate },
-      });
-    }
-
     if (!amt || Number.isNaN(amt)) {
       return res.status(400).render(path.join('donations', 'adminAdd'), {
         title: 'Add Donation',
         error: 'Amount is required.',
-        formValues: { donorfirstname, donorlastname, participantid, amount, donationdate },
+        formValues: { participantid, amount, donationdate },
       });
     }
 
-    // Resolve participant id: use provided id or create a donor participant so the FK is satisfied
-    let participantId = (pid && !Number.isNaN(pid)) ? pid : null;
-    if (!participantId) {
-      const fallbackFirst = donorFirst || 'Anonymous';
-      const fallbackEmail = `donor-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@ella.local`;
-      const { rows } = await pool.query(
-        `INSERT INTO participant (participantemail, participantfirstname, participantlastname, participantrole)
-         VALUES ($1, $2, $3, 'Donor')
-         RETURNING participantid`,
-        [fallbackEmail, fallbackFirst, donorLast || null]
-      );
-      participantId = rows[0]?.participantid;
-      if (!participantId) throw new Error('Could not resolve participant for donation');
-    }
+    const participantId = (pid && !Number.isNaN(pid)) ? pid : null;
 
     let nextId = await getNextDonationId();
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         await pool.query(
-          `INSERT INTO donation (donationid, participantid, donationamount, donationdate, donorfirstname, donorlastname, donationno)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          `INSERT INTO donation (donationid, participantid, donationamount, donationdate, donationno)
+           VALUES ($1, $2, $3, $4, $5)`,
           [
             nextId,
             participantId,
             amt,
-            date && !Number.isNaN(date.valueOf()) ? date : CURRENT_DATE,
-            donorFirst || null,
-            donorLast || null,
+            date && !Number.isNaN(date.valueOf()) ? date : new Date(),
             1
           ]
         );
@@ -1028,11 +1012,9 @@ app.get('/admin/donations/:id/edit', requireManager, async (req, res) => {
 });
 
 app.post('/admin/donations/:id/edit', requireManager, async (req, res) => {
-  const { amount, donationdate, donorfirstname, donorlastname } = req.body;
+  const { amount, donationdate } = req.body;
   const amt = Number(amount);
   const date = donationdate ? new Date(donationdate) : null;
-  const donorFirst = (donorfirstname || '').trim();
-  const donorLast = (donorlastname || '').trim();
 
   try {
     if (!amount || Number.isNaN(amt)) {
@@ -1049,11 +1031,9 @@ app.post('/admin/donations/:id/edit', requireManager, async (req, res) => {
     await pool.query(
       `UPDATE donation
        SET donationamount = $1,
-           donationdate = $2,
-           donorfirstname = $3,
-           donorlastname = $4
-       WHERE donationid = $5`,
-      [amt, date && !Number.isNaN(date.valueOf()) ? date : null, donorFirst || null, donorLast || null, req.params.id]
+           donationdate = $2
+       WHERE donationid = $3`,
+      [amt, date && !Number.isNaN(date.valueOf()) ? date : null, req.params.id]
     );
 
     res.redirect('/admin/donations');
@@ -2034,6 +2014,53 @@ app.get('/events/stats', requireManager, async (_req, res) => {
   } catch (err) {
     console.error('Event stats error:', err);
     res.status(500).send('Could not load event stats');
+  }
+});
+
+// View attendance for an event occurrence
+app.get('/events/occurrences/:id/attendance', requireManager, async (req, res) => {
+  const occurrenceId = Number(req.params.id);
+  if (!occurrenceId) return res.redirect('/events/stats');
+  try {
+    const { rows: occRows } = await pool.query(
+      `SELECT eo.eventoccurrenceid,
+              eo.eventdatetimestart,
+              eo.eventdatetimeend,
+              eo.eventlocation,
+              et.eventname
+       FROM eventoccurrence eo
+       LEFT JOIN eventtemplate et ON et.eventtemplateid = eo.eventtemplateid
+       WHERE eo.eventoccurrenceid = $1
+       LIMIT 1`,
+      [occurrenceId]
+    );
+    const occurrence = occRows[0];
+    if (!occurrence) return res.redirect('/events/stats');
+
+    const { rows: attendees } = await pool.query(
+      `SELECT r.registrationid,
+              r.registrationstatus,
+              r.registrationattendedflag,
+              r.registrationcheckintime,
+              r.participantid,
+              TRIM(COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,'')) AS participantname,
+              p.participantemail
+       FROM registration r
+       LEFT JOIN participant p ON p.participantid = r.participantid
+       WHERE r.eventoccurrenceid = $1
+       ORDER BY LOWER(COALESCE(p.participantfirstname,'')), LOWER(COALESCE(p.participantlastname,'')), r.registrationid`,
+      [occurrenceId]
+    );
+
+    res.render(path.join('events', 'attendance'), {
+      title: 'Event Attendance',
+      occurrence,
+      attendees,
+      backUrl: req.query.back || '/events/stats',
+    });
+  } catch (err) {
+    console.error('Event attendance load error:', err);
+    res.status(500).send('Could not load attendance');
   }
 });
 
@@ -3138,15 +3165,16 @@ app.get('/participants/:id', requireManager, async (req, res) => {
     const detail = await getParticipantDetail(id);
     if (!detail) return res.redirect('/participants');
 
+    const explicitBack = req.query.back ? decodeURIComponent(req.query.back) : null;
     const fromAssignments = req.query.from === 'assignments';
     const fromStats = req.query.from === 'stats';
-    let backUrl = '/participants';
-    if (fromAssignments) {
+    let backUrl = explicitBack || '/participants';
+    if (!explicitBack && fromAssignments) {
       const page = req.query.page || 1;
       const pageSize = req.query.pageSize || 50;
       const q = req.query.q ? `&q=${encodeURIComponent(req.query.q)}` : '';
       backUrl = `/admin/milestones/assignments?page=${page}&pageSize=${pageSize}${q}`;
-    } else if (fromStats) {
+    } else if (!explicitBack && fromStats) {
       const page = req.query.page || 1;
       const pageSize = req.query.pageSize || 50;
       const q = req.query.q ? `&q=${encodeURIComponent(req.query.q)}` : '';
@@ -3163,6 +3191,7 @@ app.get('/participants/:id', requireManager, async (req, res) => {
       title: 'Participant Detail',
       participant: detail.participant,
       milestones: detail.milestones,
+      events: detail.events,
       backUrl,
     });
   } catch (err) {

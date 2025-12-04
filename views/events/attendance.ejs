@@ -1,0 +1,46 @@
+<main class="container main-content" style="max-width:1100px; margin-top:2.5rem;">
+  <% function fmtDate(d){ return d ? new Date(d).toLocaleString('en-US', { dateStyle:'medium', timeStyle:'short' }) : ''; } %>
+
+  <header style="display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; margin-bottom:1.25rem;">
+    <div>
+      <h1 style="margin:0 0 .25rem 0; font-family:var(--font-serif); color:var(--charcoal);">Event Attendance</h1>
+      <p style="margin:.2rem 0 0 0; color:#4b5563;"><strong><%= occurrence.eventname || ('Occurrence #' + occurrence.eventoccurrenceid) %></strong> · <%= fmtDate(occurrence.eventdatetimestart) %></p>
+    </div>
+    <a href="<%= backUrl || '/events/stats' %>" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Back</a>
+  </header>
+
+  <div class="card" style="padding:0; overflow:hidden; border-radius:14px; border:1px solid #e5e7eb;">
+    <table style="width:100%; border-collapse:collapse;">
+      <thead style="background:#f7f3eb; color:#374151;">
+        <tr>
+          <th style="padding:12px; text-align:left;">Participant</th>
+          <th style="padding:12px; text-align:left;">Email</th>
+          <th style="padding:12px; text-align:left;">Status</th>
+          <th style="padding:12px; text-align:left;">Check-in</th>
+          <th style="padding:12px; text-align:left;">Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (!attendees || !attendees.length) { %>
+          <tr><td colspan="5" style="padding:14px; text-align:center; color:#6b7280;">No registrations found.</td></tr>
+        <% } else { %>
+          <% attendees.forEach(a => { %>
+            <tr style="border-top:1px solid #f1f2f5;">
+              <td style="padding:12px; font-weight:600; color:var(--charcoal);"><%= a.participantname || ('Participant #' + a.participantid) %></td>
+              <td style="padding:12px; color:#4b5563;"><%= a.participantemail || '—' %></td>
+              <td style="padding:12px; color:#111827; text-transform:capitalize;"><%= a.registrationstatus || 'unknown' %></td>
+              <td style="padding:12px; color:#4b5563;"><%= a.registrationcheckintime ? fmtDate(a.registrationcheckintime) : '—' %></td>
+              <td style="padding:12px;">
+                <% if (a.participantid) { %>
+                  <a class="btn-login-home" style="padding:8px 10px; border-radius:10px; text-decoration:none;" href="/participants/<%= a.participantid %>?back=<%= encodeURIComponent(backUrl || `/events/occurrences/${occurrence.eventoccurrenceid}/attendance`) %>">View participant</a>
+                <% } else { %>
+                  <span style="color:#6b7280;">N/A</span>
+                <% } %>
+              </td>
+            </tr>
+          <% }); %>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</main>

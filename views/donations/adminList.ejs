@@ -8,8 +8,15 @@
       <a href="/admin/donations/new" class="btn-login-home" style="white-space:nowrap;">+ Add Donation</a>
     </div>
 
-    <div style="margin-top:14px; display:flex; gap:12px; flex-wrap:wrap;">
+    <div style="margin-top:14px; display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
       <input id="donation-search" type="search" placeholder="Search by donor or participant..." style="flex:1 1 240px; padding:10px 12px; border-radius:10px; border:1px solid #ddd;">
+      <label style="display:flex; align-items:center; gap:6px; color:#374151; font-weight:600;">
+        Sort by date
+        <select id="donation-sort-dir" style="padding:8px 10px; border-radius:8px; border:1px solid #ddd;">
+          <option value="newest">Newest</option>
+          <option value="oldest">Oldest</option>
+        </select>
+      </label>
     </div>
 
     <div id="donation-pager-top" style="margin-top:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; font-size:0.9rem; color:var(--charcoal); opacity:0.8;">
@@ -23,17 +30,17 @@
         </select>
       </div>
       <div style="display:flex; gap:6px; align-items:center;">
-        <button type="button" id="pager-start-top" class="btn-cream" style="padding:8px 12px; border-radius:10px;">&laquo; Start</button>
-        <button type="button" id="pager-back-top" class="btn-cream" style="padding:8px 12px; border-radius:10px;">&lsaquo; Back</button>
-        <button type="button" id="pager-next-top" class="btn-cream" style="padding:8px 12px; border-radius:10px;">Next &rsaquo;</button>
-        <button type="button" id="pager-end-top" class="btn-cream" style="padding:8px 12px; border-radius:10px;">End &raquo;</button>
+        <button type="button" id="pager-start-top" class="btn-login-home" style="padding:8px 12px; border-radius:10px;">&laquo; Start</button>
+        <button type="button" id="pager-back-top" class="btn-login-home" style="padding:8px 12px; border-radius:10px;">&lsaquo; Back</button>
+        <button type="button" id="pager-next-top" class="btn-login-home" style="padding:8px 12px; border-radius:10px;">Next &rsaquo;</button>
+        <button type="button" id="pager-end-top" class="btn-login-home" style="padding:8px 12px; border-radius:10px;">End &raquo;</button>
       </div>
     </div>
 
     <% if (donations && donations.length) { %>
       <div id="donation-list" style="margin-top:16px; display:grid; gap:12px;">
         <% donations.forEach(d => { %>
-          <div class="donation-card" data-search="<%= ((d.displayname || '') + ' ' + (d.participantname || '')).toLowerCase() %>" style="border:1px solid #eee; border-radius:10px; padding:12px 14px; background:#fff;">
+          <div class="donation-card" data-search="<%= ((d.displayname || '') + ' ' + (d.participantname || '')).toLowerCase() %>" data-date="<%= d.date ? new Date(d.date).toISOString() : '' %>" style="border:1px solid #eee; border-radius:10px; padding:12px 14px; background:#fff;">
             <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
               <div>
                 <p style="margin:0; font-weight:700; color:var(--charcoal);">
@@ -66,10 +73,10 @@
         </select>
       </div>
       <div style="display:flex; gap:6px; align-items:center;">
-        <button type="button" id="pager-start-bot" class="btn-cream" style="padding:8px 12px; border-radius:10px;">&laquo; Start</button>
-        <button type="button" id="pager-back-bot" class="btn-cream" style="padding:8px 12px; border-radius:10px;">&lsaquo; Back</button>
-        <button type="button" id="pager-next-bot" class="btn-cream" style="padding:8px 12px; border-radius:10px;">Next &rsaquo;</button>
-        <button type="button" id="pager-end-bot" class="btn-cream" style="padding:8px 12px; border-radius:10px;">End &raquo;</button>
+        <button type="button" id="pager-start-bot" class="btn-login-home" style="padding:8px 12px; border-radius:10px;">&laquo; Start</button>
+        <button type="button" id="pager-back-bot" class="btn-login-home" style="padding:8px 12px; border-radius:10px;">&lsaquo; Back</button>
+        <button type="button" id="pager-next-bot" class="btn-login-home" style="padding:8px 12px; border-radius:10px;">Next &rsaquo;</button>
+        <button type="button" id="pager-end-bot" class="btn-login-home" style="padding:8px 12px; border-radius:10px;">End &raquo;</button>
       </div>
     </div>
   </div>
@@ -81,6 +88,7 @@
     const cards = Array.from(document.querySelectorAll('.donation-card'));
     const perPageTop = document.getElementById('donation-page-size');
     const perPageBot = document.getElementById('donation-page-size-bottom');
+    const sortDir = document.getElementById('donation-sort-dir');
     const startTop = document.getElementById('page-start-top');
     const endTop = document.getElementById('page-end-top');
     const totalTop = document.getElementById('page-total-top');
@@ -97,6 +105,7 @@
     let page = 1;
     let pageSize = Number(perPageTop?.value || 50);
     let filtered = cards.slice();
+    let direction = 'newest';
 
     function syncTotals(total, start, end) {
       totalTop.textContent = total;
@@ -109,10 +118,16 @@
 
     function applyFilters() {
       const term = (input?.value || '').toLowerCase();
-      filtered = cards.filter(c => {
-        const hay = c.dataset.search || '';
-        return hay.includes(term);
-      });
+      filtered = cards
+        .filter(c => {
+          const hay = c.dataset.search || '';
+          return hay.includes(term);
+        })
+        .sort((a, b) => {
+          const da = Date.parse(a.dataset.date || '') || 0;
+          const db = Date.parse(b.dataset.date || '') || 0;
+          return direction === 'oldest' ? da - db : db - da;
+        });
       page = 1;
       render();
     }
@@ -149,6 +164,10 @@
 
     perPageTop?.addEventListener('change', e => setPageSize(e.target.value));
     perPageBot?.addEventListener('change', e => setPageSize(e.target.value));
+    sortDir?.addEventListener('change', e => {
+      direction = e.target.value === 'oldest' ? 'oldest' : 'newest';
+      applyFilters();
+    });
     btns.start.forEach(b => b?.addEventListener('click', () => { page = 1; render(); }));
     btns.back.forEach(b => b?.addEventListener('click', () => { page = Math.max(1, page - 1); render(); }));
     btns.next.forEach(b => b?.addEventListener('click', () => { page += 1; render(); }));

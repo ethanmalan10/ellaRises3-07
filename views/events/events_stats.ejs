@@ -45,6 +45,46 @@
 
   <section>
     <h3 style="margin:0 0 .5rem 0;">Past Event Occurrences</h3>
+
+    <div style="padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#f8fafc; margin-bottom:10px; display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; align-items:end;">
+      <div>
+        <label style="font-weight:600; display:block; margin-bottom:6px;">Event Name</label>
+        <input id="occ-filter-name" type="text" placeholder="e.g., robotics" style="width:90%; padding:10px; border-radius:10px; border:1px solid #d1d5db;">
+      </div>
+      <div>
+        <label style="font-weight:600; display:block; margin-bottom:6px;">Location</label>
+        <input id="occ-filter-loc" type="text" placeholder="e.g., library" style="width:90%; padding:10px; border-radius:10px; border:1px solid #d1d5db;">
+      </div>
+      <div>
+        <label style="font-weight:600; display:block; margin-bottom:6px;">Ended On/After</label>
+        <input id="occ-filter-from" type="date" style="width:90%; padding:10px; border-radius:10px; border:1px solid #d1d5db;">
+      </div>
+      <div>
+        <label style="font-weight:600; display:block; margin-bottom:6px;">Ended On/Before</label>
+        <input id="occ-filter-to" type="date" style="width:90%; padding:10px; border-radius:10px; border:1px solid #d1d5db;">
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" id="occ-filter-apply" class="btn-gradient" style="padding:10px 14px; border-radius:10px;">Apply</button>
+        <button type="button" id="occ-filter-clear" class="btn-cream" style="padding:10px 14px; border-radius:10px;">Clear</button>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; color:#374151; font-size:0.95rem;">
+      <div>Showing <span id="occ-start">1</span>-<span id="occ-end">0</span> of <span id="occ-total"><%= occurrenceStats ? occurrenceStats.length : 0 %></span></div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <span>Per page</span>
+        <select id="occ-page-size" style="padding:8px 10px; border-radius:8px; border:1px solid #ddd;">
+          <option value="10">10</option>
+          <option value="25" selected>25</option>
+          <option value="50">50</option>
+        </select>
+        <button type="button" id="occ-start-btn" class="btn-login-home" style="padding:8px 12px; border-radius:10px;">« Start</button>
+        <button type="button" id="occ-back-btn" class="btn-login-home" style="padding:8px 12px; border-radius:10px;">‹ Back</button>
+        <button type="button" id="occ-next-btn" class="btn-login-home" style="padding:8px 12px; border-radius:10px;">Next ›</button>
+        <button type="button" id="occ-end-btn" class="btn-login-home" style="padding:8px 12px; border-radius:10px;">End »</button>
+      </div>
+    </div>
+
     <div class="card" style="padding:0; overflow:hidden; border-radius:14px; border:1px solid #e5e7eb;">
       <table style="width:100%; border-collapse:collapse;">
         <thead style="background:#f7f3eb; color:#374151;">
@@ -55,20 +95,29 @@
             <th style="padding:12px; text-align:center;">Survey Count</th>
             <th style="padding:12px; text-align:center;">Avg Satisfaction</th>
             <th style="padding:12px; text-align:center;">Avg Overall</th>
+            <th style="padding:12px; text-align:center;">Attendance</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="occ-body">
           <% if (!occurrenceStats || occurrenceStats.length === 0) { %>
-            <tr><td colspan="6" style="padding:14px; text-align:center; color:#6b7280;">No past event survey data yet.</td></tr>
+            <tr><td colspan="7" style="padding:14px; text-align:center; color:#6b7280;">No past event survey data yet.</td></tr>
           <% } else { %>
             <% occurrenceStats.forEach(ev => { %>
-              <tr style="border-top:1px solid #f1f2f5;">
+              <tr class="occ-row"
+                  data-date="<%= ev.eventdatetimestart ? new Date(ev.eventdatetimestart).toISOString() : '' %>"
+                  data-name="<%= (ev.eventname || '').toLowerCase() %>"
+                  data-loc="<%= (ev.eventlocation || '').toLowerCase() %>"
+                  data-end="<%= ev.eventdatetimeend ? new Date(ev.eventdatetimeend).toISOString() : '' %>"
+                  style="border-top:1px solid #f1f2f5;">
                 <td style="padding:12px; font-weight:600; color:var(--charcoal);"><%= ev.eventname %></td>
                 <td style="padding:12px; color:#4b5563;"><%= ev.eventtypename || '—' %></td>
                 <td style="padding:12px; color:#374151;"><%= fmtDate(ev.eventdatetimestart) %></td>
                 <td style="padding:12px; text-align:center;"><%= ev.survey_count || 0 %></td>
                 <td style="padding:12px; text-align:center;"><%= ev.avg_satisfaction !== null ? Number(ev.avg_satisfaction).toFixed(2) : '—' %></td>
                 <td style="padding:12px; text-align:center;"><%= ev.avg_overall !== null ? Number(ev.avg_overall).toFixed(2) : '—' %></td>
+                <td style="padding:12px; text-align:center;">
+                  <a class="btn-login-home" style="padding:8px 10px; border-radius:10px; text-decoration:none;" href="/events/occurrences/<%= ev.eventoccurrenceid %>/attendance">View attendance</a>
+                </td>
               </tr>
             <% }); %>
           <% } %>
@@ -77,3 +126,96 @@
     </div>
   </section>
 </main>
+
+<script>
+  (() => {
+    const rows = Array.from(document.querySelectorAll('.occ-row'));
+    const pageSizeSel = document.getElementById('occ-page-size');
+    const startBtn = document.getElementById('occ-start-btn');
+    const backBtn = document.getElementById('occ-back-btn');
+    const nextBtn = document.getElementById('occ-next-btn');
+    const endBtn = document.getElementById('occ-end-btn');
+    const startSpan = document.getElementById('occ-start');
+    const endSpan = document.getElementById('occ-end');
+    const totalSpan = document.getElementById('occ-total');
+    const fName = document.getElementById('occ-filter-name');
+    const fLoc = document.getElementById('occ-filter-loc');
+    const fFrom = document.getElementById('occ-filter-from');
+    const fTo = document.getElementById('occ-filter-to');
+    const fApply = document.getElementById('occ-filter-apply');
+    const fClear = document.getElementById('occ-filter-clear');
+
+    if (!rows.length) return;
+
+    let page = 1;
+    let pageSize = Number(pageSizeSel?.value || 25);
+    let filtered = rows.slice();
+
+    function syncTotals(total, start, end) {
+      totalSpan.textContent = total;
+      startSpan.textContent = total === 0 ? 0 : start;
+      endSpan.textContent = total === 0 ? 0 : end;
+    }
+
+    function render() {
+      const total = filtered.length;
+      const totalPages = Math.max(1, Math.ceil(total / pageSize));
+      if (page > totalPages) page = totalPages;
+      const startIdx = (page - 1) * pageSize;
+      const endIdx = Math.min(startIdx + pageSize, total);
+
+      rows.forEach(r => (r.style.display = 'none'));
+      filtered.slice(startIdx, endIdx).forEach(r => (r.style.display = 'table-row'));
+
+      syncTotals(total, total === 0 ? 0 : startIdx + 1, endIdx);
+
+      startBtn.disabled = backBtn.disabled = page === 1 || total === 0;
+      nextBtn.disabled = endBtn.disabled = page === totalPages || total === 0;
+    }
+
+    function setPageSize(val) {
+      pageSize = Number(val) || 25;
+      page = 1;
+      render();
+    }
+
+    function applyFilter() {
+      const name = (fName?.value || '').toLowerCase().trim();
+      const loc = (fLoc?.value || '').toLowerCase().trim();
+      const from = fFrom?.value ? new Date(fFrom.value) : null;
+      const to = fTo?.value ? new Date(fTo.value) : null;
+
+      filtered = rows.filter(r => {
+        const rName = r.dataset.name || '';
+        const rLoc = r.dataset.loc || '';
+        const endIso = r.dataset.end || '';
+        const endDate = endIso ? new Date(endIso) : null;
+
+        const okName = !name || rName.includes(name);
+        const okLoc = !loc || rLoc.includes(loc);
+        const okFrom = !from || (endDate && endDate >= from);
+        const okTo = !to || (endDate && endDate <= to);
+        return okName && okLoc && okFrom && okTo;
+      });
+      page = 1;
+      render();
+    }
+
+    pageSizeSel?.addEventListener('change', e => setPageSize(e.target.value));
+    startBtn?.addEventListener('click', () => { page = 1; render(); });
+    backBtn?.addEventListener('click', () => { page = Math.max(1, page - 1); render(); });
+    nextBtn?.addEventListener('click', () => { page += 1; render(); });
+    endBtn?.addEventListener('click', () => {
+      const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+      page = totalPages;
+      render();
+    });
+    fApply?.addEventListener('click', applyFilter);
+    fClear?.addEventListener('click', () => {
+      [fName, fLoc, fFrom, fTo].forEach(el => { if (el) el.value = ''; });
+      applyFilter();
+    });
+
+    applyFilter();
+  })();
+</script>
