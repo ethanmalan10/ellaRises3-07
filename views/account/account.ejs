@@ -1,7 +1,13 @@
 <main class="container main-content" style="max-width:900px; margin-top:2.5rem;">
   <header style="display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:1.25rem; flex-wrap:wrap;">
     <div>
-      <h1 style="margin:0; font-family:var(--font-serif); color:var(--charcoal);">My Account</h1>
+      <h1 style="margin:0; font-family:var(--font-serif); color:var(--charcoal);">
+        My Account
+        <% const medalToShow = (typeof accountMedal !== 'undefined' && accountMedal) ? accountMedal : ((typeof navMedal !== 'undefined' && navMedal) ? navMedal : ''); %>
+        <% if (medalToShow) { %>
+          <span aria-label="Achievement status" title="Achievement status" style="font-size:1.2rem; margin-left:6px;"><%= medalToShow %></span>
+        <% } %>
+      </h1>
       <p style="margin:.3rem 0 0 0; color:#4b5563;">View your account details. Update info anytime.</p>
     </div>
     <% if (participant) { %>

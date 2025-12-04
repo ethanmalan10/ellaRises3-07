@@ -1,4 +1,18 @@
 <main class="container main-content" style="max-width:1100px; margin-top:2.5rem;">
+  <% 
+    const _progressStage = (typeof progressStage !== 'undefined' && progressStage) ? progressStage : 'Bronze';
+    const _progressTarget = (typeof progressTarget !== 'undefined' && progressTarget) ? progressTarget : 5;
+    const _attendanceCount = (typeof attendanceCount !== 'undefined' && attendanceCount) ? attendanceCount : 0;
+    const _progressPercent = (typeof progressPercent !== 'undefined' && progressPercent !== null)
+      ? progressPercent
+      : Math.min(100, Math.round((_attendanceCount / _progressTarget) * 100));
+    const _currentMedal = (typeof navMedal !== 'undefined' && navMedal) ? navMedal : '';
+    const _nextMedal = (typeof navMedalNext !== 'undefined' && navMedalNext)
+      ? navMedalNext
+      : (_progressStage === 'Gold'
+          ? '🥇'
+          : (_progressStage === 'Silver' ? '🥈' : '🥉'));
+  %>
   <% const isAuthed = !!currentUser; const regSet = new Set((registeredEventIds || []).map(Number)); function fmtDate(d){ return d ? new Date(d).toLocaleString('en-US', { dateStyle:'medium', timeStyle:'short' }) : ''; } %>
 
   <!-- Hero Card -->
@@ -43,6 +57,27 @@
       We hold STEM, ART, & tour events! Everyone is invited. Create an account to RSVP!
     </p>
   </div>
+
+  <!-- Attendance Progress -->
+  <section class="container" style="margin:0 auto 1.25rem auto;">
+    <div style="background:#f5efe3; border-radius:14px; padding:16px; box-shadow:0 6px 14px rgba(0,0,0,0.06);">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:8px;">
+        <div style="font-weight:700; color:var(--charcoal); display:flex; align-items:center; gap:8px;">
+          <span>Progress: <%= _progressStage %> (goal: <%= _progressTarget %> events)</span>
+          <% if (_currentMedal) { %>
+            <span aria-label="Current status" title="Current status" style="font-size:1.05rem; line-height:1;"><%= _currentMedal %></span>
+          <% } %>
+        </div>
+        <div style="color:var(--charcoal); opacity:0.8;">Attended: <%= _attendanceCount %></div>
+      </div>
+      <div style="position:relative; width:100%; height:14px; background:#e7dcc9; border-radius:999px; overflow:hidden; border:1px solid rgba(0,0,0,0.08);">
+        <div style="height:100%; width:<%= Math.min(100, _progressPercent) %>%; background:var(--sage); border-radius:999px; position:relative;"></div>
+        <% if (_nextMedal) { %>
+          <span style="position:absolute; right:6px; top:50%; transform:translateY(-50%); font-size:1.1rem;"><%= _nextMedal %></span>
+        <% } %>
+      </div>
+    </div>
+  </section>
 
   <hr style="border:0; border-top:2px solid rgba(58,63,59,0.15); margin:0 0 1.25rem 0;">
 
@@ -94,7 +129,7 @@
       <p style="color:#6b7280;">No upcoming events yet.</p>
     <% } else { %>
       <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px; margin-top:12px;">
-        <% upcomingEvents.forEach(ev => { %>
+        <% upcomingEvents.forEach((ev, idx) => { %>
           <% const searchBlob = [(ev.eventname||''),(ev.eventdescription||''),(ev.eventlocation||''),(fmtDate(ev.eventdatetimestart)||''),(fmtDate(ev.eventdatetimeend)||'')].join(' ').toLowerCase(); %>
           <div class="card upcoming-card" data-search="<%= searchBlob %>" style="padding:16px; border-radius:14px; border:1px solid #e5e7eb; box-shadow:0 10px 30px rgba(0,0,0,0.04);">
             <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
@@ -102,6 +137,9 @@
                 <h4 style="margin:0 0 .3rem 0; font-size:1.15rem; color:var(--charcoal);"><%= ev.eventname %></h4>
                 <p style="margin:0; color:#4b5563;"><%= ev.eventdescription %></p>
               </div>
+              <% if (idx === 0) { %>
+                <span style="background: var(--pink-soft); color: #3a3f3b; padding:4px 10px; border-radius:10px; border:2px solid #f7c948; font-size:0.9rem; font-weight:700;">Recommended for You!</span>
+              <% } %>
               <% if (typeof isManager !== 'undefined' && isManager) { %>
                 <span style="background:#eef2ff; color:#3730a3; padding:4px 8px; border-radius:8px; font-size:.8rem;">Manager</span>
               <% } %>

@@ -60,8 +60,11 @@ async function findParticipantForUser(user) {
     const byId = await getParticipantById(user.participantid);
     if (byId) return byId;
   }
-  const byEmail = await findParticipantByEmail(user.username);
-  if (byEmail) return byEmail;
+  const emailCandidates = [user.username, user.email, user.useremail].filter(Boolean);
+  for (const em of emailCandidates) {
+    const byEmail = await findParticipantByEmail(em);
+    if (byEmail) return byEmail;
+  }
   return null;
 }
 
@@ -588,6 +591,48 @@ app.use(
 // available in all EJS as `currentUser`
 app.use((req, res, next) => {
   res.locals.currentUser = req.session.user || null; // { id, email, role }
+  res.locals.navMedal = req.session?.navMedal || '';
+  next();
+});
+
+// Compute and expose nav medal (attendance tiers) for logged-in users on every page
+app.use(async (req, res, next) => {
+  try {
+    const user = req.session.user;
+    if (!user) {
+      res.locals.navMedal = '';
+      res.locals.navMedalNext = '🥉';
+      return next();
+    }
+
+    // Resolve participant via helper (handles participantid/username lookup)
+    const participant = await findParticipantForUser(user);
+    const participantId = participant?.participantid || user.participantid || null;
+    if (!participantId) {
+      res.locals.navMedal = req.session.navMedal || '';
+      res.locals.navMedalNext = req.session.navMedalNext || '🥉';
+      return next();
+    }
+
+    // Count attendance
+    const { rows } = await pool.query(
+      'SELECT COUNT(*)::int AS cnt FROM registration WHERE participantid = $1',
+      [participantId]
+    );
+    const attendanceCount = rows[0]?.cnt || 0;
+
+    // Determine medals / progress
+    const progress = computeAttendanceProgress(attendanceCount);
+
+    req.session.navMedal = progress.currentMedal;
+    req.session.navMedalNext = progress.nextMedal;
+    res.locals.navMedal = progress.currentMedal;
+    res.locals.navMedalNext = progress.nextMedal;
+  } catch (err) {
+    console.warn('Nav medal middleware error:', err);
+    res.locals.navMedal = req.session?.navMedal || '';
+    res.locals.navMedalNext = req.session?.navMedalNext || '🥉';
+  }
   next();
 });
 
@@ -648,6 +693,45 @@ function isManagerUser(user) {
   if (!user) return false;
   const r = mapRole(user.role);
   return r === 'manager' || r === 'admin';
+}
+
+// Attendance progress helper for medals/tiering
+function computeAttendanceProgress(attendanceCount = 0) {
+  const count = Number(attendanceCount) || 0;
+  let progressStage = 'Bronze';
+  let progressTarget = 5;
+  let currentMedal = '';
+  let nextMedal = '🥉';
+
+  if (count >= 50) {
+    progressStage = 'Gold';
+    progressTarget = 50;
+    currentMedal = '🥇';
+    nextMedal = '🥇';
+  } else if (count >= 20) {
+    progressStage = 'Gold';
+    progressTarget = 50;
+    currentMedal = '🥈';
+    nextMedal = '🥇';
+  } else if (count >= 5) {
+    progressStage = 'Silver';
+    progressTarget = 20;
+    currentMedal = '🥉';
+    nextMedal = '🥈';
+  }
+
+  const progressPercent = progressTarget
+    ? Math.min(100, Math.round((count / progressTarget) * 100))
+    : 0;
+
+  return {
+    attendanceCount: count,
+    progressStage,
+    progressTarget,
+    progressPercent,
+    currentMedal,
+    nextMedal,
+  };
 }
 
 function normalizeCapitalize(str) {
@@ -1075,6 +1159,7 @@ app.get('/events', async (req, res) => {
     const isManager = isManagerUser(req.session.user);
 
     let registeredEventIds = [];
+    let attendanceCount = 0;
     if (participantId) {
       try {
         const r = await pool.query(
@@ -1082,10 +1167,19 @@ app.get('/events', async (req, res) => {
           [participantId]
         );
         registeredEventIds = r.rows.map(row => Number(row.eventoccurrenceid));
+        const c = await pool.query('SELECT COUNT(*)::int AS cnt FROM registration WHERE participantid = $1', [participantId]);
+        attendanceCount = c.rows[0]?.cnt || 0;
       } catch (e) {
         console.warn('Could not load registrations for participant:', e);
       }
     }
+
+    // Compute attendance tier and medal
+    const progress = computeAttendanceProgress(attendanceCount);
+
+    // persist nav medal for other pages
+    req.session.navMedal = progress.currentMedal;
+    req.session.navMedalNext = progress.nextMedal;
 
     return res.render(path.join('events', 'events'), {
       title: 'Events',
@@ -1095,6 +1189,12 @@ app.get('/events', async (req, res) => {
       error: req.query.err || null,
       isManager,
       registeredEventIds,
+      attendanceCount: progress.attendanceCount,
+      progressStage: progress.progressStage,
+      progressTarget: progress.progressTarget,
+      progressPercent: progress.progressPercent,
+      navMedal: progress.currentMedal,
+      navMedalNext: progress.nextMedal,
     });
   } catch (err) {
     console.error('Events list error:', err);
@@ -2194,12 +2294,29 @@ async function findParticipantByEmail(email) {
 // GET /my-account
 app.get('/my-account', requireAuth, async (req, res) => {
   try {
-    const email = req.session.user?.username;
-    const participant = await findParticipantByEmail(email);
+    const participant = await findParticipantForUser(req.session.user);
+
+    // Compute attendance-based medal for account view
+    let accountMedal = '';
+    if (participant && participant.participantid) {
+      try {
+        const { rows } = await pool.query(
+          'SELECT COUNT(*)::int AS cnt FROM registration WHERE participantid = $1',
+          [participant.participantid]
+        );
+        const attendance = rows[0]?.cnt || 0;
+        const progress = computeAttendanceProgress(attendance);
+        accountMedal = progress.currentMedal;
+      } catch (e) {
+        console.warn('Account medal lookup failed:', e);
+      }
+    }
+
     return res.render(path.join('account', 'account'), {
       title: 'My Account',
       participant,
       user: req.session.user,
+      accountMedal,
     });
   } catch (err) {
     console.error('My account load error:', err);

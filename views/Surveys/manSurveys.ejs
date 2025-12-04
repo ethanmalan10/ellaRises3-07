@@ -1,3 +1,4 @@
+<!-- Manager Surveys List - view, search, filter, and edit submitted surveys -->
 <section class="main-content">
   <% const pagBase = pagination || { page:1, pageSize:(surveys || []).length || 50, total:(surveys ? surveys.length : 0), totalPages:1, hasPrev:false, hasNext:false }; %>
   <% const computedTotalPages = pagBase.totalPages || Math.max(1, Math.ceil((pagBase.total || 0) / (pagBase.pageSize || 1))); %>
