@@ -112,6 +112,155 @@
     </div>
   </section>
 
+  <!-- Milestone Highlights -->
+  <section class="container" style="margin:1rem auto 0;">
+    <style>
+      @keyframes milestone-scroll {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+      }
+      .milestone-marquee{
+        overflow:hidden;
+        width:100%;
+        border-radius:14px;
+        padding:16px 0;
+      }
+      .milestone-track{
+        display:flex;
+        gap:12px;
+        width:200%;
+        animation:milestone-scroll 36s linear infinite;
+      }
+      .milestone-card{
+        min-width:300px;
+        max-width:300px;
+        background:var(--cream);
+        border-radius:14px;
+        padding:16px 18px;
+        box-shadow:0 10px 22px rgba(0,0,0,0.08);
+        border:1px solid rgba(0,0,0,0.06);
+        color:var(--charcoal);
+        display:flex;
+        flex-direction:column;
+        gap:6px;
+      }
+      .milestone-card .header{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:8px;
+      }
+      .milestone-card .badge{
+        display:inline-block;
+        padding:4px 8px;
+        background:var(--sage);
+        color:#fff;
+        border-radius:8px;
+        font-size:0.8rem;
+        font-weight:700;
+        letter-spacing:0.3px;
+      }
+      .milestone-card .title{
+        font-weight:800;
+        margin:0;
+        font-size:1.05rem;
+      }
+      .milestone-card .meta{
+        margin:0;
+        color:#4b5563;
+        font-weight:600;
+        line-height:1.45;
+      }
+      .review-chip{
+        min-width:300px;
+        max-width:300px;
+        background:var(--cream);
+        border-radius:14px;
+        padding:16px 18px;
+        box-shadow:0 10px 22px rgba(0,0,0,0.08);
+        border:1px solid rgba(0,0,0,0.06);
+        color:var(--charcoal);
+        display:flex;
+        flex-direction:column;
+        gap:6px;
+      }
+      .review-chip .header{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:8px;
+      }
+      .review-chip .badge{
+        display:inline-block;
+        padding:4px 8px;
+        background:var(--sage);
+        color:#fff;
+        border-radius:8px;
+        font-size:0.8rem;
+        font-weight:700;
+        letter-spacing:0.3px;
+      }
+      .review-chip .stars{
+        color:#f7c948;
+        letter-spacing:1px;
+        font-weight:800;
+        font-size:0.95rem;
+        margin:0;
+        white-space:nowrap;
+      }
+      .review-chip p{
+        margin:0;
+        font-weight:600;
+        line-height:1.45;
+      }
+    </style>
+    <div class="milestone-marquee" aria-label="Recent milestones achieved">
+      <div class="milestone-track" id="milestone-track">
+        <% const milestonesFeed = (milestoneHighlights && milestoneHighlights.length) ? milestoneHighlights : []; %>
+        <% const milestoneCards = milestonesFeed.map(m => ({
+          type: 'milestone',
+          participantname: (m.participantname && m.participantname.trim()) || 'Someone',
+          title: m.title || 'a milestone'
+        })); %>
+        <% const surveyQuotes = [
+          '“Workshops were inspiring and fun!”',
+          '“Loved the mix of STEM and art activities.”',
+          '“Safe space to learn, grow, and ask questions.”',
+          '“My teen can’t wait for the next event!”',
+          '“Mentors were amazing role models.”',
+          '“We learned real skills and made friends.”'
+        ].map(q => ({ type:'review', quote:q })); %>
+        <% const maxLen = Math.max(milestoneCards.length, surveyQuotes.length); %>
+        <% const interleaved = []; %>
+        <% for (let i = 0; i < maxLen; i++) { %>
+          <% if (i < surveyQuotes.length) interleaved.push(surveyQuotes[i]); %>
+          <% if (i < milestoneCards.length) interleaved.push(milestoneCards[i]); %>
+        <% } %>
+        <% const feedLen = interleaved.length; %>
+        <% const loopFeed = feedLen ? [...interleaved, ...interleaved] : []; %>
+        <% loopFeed.forEach((item, idx) => { %>
+          <% if (item.type === 'milestone') { %>
+            <div class="milestone-card" aria-hidden="<%= idx >= feedLen ? 'true' : 'false' %>">
+              <div class="header">
+                <span class="badge">Milestone</span>
+              </div>
+              <p class="title">Congrats, <%= item.participantname %>!</p>
+              <p class="meta">Achieved <%= item.title %></p>
+            </div>
+          <% } else { %>
+            <div class="review-chip" aria-hidden="<%= idx >= feedLen ? 'true' : 'false' %>">
+              <div class="header">
+                <span class="badge">Survey</span>
+                <span class="stars">★★★★★</span>
+              </div>
+              <p><%= item.quote %></p>
+            </div>
+          <% } %>
+        <% }); %>
+      </div>
+    </div>
+  </section>
+
   <hr style="width:90%; margin:24px auto; border:0; border-top:2px solid var(--charcoal); opacity:0.2;">
 
   <!-- CTA SECTION -->

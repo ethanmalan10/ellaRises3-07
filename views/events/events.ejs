@@ -122,9 +122,9 @@
                     <button type="submit" class="btn-outline" style="padding:10px 14px; border-radius:10px; border:1px solid #dc2626; color:#dc2626;">Cancel RSVP</button>
                   </form>
                 <% } else { %>
-                  <form method="POST" action="/events/<%= ev.eventoccurrenceid %>/rsvp">
-                    <button type="submit" class="btn-login-home" style="padding:10px 14px; border-radius:10px;">RSVP</button>
-                  </form>
+                <form method="POST" action="/events/<%= ev.eventoccurrenceid %>/rsvp">
+                  <button type="submit" class="btn-login-home" style="padding:10px 14px; border-radius:10px;">RSVP</button>
+                </form>
                 <% } %>
               <% } else { %>
                 <a href="/login" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Login to RSVP</a>
