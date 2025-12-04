@@ -677,8 +677,26 @@ function requireManager(req, res, next) {
 ----------------------------- */
 
 // / -> views/index.ejs
-app.get('/', (req, res) => {
+app.get('/', async (req, res) => {
   const { donated, thanks, donor, amount, donorName, donorAmount } = req.query || {};
+
+  let milestoneHighlights = [];
+  try {
+    const { rows } = await pool.query(
+      `SELECT m.milestoneid,
+              m.milestonedate,
+              mc.milestonetitle AS title,
+              TRIM(COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,'')) AS participantname
+       FROM milestone m
+       JOIN milestonecatalog mc ON mc.milestonecatalogid = m.milestonecatalogid
+       LEFT JOIN participant p ON p.participantid = m.participantid
+       ORDER BY m.milestonedate DESC NULLS LAST, m.milestoneid DESC
+       LIMIT 7`
+    );
+    milestoneHighlights = rows || [];
+  } catch (err) {
+    console.error('Home milestone load error:', err);
+  }
 
   // Surface possible donation flash params to the view
   res.render('index', {
@@ -689,6 +707,7 @@ app.get('/', (req, res) => {
     amount,
     donorName,
     donorAmount,
+    milestoneHighlights,
   });
 });
 
