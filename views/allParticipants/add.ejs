@@ -111,16 +111,16 @@
         <div id="userFields" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:12px;">
           <div>
             <label style="font-weight:600; display:block; margin-bottom:.35rem;">Username (email)</label>
-            <input name="username" type="email" value="<%= participant.username || '' %>" style="width:100%; padding:12px; border-radius:10px;" placeholder="Optional">
+            <input name="username" type="email" value="<%= participant.username || '' %>" style="width:900%; padding:12px; border-radius:10px;" placeholder="Optional">
           </div>
           <div>
             <label style="font-weight:600; display:block; margin-bottom:.35rem;">Password</label>
-            <input name="password" type="text" value="" style="width:100%; padding:12px; border-radius:10px;" placeholder="Optional">
+            <input name="password" type="text" value="" style="width:90%; padding:12px; border-radius:10px;" placeholder="Optional">
           </div>
           <div>
             <label style="font-weight:600; display:block; margin-bottom:.35rem;">Role</label>
             <% const levelVal = ((participant.userLevel || participant.level || 'u').toString().toLowerCase()); %>
-            <select name="userLevel" style="width:100%; padding:12px; border-radius:10px;">
+            <select name="userLevel" style="width:90%; padding:12px; border-radius:10px;">
               <option value="u" <%= levelVal === 'u' ? 'selected' : '' %>>Common User</option>
               <option value="m" <%= levelVal === 'm' ? 'selected' : '' %>>Manager</option>
             </select>
