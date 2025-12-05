@@ -6,7 +6,7 @@
     <p class="muted" style="margin:.3rem 0 0 0;">Manager view of users and their linked participants.</p>
   </div>
   <div style="display:flex; gap:10px; flex-wrap:wrap;">
-    <a class="btn-login-home" href="/admin/users/add" style="padding:10px 16px; border-radius:10px; text-decoration:none; box-shadow:0 6px 14px rgba(0,0,0,0.08);">Add User</a>
+    <a class="btn-login-home" href="/admin/users/add" style="padding:10px 16px; border-radius:10px; text-decoration:none; box-shadow:0 6px 14px rgba(0,0,0,0.08);">Add Manager</a>
     <a class="btn-cream" href="/" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Back to Home</a>
   </div>
 </div>
@@ -14,8 +14,16 @@
 <form style="margin:6px 0 12px 0; display:flex; gap:8px; flex-wrap:wrap;" onsubmit="return false;">
   <label for="user-search" class="sr-only">Search users</label>
   <input id="user-search" type="text" placeholder="Quick search users..." style="width:100%; max-width:320px; padding:10px 12px; border:1px solid #d1d5db; border-radius:10px;">
+  <label style="display:flex; align-items:center; gap:6px; color:#374151;">
+    Role
+    <select id="user-role-filter" style="padding:8px 10px; border-radius:10px; border:1px solid #d1d5db;">
+      <option value="all">All</option>
+      <option value="m">Manager</option>
+      <option value="u">User</option>
+    </select>
+  </label>
   <button id="user-search-btn" class="btn-cream" style="padding:10px 14px; border-radius:10px;">Search</button>
-  <button id="user-clear-btn" class="btn-outline" style="padding:10px 14px; border-radius:10px;">Clear</button>
+  <button id="user-clear-btn" class="btn-cream" style="padding:10px 14px; border-radius:10px;">Clear</button>
 </form>
 <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
   <div style="color:#4b5563;">Showing <%= Math.min((pag.page - 1) * pag.pageSize + 1, pag.total || 0) %>–<%= Math.min(pag.page * pag.pageSize, pag.total || 0) %> of <%= pag.total || 0 %></div>
@@ -29,14 +37,14 @@
         <% }) %>
       </select>
     </label>
-    <div style="display:flex; gap:8px; flex-wrap:wrap;">
-      <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.page > 1 ? '' : 'disabled' %> onclick="this.form.page.value=1;"><< Start</button>
-      <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasPrev ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.max(1, pag.page - 1) %>;">&lt; Back</button>
-      <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasNext ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.min(pag.totalPages, pag.page + 1) %>;">Next &gt;</button>
-      <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.page < pag.totalPages ? '' : 'disabled' %> onclick="this.form.page.value=<%= pag.totalPages %>;">End >></button>
-    </div>
-  </form>
-</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px; background:#000; color:#fff;" <%= pag.page > 1 ? '' : 'disabled' %> onclick="this.form.page.value=1;"><< Start</button>
+        <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px; background:#000; color:#fff;" <%= pag.hasPrev ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.max(1, pag.page - 1) %>;">&lt; Back</button>
+        <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px; background:#000; color:#fff;" <%= pag.hasNext ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.min(pag.totalPages, pag.page + 1) %>;">Next &gt;</button>
+        <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px; background:#000; color:#fff;" <%= pag.page < pag.totalPages ? '' : 'disabled' %> onclick="this.form.page.value=<%= pag.totalPages %>;">End >></button>
+      </div>
+    </form>
+  </div>
 
   <% if (!users || users.length === 0) { %>
     <p style="color:#6b7280;">No users found.</p>
@@ -51,13 +59,12 @@
             <th scope="col" style="padding:10px;">Role</th>
             <th scope="col" style="padding:10px;">Participant</th>
             <th scope="col" style="padding:10px;">City / State</th>
-            <th scope="col" style="padding:10px;">Email</th>
             <th scope="col" style="padding:10px;">Actions</th>
           </tr>
         </thead>
         <tbody>
           <% users.forEach(u => { %>
-            <tr class="user-row" style="border-bottom:1px solid #f3f4f6;">
+            <tr class="user-row" data-role="<%= u.level %>" style="border-bottom:1px solid #f3f4f6;">
               <td style="padding:10px;"><%= u.userid %></td>
               <td style="padding:10px; font-weight:600;"><%= u.username %></td>
               <td style="padding:10px; text-transform:uppercase;"><%= u.level %></td>
@@ -70,7 +77,6 @@
                 <% } %>
               </td>
               <td style="padding:10px;"><%= [u.participantcity, u.participantstate].filter(Boolean).join(' ') %></td>
-              <td style="padding:10px;"><%= u.participantemail || '' %></td>
               <td style="padding:10px; display:flex; gap:6px; flex-wrap:wrap;">
                 <a href="/admin/users/<%= u.userid %>/edit" class="btn-cream" style="padding:8px 12px; border-radius:8px; text-decoration:none;">Edit</a>
                 <% const isSelf = currentUser && Number(currentUser.id) === Number(u.userid); %>
@@ -100,10 +106,10 @@
           </select>
         </label>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.page > 1 ? '' : 'disabled' %> onclick="this.form.page.value=1;"><< Start</button>
-          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasPrev ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.max(1, pag.page - 1) %>;">&lt; Back</button>
-          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasNext ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.min(pag.totalPages, pag.page + 1) %>;">Next &gt;</button>
-          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.page < pag.totalPages ? '' : 'disabled' %> onclick="this.form.page.value=<%= pag.totalPages %>;">End >></button>
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px; background:#000; color:#fff;" <%= pag.page > 1 ? '' : 'disabled' %> onclick="this.form.page.value=1;"><< Start</button>
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px; background:#000; color:#fff;" <%= pag.hasPrev ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.max(1, pag.page - 1) %>;">&lt; Back</button>
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px; background:#000; color:#fff;" <%= pag.hasNext ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.min(pag.totalPages, pag.page + 1) %>;">Next &gt;</button>
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px; background:#000; color:#fff;" <%= pag.page < pag.totalPages ? '' : 'disabled' %> onclick="this.form.page.value=<%= pag.totalPages %>;">End >></button>
         </div>
       </form>
     </div>
@@ -115,6 +121,7 @@
     const input = document.getElementById('user-search');
     const btn = document.getElementById('user-search-btn');
     const clearBtn = document.getElementById('user-clear-btn');
+    const roleSel = document.getElementById('user-role-filter');
     const rows = Array.from(document.querySelectorAll('#users-table .user-row'));
     if (!input || !btn || !clearBtn || rows.length === 0) return;
 
@@ -124,10 +131,15 @@
 
     const runFilter = () => {
       const q = input.value.trim().toLowerCase();
+      const role = (roleSel?.value || 'all').toLowerCase();
       sessionStorage.setItem(storageKey, input.value.trim());
+      if (roleSel) sessionStorage.setItem(storageKey + '-role', role);
       rows.forEach(r => {
         const text = r.innerText.toLowerCase();
-        r.style.display = q ? (text.includes(q) ? '' : 'none') : '';
+        const rRole = (r.dataset.role || '').toLowerCase();
+        const matchRole = role === 'all' || rRole === role;
+        const matchText = !q || text.includes(q);
+        r.style.display = (matchRole && matchText) ? '' : 'none';
       });
     };
     btn.addEventListener('click', (e) => { e.preventDefault(); runFilter(); });
@@ -135,11 +147,15 @@
     clearBtn.addEventListener('click', (e) => {
       e.preventDefault();
       input.value = '';
+      if (roleSel) roleSel.value = 'all';
       sessionStorage.removeItem(storageKey);
+      sessionStorage.removeItem(storageKey + '-role');
       rows.forEach(r => r.style.display = '');
     });
 
-    if (saved) runFilter();
+    const savedRole = sessionStorage.getItem(storageKey + '-role');
+    if (roleSel && savedRole) roleSel.value = savedRole;
+    if (saved || savedRole) runFilter();
   })();
 
   (function(){

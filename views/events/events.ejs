@@ -14,6 +14,7 @@
           : (_progressStage === 'Silver' ? '🥈' : '🥉'));
   %>
   <% const isAuthed = !!currentUser; const regSet = new Set((registeredEventIds || []).map(Number)); function fmtDate(d){ return d ? new Date(d).toLocaleString('en-US', { dateStyle:'medium', timeStyle:'short' }) : ''; } %>
+  <% const now = new Date(); %>
 
   <!-- Hero Card -->
   <section style="margin:0 0 2.25rem 0; width:82vw; position:relative; left:48%; transform:translateX(-50%);">
@@ -115,12 +116,12 @@
       <div>
         <h3 style="margin:0 0 .5rem 0; font-size:1.5rem;">Upcoming</h3>
         <div>
-          <input id="upcoming-search" type="search" placeholder="Quick search upcoming events..." style="width:100%; max-width:460px; padding:10px 12px; border-radius:10px; border:1px solid #d1d5db;">
+          <input id="upcoming-search" type="search" placeholder="Quick search..." style="width:100%; max-width:1260px; padding:10px 12px; border-radius:10px; border:1px solid #d1d5db;">
         </div>
       </div>
       <% if (typeof isManager !== 'undefined' && isManager) { %>
         <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-          <a href="/events/stats" class="btn-cream" style="padding:12px 16px; border-radius:10px; text-decoration:none;">Event Stats</a>
+          <a href="/events/stats" class="btn-login-home" style="padding:12px 16px; border-radius:10px; text-decoration:none;">Event Stats</a>
           <a href="/events/past" class="btn-cream" style="padding:12px 16px; border-radius:10px; text-decoration:none;">View Past Events</a>
           <a href="/events/new" class="btn-cream" style="padding:12px 16px; border-radius:10px; text-decoration:none;">Create Event</a>
           <a href="/event-templates" class="btn-cream" style="padding:12px 16px; border-radius:10px; text-decoration:none;">Manage Event Templates</a>
@@ -162,9 +163,14 @@
                     <button type="submit" class="btn-outline" style="padding:10px 14px; border-radius:10px; border:1px solid #dc2626; color:#dc2626;">Cancel RSVP</button>
                   </form>
                 <% } else { %>
-                <form method="POST" action="/events/<%= ev.eventoccurrenceid %>/rsvp">
-                  <button type="submit" class="btn-login-home" style="padding:10px 14px; border-radius:10px;">RSVP</button>
-                </form>
+                  <% const registrationClosed = ev.eventregistrationdeadline && new Date(ev.eventregistrationdeadline) < now; %>
+                  <% if (registrationClosed) { %>
+                    <button type="button" class="btn-cream" style="padding:10px 14px; border-radius:10px; background:#d1d5db; color:#4b5563; cursor:not-allowed;" disabled>Registration closed</button>
+                  <% } else { %>
+                    <form method="POST" action="/events/<%= ev.eventoccurrenceid %>/rsvp">
+                      <button type="submit" class="btn-login-home" style="padding:10px 14px; border-radius:10px;">RSVP</button>
+                    </form>
+                  <% } %>
                 <% } %>
               <% } else { %>
                 <a href="/login" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Login to RSVP</a>
@@ -173,7 +179,7 @@
               <% if (typeof isManager !== 'undefined' && isManager) { %>
                 <a href="/events/<%= ev.eventoccurrenceid %>/edit" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Edit</a>
                 <form method="POST" action="/events/<%= ev.eventoccurrenceid %>/delete" onsubmit="return confirm('Delete this event?');">
-                  <button type="submit" class="btn-outline" style="padding:10px 14px; border-radius:10px; border:1px solid #dc2626; color:#dc2626;">Delete</button>
+                  <button type="submit" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">Delete</button>
                 </form>
                 <a href="/events/<%= ev.eventoccurrenceid %>/attendees" class="btn-cream" style="padding:10px 14px; border-radius:10px; text-decoration:none;">View Attendees</a>
               <% } %>

@@ -9,7 +9,7 @@
       </div>
     <% } %>
 
-    <form method="POST" action="/event-templates" novalidate>
+    <form id="template-form" method="POST" action="/event-templates" novalidate>
       <div style="margin-bottom:1rem;">
         <label style="font-weight:600; display:block; margin-bottom:.35rem;">Event Type</label>
         <select name="eventtypeid" required style="width:100%; padding:12px; border-radius:10px;">
@@ -31,10 +31,18 @@
       </div>
 
       <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:1rem;">
-        <div>
-          <label style="font-weight:600; display:block; margin-bottom:.35rem;">Recurrence Pattern</label>
-          <input name="eventrecurrencepattern" type="text" placeholder="e.g., Weekly, Monthly" style="width:90%; padding:12px; border-radius:10px;">
-        </div>
+      <div>
+        <label style="font-weight:600; display:block; margin-bottom:.35rem;">Recurrence Pattern</label>
+        <select name="eventrecurrencepattern" id="recurrenceSelect" style="width:90%; padding:12px; border-radius:10px;">
+          <option value="">Select</option>
+          <option value="Weekly">Weekly</option>
+          <option value="Monthly">Monthly</option>
+          <option value="Quarterly">Quarterly</option>
+          <option value="Annually">Annually</option>
+          <option value="Other">Other</option>
+        </select>
+        <input name="eventrecurrencepattern_other" id="recurrenceOther" type="text" placeholder="Enter custom recurrence" style="width:90%; padding:12px; border-radius:10px; margin-top:8px; display:none;">
+      </div>
         <div>
           <label style="font-weight:600; display:block; margin-bottom:.35rem;">Default Capacity</label>
           <input name="eventdefaultcapacity" type="number" min="1" placeholder="e.g., 100" style="width:90%; padding:12px; border-radius:10px;">
@@ -48,3 +56,26 @@
     </form>
   </div>
 </main>
+
+<script>
+  (function(){
+    const recSel = document.getElementById('recurrenceSelect');
+    const recOther = document.getElementById('recurrenceOther');
+    if (recSel && recOther) {
+      const sync = () => {
+        const showOther = recSel.value === 'Other';
+        recOther.style.display = showOther ? 'block' : 'none';
+        if (showOther) {
+          recOther.name = 'eventrecurrencepattern';
+          recSel.name = 'eventrecurrencepattern_ignore';
+        } else {
+          recSel.name = 'eventrecurrencepattern';
+          recOther.name = 'eventrecurrencepattern_other';
+          recOther.value = '';
+        }
+      };
+      recSel.addEventListener('change', sync);
+      sync();
+    }
+  })();
+</script>

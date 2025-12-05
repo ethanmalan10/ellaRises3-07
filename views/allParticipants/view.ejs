@@ -1,5 +1,6 @@
-<main class="container main-content" style="max-width:1200px; margin-top:2.5rem;">
-  <% function calcAge(d){ if(!d) return '—'; const dob=new Date(d); if(Number.isNaN(dob)) return '—'; const now=new Date(); let age=now.getFullYear()-dob.getFullYear(); const m=now.getMonth()-dob.getMonth(); if(m<0||(m===0&&now.getDate()<dob.getDate())) age--; return age; } %>
+﻿<main class="container main-content" style="max-width:1200px; margin-top:2.5rem;">
+  <% function calcAge(d){ if(!d) return 'â€”'; const dob=new Date(d); if(Number.isNaN(dob)) return 'â€”'; const now=new Date(); let age=now.getFullYear()-dob.getFullYear(); const m=now.getMonth()-dob.getMonth(); if(m<0||(m===0&&now.getDate()<dob.getDate())) age--; return age; } %>
+  <% function fmtDateOnly(d){ try { return d ? new Date(d).toLocaleDateString() : 'N/A'; } catch(e){ return 'N/A'; } } %>
 
   <header style="display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:1.25rem; flex-wrap:wrap;">
     <div>
@@ -14,16 +15,17 @@
 
   <div class="card" style="padding:20px; border-radius:14px; border:1px solid #e5e7eb; background:#f9fafb; margin-bottom:1rem;">
     <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px,1fr)); gap:16px;">
-      <div><strong>Name</strong><br><%= [participant.participantfirstname, participant.participantlastname].filter(Boolean).join(' ') || '—' %></div>
+      <div><strong>Name</strong><br><%= [participant.participantfirstname, participant.participantlastname].filter(Boolean).join(' ') || 'â€”' %></div>
       <div><strong>Age</strong><br><%= calcAge(participant.participantdob) %></div>
-      <div><strong>Email</strong><br><%= participant.participantemail || '—' %></div>
-      <div><strong>Phone</strong><br><%= participant.participantphone || '—' %></div>
-      <div><strong>City</strong><br><%= participant.participantcity || '—' %></div>
-      <div><strong>State</strong><br><%= participant.participantstate || '—' %></div>
-      <div><strong>Zip</strong><br><%= participant.participantzip || '—' %></div>
-      <div><strong>Affiliation Type</strong><br><%= participant.participantaffiliationtype || '—' %></div>
-      <div><strong>Affiliation Name</strong><br><%= participant.participantaffiliationname || '—' %></div>
-      <div><strong>Field of Interest</strong><br><%= participant.participantfieldofinterest || '—' %></div>
+      <div><strong>Date of Birth</strong><br><%= fmtDateOnly(participant.participantdob) %></div>
+      <div><strong>Email</strong><br><%= participant.participantemail || 'â€”' %></div>
+      <div><strong>Phone</strong><br><%= participant.participantphone || 'â€”' %></div>
+      <div><strong>City</strong><br><%= participant.participantcity || 'â€”' %></div>
+      <div><strong>State</strong><br><%= participant.participantstate || 'â€”' %></div>
+      <div><strong>Zip</strong><br><%= participant.participantzip || 'â€”' %></div>
+      <div><strong>Affiliation Type</strong><br><%= participant.participantaffiliationtype || 'â€”' %></div>
+      <div><strong>Affiliation Name</strong><br><%= participant.participantaffiliationname || 'â€”' %></div>
+      <div><strong>Field of Interest</strong><br><%= participant.participantfieldofinterest || 'â€”' %></div>
       <div><strong>Total Donations</strong><br><%= participant.totaldonations || 0 %></div>
     </div>
   </div>
@@ -45,7 +47,7 @@
     <% } else { %>
       <ul style="margin:0; padding-left:18px; color:#374151;">
         <% milestones.forEach(m => { %>
-          <li><strong><%= m.milestonetitle %></strong> <% if (m.milestonedate) { %> — <%= m.milestonedate %> <% } %></li>
+          <li><strong><%= m.milestonetitle %></strong><% if (m.milestonedate) { %> — <%= new Date(m.milestonedate).toLocaleDateString() %> <% } %></li>
         <% }) %>
       </ul>
     <% } %>
@@ -95,3 +97,6 @@
     <% } %>
   </div>
 </main>
+
+
+
