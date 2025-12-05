@@ -177,7 +177,7 @@ async function getSurveysForParticipant(participantId) {
             s.surveycomments AS comments,
             s.surveysubmissiondate AS submittedAt,
             TRIM(BOTH ' ' FROM NULLIF(COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,''), '')) AS participantName,
-            TRIM(BOTH ' ' FROM NULLIF(COALESCE(u.userfirstname,'') || ' ' || COALESCE(u.userlastname,''), '')) AS userName,
+            TRIM(BOTH ' ' FROM NULLIF(u.username, '')) AS userName,
             u.username AS userEmail,
             et.eventname AS eventName
      FROM survey s
@@ -206,7 +206,7 @@ async function getAllSurveys() {
             s.surveycomments AS comments,
             s.surveysubmissiondate AS submittedAt,
             TRIM(BOTH ' ' FROM NULLIF(COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,''), '')) AS participantName,
-            TRIM(BOTH ' ' FROM NULLIF(COALESCE(u.userfirstname,'') || ' ' || COALESCE(u.userlastname,''), '')) AS userName,
+            TRIM(BOTH ' ' FROM NULLIF(u.username, '')) AS userName,
             u.username AS userEmail,
             et.eventname AS eventName
      FROM survey s
@@ -233,7 +233,7 @@ async function getSurveyById(id) {
             s.surveycomments AS comments,
             s.surveysubmissiondate AS submittedAt,
             TRIM(BOTH ' ' FROM NULLIF(COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,''), '')) AS participantName,
-            TRIM(BOTH ' ' FROM NULLIF(COALESCE(u.userfirstname,'') || ' ' || COALESCE(u.userlastname,''), '')) AS userName,
+            TRIM(BOTH ' ' FROM NULLIF(u.username, '')) AS userName,
             u.username AS userEmail,
             et.eventname AS eventName
      FROM survey s
@@ -3190,7 +3190,8 @@ app.post('/participants/new', requireManager, async (req, res) => {
 
     const newUserLevel = normalizeUserLevel(userLevel);
 
-    if (createUser && username && password) {
+    // If login credentials were provided, create a linked user for this participant
+    if (username && password) {
       await client.query(
         `INSERT INTO users (username, password, level, participantid)
          VALUES ($1, $2, $3, $4)`,
