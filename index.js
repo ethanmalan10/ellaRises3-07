@@ -1,4 +1,8 @@
 // index.js
+/* Entry point for the Ella Rises app.
+   - Sets up Express, sessions, and EJS layouts.
+   - Configures the Postgres pool and shared helpers.
+   - Defines routes for auth, participants, events, surveys, and admin flows. */
 require('dotenv').config();
 
 const path = require('path');
