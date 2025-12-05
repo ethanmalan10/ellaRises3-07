@@ -2086,6 +2086,30 @@ app.get('/events/occurrences/:id/attendance', requireManager, async (req, res) =
   }
 });
 
+// Delete a specific attendance/registration record
+app.post('/events/occurrences/:id/attendance/:registrationId/delete', requireManager, async (req, res) => {
+  const occurrenceId = Number(req.params.id);
+  const registrationId = Number(req.params.registrationId);
+  const back = req.query.back || `/events/occurrences/${occurrenceId}/attendance`;
+  if (!occurrenceId || !registrationId) return res.redirect(back);
+
+  try {
+    const result = await pool.query(
+      'DELETE FROM registration WHERE registrationid = $1 AND eventoccurrenceid = $2',
+      [registrationId, occurrenceId]
+    );
+
+    if (result.rowCount === 0) {
+      console.warn('No registration deleted for', { registrationId, occurrenceId });
+    }
+
+    return res.redirect(back);
+  } catch (err) {
+    console.error('Delete attendance error:', err);
+    return res.redirect(back);
+  }
+});
+
 // Dashboard with basic KPIs
 app.get('/dashboard', requireManager, async (_req, res) => {
   const embedUrl =

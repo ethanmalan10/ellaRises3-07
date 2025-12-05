@@ -50,10 +50,10 @@
         </label>
 
         <label style="display:flex; flex-direction:column; gap:4px; min-width:200px; flex:1;">
-          <span style="color:#4b5563; font-size:.9rem;">Direction</span>
+          <span style="color:#4b5563; font-size:.9rem;">Sort by</span>
           <select name="sortDir" style="padding:12px 12px; border-radius:10px; border:1px solid #d1d5db; width:100%;">
-            <option value="desc" <%= (!filters || filters.sortDir !== 'asc') ? 'selected' : '' %>>High to low</option>
-            <option value="asc" <%= filters && filters.sortDir === 'asc' ? 'selected' : '' %>>Low to high</option>
+            <option value="asc" <%= filters && filters.sortDir === 'asc' ? 'selected' : '' %>>A to Z (first name)</option>
+            <option value="desc" <%= (!filters || filters.sortDir !== 'asc') ? 'selected' : '' %>>Z to A (first name)</option>
           </select>
         </label>
 
@@ -129,7 +129,7 @@
                ].join(' ').toLowerCase();
           %>
             <tr class="participant-row" data-search="<%= searchBlob %>" style="border-bottom:1px solid #f3f4f6;">
-              <% function capWords(str){ if(!str) return '?'; return str.split(/\\s+/).map(w => w ? w[0].toUpperCase()+w.slice(1).toLowerCase() : '').join(' ').trim(); } %>
+              <% function capWords(str){ if(!str) return '?'; return str.split(/\s+/).map(w => w ? w[0].toUpperCase()+w.slice(1).toLowerCase() : '').join(' ').trim(); } %>
               <td style="padding:8px;"><%= capWords([p.participantfirstname, p.participantlastname].filter(Boolean).join(' ')) || '?' %></td>
               <td style="padding:8px;"><%= calcAge(p.participantdob) %></td>
               <td style="padding:8px;"><%= capWords(p.participantcity) || '?' %></td>
