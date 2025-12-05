@@ -172,10 +172,13 @@ async function getSurveysForParticipant(participantId) {
             s.surveynpsbucket AS npsBucket,
             s.surveycomments AS comments,
             s.surveysubmissiondate AS submittedAt,
-            TRIM(BOTH ' ' FROM COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,'')) AS participantName,
+            TRIM(BOTH ' ' FROM NULLIF(COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,''), '')) AS participantName,
+            TRIM(BOTH ' ' FROM NULLIF(COALESCE(u.userfirstname,'') || ' ' || COALESCE(u.userlastname,''), '')) AS userName,
+            u.username AS userEmail,
             et.eventname AS eventName
      FROM survey s
      LEFT JOIN participant p ON s.participantid = p.participantid
+     LEFT JOIN users u ON u.participantid = s.participantid
      LEFT JOIN eventoccurrence eo ON eo.eventoccurrenceid = s.eventoccurrenceid
      LEFT JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
      WHERE s.participantid = $1
@@ -198,10 +201,13 @@ async function getAllSurveys() {
             s.surveynpsbucket AS npsBucket,
             s.surveycomments AS comments,
             s.surveysubmissiondate AS submittedAt,
-            TRIM(BOTH ' ' FROM COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,'')) AS participantName,
+            TRIM(BOTH ' ' FROM NULLIF(COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,''), '')) AS participantName,
+            TRIM(BOTH ' ' FROM NULLIF(COALESCE(u.userfirstname,'') || ' ' || COALESCE(u.userlastname,''), '')) AS userName,
+            u.username AS userEmail,
             et.eventname AS eventName
      FROM survey s
      LEFT JOIN participant p ON s.participantid = p.participantid
+     LEFT JOIN users u ON u.participantid = s.participantid
      LEFT JOIN eventoccurrence eo ON eo.eventoccurrenceid = s.eventoccurrenceid
      LEFT JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
      ORDER BY s.surveysubmissiondate DESC`
@@ -222,10 +228,13 @@ async function getSurveyById(id) {
             s.surveynpsbucket AS npsBucket,
             s.surveycomments AS comments,
             s.surveysubmissiondate AS submittedAt,
-            TRIM(BOTH ' ' FROM COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,'')) AS participantName,
+            TRIM(BOTH ' ' FROM NULLIF(COALESCE(p.participantfirstname,'') || ' ' || COALESCE(p.participantlastname,''), '')) AS participantName,
+            TRIM(BOTH ' ' FROM NULLIF(COALESCE(u.userfirstname,'') || ' ' || COALESCE(u.userlastname,''), '')) AS userName,
+            u.username AS userEmail,
             et.eventname AS eventName
      FROM survey s
      LEFT JOIN participant p ON s.participantid = p.participantid
+     LEFT JOIN users u ON u.participantid = s.participantid
      LEFT JOIN eventoccurrence eo ON eo.eventoccurrenceid = s.eventoccurrenceid
      LEFT JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
      WHERE s.surveyid = $1
@@ -316,22 +325,35 @@ async function insertSurvey({
   throw new Error('Could not insert survey after retries.');
 }
 
-async function updateSurveyRecord(id, { satisfaction, usefulness, instructor, recommendation, comments }) {
+async function updateSurveyRecord(id, { participantId, eventoccurrenceid, satisfaction, usefulness, instructor, recommendation, comments }) {
   const overall = Number(((satisfaction + usefulness + instructor + recommendation) / 4).toFixed(2));
   const npsBucket =
     recommendation >= 4 ? 'Promoter' : recommendation === 3 ? 'Passive' : 'Detractor';
 
   await pool.query(
     `UPDATE survey
-     SET surveysatisfactionscore = $1,
-         surveyusefulnessscore = $2,
-         surveyinstructorscore = $3,
-         surveyrecommendationscore = $4,
-         surveyoverallscore = $5,
-         surveynpsbucket = $6,
-         surveycomments = $7
-     WHERE surveyid = $8`,
-    [satisfaction, usefulness, instructor, recommendation, overall, npsBucket, comments || null, id]
+     SET participantid = $1,
+         eventoccurrenceid = $2,
+         surveysatisfactionscore = $3,
+         surveyusefulnessscore = $4,
+         surveyinstructorscore = $5,
+         surveyrecommendationscore = $6,
+         surveyoverallscore = $7,
+         surveynpsbucket = $8,
+         surveycomments = $9
+     WHERE surveyid = $10`,
+    [
+      participantId,
+      eventoccurrenceid,
+      satisfaction,
+      usefulness,
+      instructor,
+      recommendation,
+      overall,
+      npsBucket,
+      comments || null,
+      id,
+    ]
   );
 }
 
@@ -3911,9 +3933,40 @@ app.get('/admin/surveys/:id/edit', requireManager, async (req, res) => {
   try {
     const survey = await getSurveyById(req.params.id);
     if (!survey) return res.status(404).send('Survey not found');
+
+    // Load participants and events for dropdowns
+    const [participantsRes, eventsRes] = await Promise.all([
+      pool.query(
+        `SELECT participantid,
+                TRIM(BOTH ' ' FROM NULLIF(COALESCE(participantfirstname,'') || ' ' || COALESCE(participantlastname,''), '')) AS name,
+                participantemail
+         FROM participant
+         ORDER BY participantlastname NULLS LAST, participantfirstname NULLS LAST`
+      ),
+      pool.query(
+        `SELECT eo.eventoccurrenceid,
+                et.eventname,
+                eo.eventdatetimestart
+         FROM eventoccurrence eo
+         JOIN eventtemplate et ON eo.eventtemplateid = et.eventtemplateid
+         ORDER BY eo.eventdatetimestart DESC NULLS LAST, eo.eventoccurrenceid DESC`
+      ),
+    ]);
+
+    const participants = participantsRes.rows.map(r => ({
+      id: r.participantid,
+      label: r.name && r.name.trim().length ? r.name : (r.participantemail || `Participant #${r.participantid}`),
+    }));
+    const events = eventsRes.rows.map(r => ({
+      id: r.eventoccurrenceid,
+      label: r.eventname || `Event #${r.eventoccurrenceid}`,
+    }));
+
     res.render(path.join('Surveys', 'manSurveys_edit'), {
       title: 'Edit Survey',
       survey,
+      participants,
+      events,
     });
   } catch (err) {
     console.error('Admin survey edit load error:', err);
@@ -3923,7 +3976,12 @@ app.get('/admin/surveys/:id/edit', requireManager, async (req, res) => {
 
 app.post('/admin/surveys/:id/edit', requireManager, async (req, res) => {
   try {
-    const { satisfaction, usefulness, instructor, recommendation, comments } = req.body;
+    const { participantId, eventoccurrenceid, satisfaction, usefulness, instructor, recommendation, comments } = req.body;
+    const participantNum = Number(participantId);
+    const eventNum = Number(eventoccurrenceid);
+    if (!participantNum || Number.isNaN(participantNum) || !eventNum || Number.isNaN(eventNum)) {
+      return res.status(400).send('Participant and event are required');
+    }
     const sat = Number(satisfaction);
     const use = Number(usefulness);
     const instr = Number(instructor);
@@ -3934,6 +3992,8 @@ app.post('/admin/surveys/:id/edit', requireManager, async (req, res) => {
     }
 
     await updateSurveyRecord(req.params.id, {
+      participantId: participantNum,
+      eventoccurrenceid: eventNum,
       satisfaction: Math.max(1, Math.min(5, sat)),
       usefulness: Math.max(1, Math.min(5, use)),
       instructor: Math.max(1, Math.min(5, instr)),

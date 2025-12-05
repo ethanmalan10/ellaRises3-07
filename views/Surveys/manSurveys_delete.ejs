@@ -2,8 +2,15 @@
 <section class="main-content" style="max-width: 640px; margin: 0 auto;">
   <div class="card" style="padding: 28px; border-radius: 18px;">
     <h2 style="margin:0 0 12px 0; font-family: var(--font-serif); color: #a33;">Delete Survey</h2>
+    <% const displayName = (survey.participantName && survey.participantName.trim().length)
+      ? survey.participantName
+      : ((survey.userName && survey.userName.trim().length)
+          ? survey.userName
+          : ((survey.userEmail && survey.userEmail.trim().length)
+              ? survey.userEmail
+              : 'Unknown participant')); %>
     <p style="margin:0 0 20px 0; color:var(--charcoal); opacity:0.8;">
-      Are you sure you want to delete the survey from <strong><%= survey.participantName %></strong> about <strong><%= survey.eventName %></strong>?
+      Are you sure you want to delete the survey from <strong><%= displayName %></strong> about <strong><%= survey.eventName %></strong>?
     </p>
 
     <form method="POST" action="/admin/surveys/<%= survey.id %>/delete" style="display:flex; gap:12px; flex-wrap:wrap;">

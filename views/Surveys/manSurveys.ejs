@@ -58,6 +58,13 @@
              const evLabelRaw = s.eventName || s.eventname || (s.eventoccurrenceid ? `Event #${s.eventoccurrenceid}` : 'Unknown event');
              const evLabel = evLabelRaw || 'Unknown event';
              const submittedAt = s.submittedAt || s.surveysubmissiondate;
+             const displayName = (s.participantName && s.participantName.trim().length)
+               ? s.participantName
+               : ((s.userName && s.userName.trim().length)
+                    ? s.userName
+                    : ((s.userEmail && s.userEmail.trim().length)
+                        ? s.userEmail
+                        : 'Unknown participant'));
         %>
           <div 
             class="survey-card" 
@@ -67,7 +74,7 @@
           >
             <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
               <div>
-                <p style="margin:0; font-weight:700; color:var(--charcoal);"><%= s.participantName || 'Unknown participant' %></p>
+                <p style="margin:0; font-weight:700; color:var(--charcoal);"><%= displayName %></p>
                 <p style="margin:0; color:var(--charcoal); opacity:0.7;">Event: <%= evLabel %></p>
                 <% const submitted = submittedAt ? new Date(submittedAt) : null; %>
                 <p style="margin:0; color:var(--charcoal); opacity:0.6;">Submitted: <%= submitted && !Number.isNaN(submitted.valueOf()) ? submitted.toLocaleDateString() : 'N/A' %></p>

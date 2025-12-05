@@ -2,23 +2,35 @@
 <section class="main-content" style="max-width: 720px; margin: 0 auto;">
   <div class="card" style="padding: 28px; border-radius: 18px;">
     <h2 style="margin:0 0 12px 0; font-family: var(--font-serif);">Edit Survey</h2>
+    <% const displayName = (survey.participantName && survey.participantName.trim().length)
+      ? survey.participantName
+      : ((survey.userName && survey.userName.trim().length)
+          ? survey.userName
+          : ((survey.userEmail && survey.userEmail.trim().length)
+              ? survey.userEmail
+              : 'Unknown participant')); %>
+
     <p style="margin:0 0 20px 0; color:var(--charcoal); opacity:0.8;">
       Update details below and save.
     </p>
 
     <form method="POST" action="/admin/surveys/<%= survey.id %>/edit" style="display:grid; gap:14px;">
       <div>
-        <label style="font-weight:600; display:block; margin-bottom:.35rem;">Participant</label>
-        <div style="padding:12px; border-radius:10px; background:#f7f7f7;">
-          <%= survey.participantName || 'Unknown participant' %>
-        </div>
+        <label for="participantId" style="font-weight:600; display:block; margin-bottom:.35rem;">Participant</label>
+        <select id="participantId" name="participantId" required style="width:100%; padding:12px; border-radius:10px;">
+          <% (participants || []).forEach(p => { %>
+            <option value="<%= p.id %>" <%= Number(p.id) === Number(survey.participantid) ? 'selected' : '' %>><%= p.label %></option>
+          <% }) %>
+        </select>
       </div>
 
       <div>
-        <label style="font-weight:600; display:block; margin-bottom:.35rem;">Event</label>
-        <div style="padding:12px; border-radius:10px; background:#f7f7f7;">
-          <%= survey.eventName || 'Unknown event' %>
-        </div>
+        <label for="eventoccurrenceid" style="font-weight:600; display:block; margin-bottom:.35rem;">Event</label>
+        <select id="eventoccurrenceid" name="eventoccurrenceid" required style="width:100%; padding:12px; border-radius:10px;">
+          <% (events || []).forEach(ev => { %>
+            <option value="<%= ev.id %>" <%= Number(ev.id) === Number(survey.eventoccurrenceid) ? 'selected' : '' %>><%= ev.label %></option>
+          <% }) %>
+        </select>
       </div>
 
       <div>
