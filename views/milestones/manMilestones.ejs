@@ -86,8 +86,8 @@
                     <%= (milestoneCounts && typeof milestoneCounts[c.id] !== 'undefined') ? milestoneCounts[c.id] : 0 %>
                   </td>
                   <td style="padding:8px; display:flex; gap:8px;">
-                    <a href="/admin/milestones/<%= c.id %>/edit" style="text-decoration:none; color:#1565c0;">Edit</a>
-                    <a href="/admin/milestones/<%= c.id %>/delete" style="text-decoration:none; color:#b71c1c;">Delete</a>
+                    <a href="/admin/milestones/<%= c.id %>/edit" style="text-decoration:none; color:#1565c0; padding:6px 10px; border-radius:8px; background:transparent; border:1px solid #cbd5e1;">View</a>
+                    <a href="/admin/milestones/<%= c.id %>/delete" style="text-decoration:none; color:#b71c1c; padding:6px 10px; border-radius:8px; background:transparent; border:1px solid #fca5a5;">Delete</a>
                   </td>
                 </tr>
               <% }) %>
