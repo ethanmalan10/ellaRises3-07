@@ -78,10 +78,10 @@
           <option value="25" selected>25</option>
           <option value="50">50</option>
         </select>
-        <button type="button" id="occ-start-btn" class="btn-login-home" style="padding:8px 12px; border-radius:10px;">« Start</button>
-        <button type="button" id="occ-back-btn" class="btn-login-home" style="padding:8px 12px; border-radius:10px;">‹ Back</button>
-        <button type="button" id="occ-next-btn" class="btn-login-home" style="padding:8px 12px; border-radius:10px;">Next ›</button>
-        <button type="button" id="occ-end-btn" class="btn-login-home" style="padding:8px 12px; border-radius:10px;">End »</button>
+        <button type="button" id="occ-start-btn" class="btn-cream" style="padding:8px 12px; border-radius:10px; background:#000; color:#fff;">« Start</button>
+        <button type="button" id="occ-back-btn" class="btn-cream" style="padding:8px 12px; border-radius:10px; background:#000; color:#fff;">‹ Back</button>
+        <button type="button" id="occ-next-btn" class="btn-cream" style="padding:8px 12px; border-radius:10px; background:#000; color:#fff;">Next ›</button>
+        <button type="button" id="occ-end-btn" class="btn-cream" style="padding:8px 12px; border-radius:10px; background:#000; color:#fff;">End »</button>
       </div>
     </div>
 
@@ -116,7 +116,7 @@
                 <td style="padding:12px; text-align:center;"><%= ev.avg_satisfaction !== null ? Number(ev.avg_satisfaction).toFixed(2) : '—' %></td>
                 <td style="padding:12px; text-align:center;"><%= ev.avg_overall !== null ? Number(ev.avg_overall).toFixed(2) : '—' %></td>
                 <td style="padding:12px; text-align:center;">
-                  <a class="btn-login-home" style="padding:8px 10px; border-radius:10px; text-decoration:none;" href="/events/occurrences/<%= ev.eventoccurrenceid %>/attendance">View attendance</a>
+                  <a class="btn-cream" style="background:#000; color:#fff;" style="padding:8px 10px; border-radius:10px; text-decoration:none;" href="/events/occurrences/<%= ev.eventoccurrenceid %>/attendance">View attendance</a>
                 </td>
               </tr>
             <% }); %>

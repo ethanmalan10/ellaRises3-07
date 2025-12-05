@@ -18,11 +18,12 @@
           <th style="padding:12px; text-align:left;">Status</th>
           <th style="padding:12px; text-align:left;">Check-in</th>
           <th style="padding:12px; text-align:left;">Details</th>
+          <th style="padding:12px; text-align:left;">Delete</th>
         </tr>
       </thead>
       <tbody>
         <% if (!attendees || !attendees.length) { %>
-          <tr><td colspan="5" style="padding:14px; text-align:center; color:#6b7280;">No registrations found.</td></tr>
+          <tr><td colspan="6" style="padding:14px; text-align:center; color:#6b7280;">No registrations found.</td></tr>
         <% } else { %>
           <% attendees.forEach(a => { %>
             <tr style="border-top:1px solid #f1f2f5;">
@@ -36,6 +37,11 @@
                 <% } else { %>
                   <span style="color:#6b7280;">N/A</span>
                 <% } %>
+              </td>
+              <td style="padding:12px;">
+                <form method="POST" action="/events/occurrences/<%= occurrence.eventoccurrenceid %>/attendance/<%= a.registrationid %>/delete?<%= backUrl ? 'back=' + encodeURIComponent(backUrl) : '' %>" onsubmit="return confirm('Delete this attendee?');">
+                  <button type="submit" class="btn-cream" style="padding:8px 10px; border-radius:10px;">Delete</button>
+                </form>
               </td>
             </tr>
           <% }); %>

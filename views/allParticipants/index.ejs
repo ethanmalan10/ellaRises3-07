@@ -95,10 +95,10 @@
           </select>
         </label>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.page > 1 ? '' : 'disabled' %> onclick="this.form.page.value=1;"><< Start</button>
-          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasPrev ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.max(1, pag.page - 1) %>;">&lt; Back</button>
-          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasNext ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.min(pag.totalPages, pag.page + 1) %>;">Next &gt;</button>
-          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.page < pag.totalPages ? '' : 'disabled' %> onclick="this.form.page.value=<%= pag.totalPages %>;">End >></button>
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px; background:#000; color:#fff;" <%= pag.page > 1 ? '' : 'disabled' %> onclick="this.form.page.value=1;"><< Start</button>
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px; background:#000; color:#fff;" <%= pag.hasPrev ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.max(1, pag.page - 1) %>;">&lt; Back</button>
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px; background:#000; color:#fff;" <%= pag.hasNext ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.min(pag.totalPages, pag.page + 1) %>;">Next &gt;</button>
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px; background:#000; color:#fff;" <%= pag.page < pag.totalPages ? '' : 'disabled' %> onclick="this.form.page.value=<%= pag.totalPages %>;">End >></button>
         </div>
       </form>
     </div>
@@ -129,9 +129,10 @@
                ].join(' ').toLowerCase();
           %>
             <tr class="participant-row" data-search="<%= searchBlob %>" style="border-bottom:1px solid #f3f4f6;">
-              <td style="padding:8px;"><%= [p.participantfirstname, p.participantlastname].filter(Boolean).join(' ') || '?' %></td>
+              <% function capWords(str){ if(!str) return '?'; return str.split(/\\s+/).map(w => w ? w[0].toUpperCase()+w.slice(1).toLowerCase() : '').join(' ').trim(); } %>
+              <td style="padding:8px;"><%= capWords([p.participantfirstname, p.participantlastname].filter(Boolean).join(' ')) || '?' %></td>
               <td style="padding:8px;"><%= calcAge(p.participantdob) %></td>
-              <td style="padding:8px;"><%= p.participantcity || '?' %></td>
+              <td style="padding:8px;"><%= capWords(p.participantcity) || '?' %></td>
               <td style="padding:8px; text-align:center; font-weight:600;"><%= p.events_attended || 0 %></td>
               <td style="padding:8px; text-align:center; font-weight:600;"><%= p.surveys_completed || 0 %></td>
               <td style="padding:8px; text-align:center; font-weight:600;"><%= p.milestones_completed || 0 %></td>
@@ -168,13 +169,13 @@
           </select>
         </label>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.page > 1 ? '' : 'disabled' %> onclick="this.form.page.value=1;"><< Start</button>
-          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasPrev ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.max(1, pag.page - 1) %>;">&lt; Back</button>
-          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.hasNext ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.min(pag.totalPages, pag.page + 1) %>;">Next &gt;</button>
-          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px;" <%= pag.page < pag.totalPages ? '' : 'disabled' %> onclick="this.form.page.value=<%= pag.totalPages %>;">End >></button>
-        </div>
-      </form>
-    </div>
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px; background:#000; color:#fff;" <%= pag.page > 1 ? '' : 'disabled' %> onclick="this.form.page.value=1;"><< Start</button>
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px; background:#000; color:#fff;" <%= pag.hasPrev ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.max(1, pag.page - 1) %>;">&lt; Back</button>
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px; background:#000; color:#fff;" <%= pag.hasNext ? '' : 'disabled' %> onclick="this.form.page.value=<%= Math.min(pag.totalPages, pag.page + 1) %>;">Next &gt;</button>
+          <button type="submit" class="btn-cream" style="padding:8px 12px; border-radius:10px; background:#000; color:#fff;" <%= pag.page < pag.totalPages ? '' : 'disabled' %> onclick="this.form.page.value=<%= pag.totalPages %>;">End >></button>
+      </div>
+    </form>
+  </div>
   <% } %>
 </main>
 

@@ -10,7 +10,7 @@
       </div>
     <% } %>
 
-    <form method="POST" action="/event-templates/<%= template.eventtemplateid %>/edit" novalidate>
+    <form id="template-form" method="POST" action="/event-templates/<%= template.eventtemplateid %>/edit" novalidate>
       <div style="margin-bottom:1rem;">
         <label style="font-weight:600; display:block; margin-bottom:.35rem;">Event Type</label>
         <select name="eventtypeid" required style="width:100%; padding:12px; border-radius:10px;">
@@ -31,10 +31,19 @@
       </div>
 
       <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:1rem;">
-        <div>
-          <label style="font-weight:600; display:block; margin-bottom:.35rem;">Recurrence Pattern</label>
-          <input name="eventrecurrencepattern" type="text" value="<%= val(template.eventrecurrencepattern) %>" placeholder="e.g., Weekly, Monthly" style="width:90%; padding:12px; border-radius:10px;">
-        </div>
+      <div>
+        <label style="font-weight:600; display:block; margin-bottom:.35rem;">Recurrence Pattern</label>
+        <% const rec = (template.eventrecurrencepattern || '').toLowerCase(); %>
+        <select name="eventrecurrencepattern" id="recurrenceSelect" style="width:90%; padding:12px; border-radius:10px;">
+          <option value="">Select</option>
+          <option value="Weekly" <%= rec === 'weekly' ? 'selected' : '' %>>Weekly</option>
+          <option value="Monthly" <%= rec === 'monthly' ? 'selected' : '' %>>Monthly</option>
+          <option value="Quarterly" <%= rec === 'quarterly' ? 'selected' : '' %>>Quarterly</option>
+          <option value="Annually" <%= rec === 'annually' ? 'selected' : '' %>>Annually</option>
+          <option value="Other" <%= rec && ['weekly','monthly','quarterly','annually'].indexOf(rec) === -1 ? 'selected' : '' %>>Other</option>
+        </select>
+        <input name="eventrecurrencepattern_other" id="recurrenceOther" type="text" value="<%= rec && ['weekly','monthly','quarterly','annually'].indexOf(rec) === -1 ? template.eventrecurrencepattern : '' %>" placeholder="Enter custom recurrence" style="width:90%; padding:12px; border-radius:10px; margin-top:8px; display:<%= rec && ['weekly','monthly','quarterly','annually'].indexOf(rec) === -1 ? 'block' : 'none' %>;">
+      </div>
         <div>
           <label style="font-weight:600; display:block; margin-bottom:.35rem;">Default Capacity</label>
           <input name="eventdefaultcapacity" type="number" min="1" value="<%= val(template.eventdefaultcapacity) %>" placeholder="e.g., 100" style="width:90%; padding:12px; border-radius:10px;">
@@ -48,3 +57,26 @@
     </form>
   </div>
 </main>
+
+<script>
+  (function(){
+    const recSel = document.getElementById('recurrenceSelect');
+    const recOther = document.getElementById('recurrenceOther');
+    if (recSel && recOther) {
+      const sync = () => {
+        const showOther = recSel.value === 'Other';
+        recOther.style.display = showOther ? 'block' : 'none';
+        if (showOther) {
+          recOther.name = 'eventrecurrencepattern';
+          recSel.name = 'eventrecurrencepattern_ignore';
+        } else {
+          recSel.name = 'eventrecurrencepattern';
+          recOther.name = 'eventrecurrencepattern_other';
+          recOther.value = '';
+        }
+      };
+      recSel.addEventListener('change', sync);
+      sync();
+    }
+  })();
+</script>
